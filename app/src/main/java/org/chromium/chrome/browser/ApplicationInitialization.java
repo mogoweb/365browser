@@ -35,10 +35,12 @@ public final class ApplicationInitialization {
         if (commandLine.hasSwitch(ChromeSwitches.DISABLE_FULLSCREEN)) return;
 
         TypedValue threshold = new TypedValue();
-        resources.getValue(R.floats.top_controls_show_threshold, threshold, true);
+        // TODO:(alex)
+//        resources.getValue(R.floats.top_controls_show_threshold, threshold, true);
         commandLine.appendSwitchWithValue(
                 ContentSwitches.TOP_CONTROLS_SHOW_THRESHOLD, threshold.coerceToString().toString());
-        resources.getValue(R.floats.top_controls_hide_threshold, threshold, true);
+        // TODO:(alex)
+//        resources.getValue(R.floats.top_controls_hide_threshold, threshold, true);
         commandLine.appendSwitchWithValue(
                 ContentSwitches.TOP_CONTROLS_HIDE_THRESHOLD, threshold.coerceToString().toString());
     }

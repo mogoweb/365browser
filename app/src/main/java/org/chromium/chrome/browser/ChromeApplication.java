@@ -431,7 +431,8 @@ public class ChromeApplication extends ContentApplication {
     protected void initializeLibraryDependencies() {
         // The ResourceExtractor is only needed by the browser process, but this will have no
         // impact on the renderer process construction.
-        ResourceBundle.initializeLocalePaks(this, R.array.locale_paks);
+        // TODO:(alex)
+//        ResourceBundle.initializeLocalePaks(this, R.array.locale_paks);
         if (!BuildInfo.hasLanguageApkSplits(this)) {
             ResourceExtractor.setResourcesToExtract(ResourceBundle.getActiveLocaleResources());
         }

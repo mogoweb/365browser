@@ -4,6 +4,8 @@ android {
     compileSdkVersion 23
     buildToolsVersion "23.0.0"
 
+    enforceUniquePackageName false
+
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 23

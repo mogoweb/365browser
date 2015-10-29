@@ -72,6 +72,32 @@
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/dex" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/dex-cache" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support/design/23.0.1/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support/recyclerview-v7/23.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support/support-v13/23.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-ads/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-analytics/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-appindexing/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-appinvite/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-appstate/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-base/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-basement/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-cast/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-drive/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-fitness/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-games/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-gcm/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-identity/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-location/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-maps/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-measurement/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-nearby/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-panorama/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-plus/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-safetynet/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-vision/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-wallet/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services-wearable/8.1.0/jars" />
+      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.google.android.gms/play-services/8.1.0/jars" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/incremental" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/jacoco" />
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/javaResources" />
@@ -89,49 +115,77 @@
     </content>
     <orderEntry type="jdk" jdkName="Android API 23 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="base_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-base-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="gcm_driver_java" level="project" />
-    <orderEntry type="library" exported="" name="android_media_java" level="project" />
     <orderEntry type="library" exported="" name="blink_headers_java" level="project" />
-    <orderEntry type="library" exported="" name="android_webview_java" level="project" />
-    <orderEntry type="library" exported="" name="design-23.0.1" level="project" />
+    <orderEntry type="library" exported="" name="play-services-drive-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="signin_core_browser_java" level="project" />
+    <orderEntry type="library" exported="" name="design-23.0.1" level="project" />
+    <orderEntry type="library" exported="" name="play-services-panorama-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="ui_accessibility_java" level="project" />
-    <orderEntry type="library" exported="" name="appcompat-v7-23.1.0" level="project" />
-    <orderEntry type="library" exported="" name="service_tab_launcher_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-appstate-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="mojo_bindings_java" level="project" />
-    <orderEntry type="library" exported="" name="invalidation_proto_java" level="project" />
-    <orderEntry type="library" exported="" name="media_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-cast-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="web_contents_delegate_android_java" level="project" />
+    <orderEntry type="library" exported="" name="media_java" level="project" />
+    <orderEntry type="library" exported="" name="protobuf_nano_javalib" level="project" />
     <orderEntry type="library" exported="" name="navigation_interception_java" level="project" />
+    <orderEntry type="library" exported="" name="content_java" level="project" />
+    <orderEntry type="library" exported="" name="printing_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-identity-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="external_video_surface_java" level="project" />
+    <orderEntry type="library" exported="" name="variations_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-gcm-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-safetynet-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="midi_java" level="project" />
+    <orderEntry type="library" exported="" name="precache_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-vision-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="ui_java" level="project" />
+    <orderEntry type="library" exported="" name="android_swipe_refresh_java" level="project" />
+    <orderEntry type="library" exported="" name="device_vibration_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-analytics-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="android_data_chart_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-measurement-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="policy_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-maps-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="cacheinvalidation_proto_java" level="project" />
+    <orderEntry type="library" exported="" name="dom_distiller_java" level="project" />
+    <orderEntry type="library" exported="" name="safe_json_java" level="project" />
+    <orderEntry type="library" exported="" name="invalidation_java" level="project" />
+    <orderEntry type="library" exported="" name="support-v4-23.1.0" level="project" />
+    <orderEntry type="library" exported="" name="base_java" level="project" />
+    <orderEntry type="library" exported="" name="android_media_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-games-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="android_webview_java" level="project" />
+    <orderEntry type="library" exported="" name="cacheinvalidation_javalib" level="project" />
+    <orderEntry type="library" exported="" name="play-services-plus-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="appcompat-v7-23.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-basement-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="service_tab_launcher_java" level="project" />
+    <orderEntry type="library" exported="" name="support-v13-23.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-wearable-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-appinvite-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="invalidation_proto_java" level="project" />
     <orderEntry type="library" exported="" name="support-annotations-23.1.0" level="project" />
     <orderEntry type="library" exported="" name="bookmarks_java" level="project" />
-    <orderEntry type="library" exported="" name="printing_java" level="project" />
-    <orderEntry type="library" exported="" name="content_java" level="project" />
-    <orderEntry type="library" exported="" name="cardboard_jar.dex" level="project" />
-    <orderEntry type="library" exported="" name="variations_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-fitness-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="jsr_305_javalib" level="project" />
+    <orderEntry type="library" exported="" name="play-services-nearby-8.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-appindexing-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="device_battery_java" level="project" />
-    <orderEntry type="library" exported="" name="external_video_surface_java" level="project" />
     <orderEntry type="library" exported="" name="net_java" level="project" />
-    <orderEntry type="library" exported="" name="precache_java" level="project" />
-    <orderEntry type="library" exported="" name="midi_java" level="project" />
-    <orderEntry type="library" exported="" name="ui_java" level="project" />
     <orderEntry type="library" exported="" name="mojo_public_java" level="project" />
-    <orderEntry type="library" exported="" name="android_swipe_refresh_java" level="project" />
-    <orderEntry type="library" exported="" name="android_gcm.dex" level="project" />
-    <orderEntry type="library" exported="" name="device_vibration_java" level="project" />
-    <orderEntry type="library" exported="" name="chrome_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-wallet-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="document_tab_model_info_proto_java" level="project" />
+    <orderEntry type="library" exported="" name="chrome_java" level="project" />
+    <orderEntry type="library" exported="" name="mediarouter-v7-23.0.1" level="project" />
     <orderEntry type="library" exported="" name="device_bluetooth_java" level="project" />
-    <orderEntry type="library" exported="" name="android_data_chart_java" level="project" />
-    <orderEntry type="library" exported="" name="policy_java" level="project" />
+    <orderEntry type="library" exported="" name="recyclerview-v7-23.1.0" level="project" />
+    <orderEntry type="library" exported="" name="play-services-ads-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="sync_java" level="project" />
-    <orderEntry type="library" exported="" name="cacheinvalidation_proto_java" level="project" />
     <orderEntry type="library" exported="" name="mojo_system_java" level="project" />
-    <orderEntry type="library" exported="" name="dom_distiller_java" level="project" />
-    <orderEntry type="library" exported="" name="support-v4-23.1.0" level="project" />
-    <orderEntry type="library" exported="" name="invalidation_java" level="project" />
-    <orderEntry type="library" exported="" name="safe_json_java" level="project" />
+    <orderEntry type="library" exported="" name="play-services-location-8.1.0" level="project" />
     <orderEntry type="module" module-name="ui_res" exported="" />
     <orderEntry type="module" module-name="chrome_res" exported="" />
     <orderEntry type="module" module-name="content_res" exported="" />
