@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2015 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<!-- Contextual Search view. -->
+<org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchControl
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/contextual_search_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:background="#FFF"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingStart="40dp"
+    android:paddingEnd="40dp"
+    >
+    <!-- Search Bar Text -->
+    <TextView
+        android:id="@+id/surrounding_text_start"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="7dp"
+        android:ellipsize="none"
+        android:fadingEdge="horizontal"
+        android:fadingEdgeLength="30dp"
+        android:gravity="end"
+        android:layout_weight="1"
+        android:requiresFadingEdge="horizontal"
+        android:singleLine="true"
+        android:textColor="#CCC"
+        android:textSize="@dimen/contextual_search_text_size"
+        />
+    <TextView
+        android:id="@+id/main_text"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:gravity="center_horizontal"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="#000"
+        android:textSize="@dimen/contextual_search_text_size"
+        />
+    <TextView
+        android:id="@+id/surrounding_text_end"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="7dp"
+        android:ellipsize="none"
+        android:fadingEdge="horizontal"
+        android:fadingEdgeLength="30dp"
+        android:gravity="start"
+        android:layout_weight="1"
+        android:requiresFadingEdge="horizontal"
+        android:singleLine="true"
+        android:textColor="#CCC"
+        android:textSize="@dimen/contextual_search_text_size"
+        />
+</org.chromium.chrome.browser.compositor.bottombar.contextualsearch.ContextualSearchControl>
