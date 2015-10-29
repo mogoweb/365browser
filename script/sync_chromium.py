@@ -21,7 +21,8 @@ def sync_java_files(options):
 def sync_jar_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs")
     chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java")
-    args = {'ignore':['\w+_java\\.jar\\.', '\w+_java\S+\\.jar', '\S+_apk\.jar\S*']}
+    args = {'only':['\w+_java\\.jar$', 'cacheinvalidation_javalib\\.jar$', 'jsr_305_javalib\\.jar$',
+                    'protobuf_nano_javalib\\.jar$']}
     sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
 
 def sync_chromium_res_files(options):
