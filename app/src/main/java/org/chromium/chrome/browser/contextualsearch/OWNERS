@@ -1,0 +1,5 @@
+# Send most CLs for review to donnd@chromium.org or pedrosimonetti@chromium.org
+# since they are the effective primary OWNERS of this directory.  They are not
+# yet chromium committers, so use the folks below for final OWNERS approval.
+aurimas@chromium.org
+twellington@chromium.org

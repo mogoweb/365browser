@@ -4,9 +4,11 @@ android {
     compileSdkVersion 23
     buildToolsVersion "23.0.0"
 
+    enforceUniquePackageName false
+
     defaultConfig {
         applicationId "com.mogoweb.browser"
-        minSdkVersion 15
+        minSdkVersion 16
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -24,4 +26,10 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.0.1'
     compile 'com.android.support:design:23.0.1'
+    compile project(":libraries:chrome_res")
+    compile project(":libraries:chrome_grd_res")
+    compile project(":libraries:ui_res")
+    compile project(":libraries:ui_grd_res")
+    compile project(":libraries:content_res")
+    compile project(":libraries:content_grd_res")
 }

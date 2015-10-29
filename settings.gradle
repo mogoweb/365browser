@@ -1,1 +1,1 @@
-include ':app'
+include ':app', ':libraries:chrome_res', ':libraries:chrome_grd_res', ':libraries:ui_res', ':libraries:ui_grd_res', ':libraries:content_res', ':libraries:content_grd_res', ':libraries:datausagechart_res', ':libraries:androidmedia_res'
