@@ -190,7 +190,5 @@
     <orderEntry type="module" module-name="chrome_res" exported="" />
     <orderEntry type="module" module-name="content_res" exported="" />
     <orderEntry type="module" module-name="chrome_grd_res" exported="" />
-    <orderEntry type="module" module-name="content_grd_res" exported="" />
-    <orderEntry type="module" module-name="ui_grd_res" exported="" />
   </component>
 </module>

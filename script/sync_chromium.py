@@ -54,13 +54,14 @@ def sync_chromium_res_files(options):
 def sync_ui_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_res", "src", "main", "res")
     ui_res_dir = os.path.join(options.chromium_root, "ui", "android", "java", "res")
+
     sync(ui_res_dir, library_res_dir, "sync")
 
     # sync grd generated string resources
     ui_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
                                       "obj", "ui", "android", "ui_strings_grd.gen", "ui_strings_grd", "res_grit")
-    library_grd_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_grd_res", "src", "main", "res")
-    sync(ui_grd_res_dir, library_grd_res_dir, "sync")
+    args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
+    sync(ui_grd_res_dir, library_res_dir, "sync", **args)
 
 def sync_content_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "content_res", "src", "main", "res")
@@ -70,8 +71,8 @@ def sync_content_res_files(options):
     # sync grd generated string resources
     content_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
                                   "obj", "content", "content_strings_grd.gen", "content_strings_grd", "res_grit")
-    library_grd_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "content_grd_res", "src", "main", "res")
-    sync(content_grd_res_dir, library_grd_res_dir, "sync")
+    args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
+    sync(content_grd_res_dir, library_res_dir, "sync", **args)
 
 def sync_datausagechart_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "datausagechart_res", "src", "main", "res")

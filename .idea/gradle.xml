@@ -15,10 +15,8 @@
             <option value="$PROJECT_DIR$/libraries/androidmedia_res" />
             <option value="$PROJECT_DIR$/libraries/chrome_grd_res" />
             <option value="$PROJECT_DIR$/libraries/chrome_res" />
-            <option value="$PROJECT_DIR$/libraries/content_grd_res" />
             <option value="$PROJECT_DIR$/libraries/content_res" />
             <option value="$PROJECT_DIR$/libraries/datausagechart_res" />
-            <option value="$PROJECT_DIR$/libraries/ui_grd_res" />
             <option value="$PROJECT_DIR$/libraries/ui_res" />
           </set>
         </option>

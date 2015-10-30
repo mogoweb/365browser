@@ -7,11 +7,9 @@
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/chrome_grd_res/chrome_grd_res.iml" filepath="$PROJECT_DIR$/libraries/chrome_grd_res/chrome_grd_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/chrome_res/chrome_res.iml" filepath="$PROJECT_DIR$/libraries/chrome_res/chrome_res.iml" />
-      <module fileurl="file://$PROJECT_DIR$/libraries/content_grd_res/content_grd_res.iml" filepath="$PROJECT_DIR$/libraries/content_grd_res/content_grd_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/content_res/content_res.iml" filepath="$PROJECT_DIR$/libraries/content_res/content_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/datausagechart_res/datausagechart_res.iml" filepath="$PROJECT_DIR$/libraries/datausagechart_res/datausagechart_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/libraries.iml" filepath="$PROJECT_DIR$/libraries/libraries.iml" />
-      <module fileurl="file://$PROJECT_DIR$/libraries/ui_grd_res/ui_grd_res.iml" filepath="$PROJECT_DIR$/libraries/ui_grd_res/ui_grd_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/ui_res/ui_res.iml" filepath="$PROJECT_DIR$/libraries/ui_res/ui_res.iml" />
     </modules>
   </component>

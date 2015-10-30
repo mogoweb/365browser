@@ -33,7 +33,5 @@ dependencies {
     compile project(":libraries:chrome_res")
     compile project(":libraries:chrome_grd_res")
     compile project(":libraries:ui_res")
-    compile project(":libraries:ui_grd_res")
     compile project(":libraries:content_res")
-    compile project(":libraries:content_grd_res")
 }
