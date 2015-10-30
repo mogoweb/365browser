@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
-<string name="infobar_update_permissions_button_text">"Update permissions"</string>
 <string name="login_dialog_title">"Authentication Required"</string>
 <string name="login_dialog_username_field">"User Name:"</string>
 <string name="login_dialog_password_field">"Password:"</string>

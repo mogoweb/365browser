@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
-<string name="infobar_update_permissions_button_text">"更新权限"</string>
 <string name="login_dialog_title">"需要进行身份验证"</string>
 <string name="login_dialog_username_field">"用户名："</string>
 <string name="login_dialog_password_field">"密码："</string>

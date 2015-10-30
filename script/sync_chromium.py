@@ -9,6 +9,7 @@ import os
 import sys
 
 import constants
+import resource_util
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "dirsync-2.1"))
 from dirsync import sync
@@ -50,6 +51,10 @@ def sync_chromium_res_files(options):
                                       "obj", "chrome", "chrome_strings_grd.gen", "chrome_strings_grd", "res_grit")
     args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
     sync(chrome_grd_res_dir, library_res_dir, "sync", **args)
+
+    # remove duplicate strings in android_chrome_strings.xml and generated_resources.xml
+    resource_util.remove_duplicated_strings(library_res_dir + '/values/android_chrome_strings.xml',
+                                            library_res_dir + '/values/generated_resources.xml')
 
 def sync_ui_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_res", "src", "main", "res")
