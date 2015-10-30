@@ -180,7 +180,6 @@
     <orderEntry type="library" exported="" name="mojo_public_java" level="project" />
     <orderEntry type="library" exported="" name="play-services-wallet-8.1.0" level="project" />
     <orderEntry type="library" exported="" name="document_tab_model_info_proto_java" level="project" />
-    <orderEntry type="library" exported="" name="chrome_java" level="project" />
     <orderEntry type="library" exported="" name="mediarouter-v7-23.0.1" level="project" />
     <orderEntry type="library" exported="" name="device_bluetooth_java" level="project" />
     <orderEntry type="library" exported="" name="recyclerview-v7-23.1.0" level="project" />
