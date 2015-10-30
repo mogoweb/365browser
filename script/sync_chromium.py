@@ -17,7 +17,28 @@ from dirsync import sync
 def sync_java_files(options):
     app_java_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "java")
     chrome_java_dir = os.path.join(options.chromium_root, "chrome", "android", "java", "src")
-    sync(chrome_java_dir, app_java_dir, "sync")
+    args = {'exclude': ['\S+\\.aidl']}
+    sync(chrome_java_dir, app_java_dir, "sync", **args)
+
+    # sync aidl files
+
+    app_aidl_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "aidl")
+    args = {'only': ['\S+\\.aidl']}
+    sync(chrome_java_dir, app_aidl_dir, "sync", **args)
+
+    # sync generated enums files
+    gen_enums_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                 "gen", "enums")
+    for dir in os.listdir(gen_enums_dir):
+        java_dir = os.path.join(gen_enums_dir, dir)
+        sync(java_dir, app_java_dir, "sync")
+
+    # sync generated template files
+    gen_template_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                 "gen", "templates")
+    for dir in os.listdir(gen_template_dir):
+        java_dir = os.path.join(gen_template_dir, dir)
+        sync(java_dir, app_java_dir, "sync")
 
 def sync_jar_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs", "armeabi-v7a")
