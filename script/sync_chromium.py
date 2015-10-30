@@ -48,8 +48,8 @@ def sync_chromium_res_files(options):
     # sync grd generated string resources
     chrome_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
                                       "obj", "chrome", "chrome_strings_grd.gen", "chrome_strings_grd", "res_grit")
-    library_grd_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_grd_res", "src", "main", "res")
-    sync(chrome_grd_res_dir, library_grd_res_dir, "sync")
+    args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
+    sync(chrome_grd_res_dir, library_res_dir, "sync", **args)
 
 def sync_ui_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_res", "src", "main", "res")

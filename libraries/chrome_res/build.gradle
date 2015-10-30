@@ -25,7 +25,6 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:23.0.1'
     compile 'com.android.support:mediarouter-v7:23.0.1'
-    compile project(":libraries:chrome_grd_res")
     compile project(":libraries:ui_res")
     compile project(":libraries:content_res")
     compile project(":libraries:datausagechart_res")

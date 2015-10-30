@@ -5,7 +5,6 @@
       <module fileurl="file://$PROJECT_DIR$/365browser.iml" filepath="$PROJECT_DIR$/365browser.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/androidmedia_res/androidmedia_res.iml" filepath="$PROJECT_DIR$/libraries/androidmedia_res/androidmedia_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/libraries/chrome_grd_res/chrome_grd_res.iml" filepath="$PROJECT_DIR$/libraries/chrome_grd_res/chrome_grd_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/chrome_res/chrome_res.iml" filepath="$PROJECT_DIR$/libraries/chrome_res/chrome_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/content_res/content_res.iml" filepath="$PROJECT_DIR$/libraries/content_res/content_res.iml" />
       <module fileurl="file://$PROJECT_DIR$/libraries/datausagechart_res/datausagechart_res.iml" filepath="$PROJECT_DIR$/libraries/datausagechart_res/datausagechart_res.iml" />

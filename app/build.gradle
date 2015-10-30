@@ -31,7 +31,6 @@ dependencies {
     compile 'com.android.support:support-v13:23.1.0'
     compile 'com.google.android.gms:play-services:8.1.0'
     compile project(":libraries:chrome_res")
-    compile project(":libraries:chrome_grd_res")
     compile project(":libraries:ui_res")
     compile project(":libraries:content_res")
 }
