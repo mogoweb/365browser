@@ -114,6 +114,19 @@ def sync_androidmedia_res_files(options):
     media_res_dir = os.path.join(options.chromium_root, "third_party", "android_media", "java", "res")
     sync(media_res_dir, library_res_dir, "sync")
 
+def sync_manifest_files(options):
+    main_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main")
+    public_apk_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                      "gen", "chrome_public_apk_manifest")
+    sync(public_apk_gen_dir, main_dir, "sync")
+
+    # sync meta xml files
+    xml_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "res", "xml")
+    policy_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                  "gen", "policy")
+    args = {'only': ['\S+\\.xml']}
+    # sync(policy_gen_dir, xml_dir, "sync", **args)
+
 def main(argv):
     parser = optparse.OptionParser(usage='Usage: %prog [options]', description=__doc__)
     parser.add_option('--chromium_root',
@@ -135,6 +148,7 @@ def main(argv):
     sync_content_res_files(options)
     sync_datausagechart_res_files(options)
     sync_androidmedia_res_files(options)
+    sync_manifest_files(options)
 
 if __name__ == '__main__':
     main(sys.argv)
