@@ -23,7 +23,7 @@ def sync_java_files(options):
     # sync aidl files
 
     app_aidl_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "aidl")
-    args = {'only': ['\S+\\.aidl']}
+    args = {'only': ['\S+\\.aidl'], 'ignore': ['\S*common.aidl']}
     sync(chrome_java_dir, app_aidl_dir, "sync", **args)
 
     # sync generated enums files
@@ -31,7 +31,8 @@ def sync_java_files(options):
                                  "gen", "enums")
     for dir in os.listdir(gen_enums_dir):
         java_dir = os.path.join(gen_enums_dir, dir)
-        args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*']}
+        args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*',
+                           'org/chromium/components/(dom_distiller|bookmarks)S*']}
         sync(java_dir, app_java_dir, "sync", **args)
 
     # sync generated template files
@@ -39,7 +40,8 @@ def sync_java_files(options):
                                  "gen", "templates")
     for dir in os.listdir(gen_template_dir):
         java_dir = os.path.join(gen_template_dir, dir)
-        args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*']}
+        args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*',
+                           'org/chromium/components/(dom_distiller|bookmarks)S*']}
         sync(java_dir, app_java_dir, "sync", **args)
 
 def sync_jar_files(options):
