@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="locales_en_us">locales/en-US.pak</string>
-    <string name="locales_zh_cn">locales/zh-CN.pak</string>
-
     <!-- for locales pak  -->
     <array name="locale_paks">
-        <item>@string/locales_en_us</item>
-        <item>@string/locales_zh_cn</item>
+        <item>@raw/en_us</item>
+        <item>@raw/zh_cn</item>
     </array>
 </resources>

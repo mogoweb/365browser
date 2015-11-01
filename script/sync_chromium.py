@@ -44,6 +44,12 @@ def sync_java_files(options):
                            'org/chromium/components/(dom_distiller|bookmarks)S*']}
         sync(java_dir, app_java_dir, "sync", **args)
 
+    # syn NativeLibraries.java
+    native_libraries_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                        "chrome_public_apk", "native_libraries_java")
+    java_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "java", "org", "chromium", "base", "library_loader")
+    sync(native_libraries_dir, java_dir, "sync")
+
 def sync_jar_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs", "armeabi-v7a")
     chrome_so_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype,
@@ -129,7 +135,7 @@ def sync_manifest_files(options):
     # sync(policy_gen_dir, xml_dir, "sync", **args)
 
 def sync_data_files(options):
-    locales_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "res", "assets", "locales")
+    locales_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res", "raw")
     pak_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype, "locales")
     args = {'only': ['en-US.pak', 'zh-CN.pak']}
     sync(pak_gen_dir, locales_dir, "sync", **args)
@@ -156,7 +162,8 @@ def main(argv):
     sync_datausagechart_res_files(options)
     sync_androidmedia_res_files(options)
     sync_manifest_files(options)
-    sync_data_files(options)
+    # TODO(alex)
+    # sync_data_files(options)
 
 if __name__ == '__main__':
     main(sys.argv)
