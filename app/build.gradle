@@ -26,6 +26,10 @@ android {
         jumboMode = true
         javaMaxHeapSize "4g"
     }
+
+    aaptOptions {
+        noCompress "dat", "bin", "pak"
+    }
 }
 
 dependencies {
