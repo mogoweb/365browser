@@ -1211,8 +1211,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         }
 
         // ImageView#setImageResource is no-op if given resource is the current one.
-        mSecurityButton.setImageResource(
-                getSecurityIconResource(securityLevel, !shouldEmphasizeHttpsScheme()));
+        int securityIconResource = getSecurityIconResource(securityLevel, !shouldEmphasizeHttpsScheme());
+        if (securityIconResource > 0)
+            mSecurityButton.setImageResource(securityIconResource);
 
         if (mSecurityIconType == securityLevel) return;
         mSecurityIconType = securityLevel;
@@ -1282,7 +1283,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 mNavigationButton.setImageResource(R.drawable.ic_omnibox_magnifier);
                 break;
             case EMPTY:
-                mNavigationButton.setImageResource(0);
+//                mNavigationButton.setImageResource(0);
                 break;
             default:
                 assert false;
