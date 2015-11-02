@@ -136,10 +136,15 @@ def sync_manifest_files(options):
     # sync(policy_gen_dir, xml_dir, "sync", **args)
 
 def sync_data_files(options):
-    locales_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res", "raw")
-    pak_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype, "locales")
-    args = {'only': ['en-US.pak', 'zh-CN.pak']}
-    sync(pak_gen_dir, locales_dir, "sync", **args)
+    # TODO(alex)
+    # locales_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res", "raw")
+    # pak_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype, "locales")
+    # args = {'only': ['en-US.pak', 'zh-CN.pak']}
+    # sync(pak_gen_dir, locales_dir, "sync", **args)
+
+    assets_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "assets")
+    chrome_public_assets_dir = os.path.join(options.chromium_root, "out", options.buildtype, "assets", "chrome_public_apk")
+    sync(chrome_public_assets_dir, assets_dir, "sync")
 
 def main(argv):
     parser = optparse.OptionParser(usage='Usage: %prog [options]', description=__doc__)
@@ -163,8 +168,7 @@ def main(argv):
     sync_datausagechart_res_files(options)
     sync_androidmedia_res_files(options)
     sync_manifest_files(options)
-    # TODO(alex)
-    # sync_data_files(options)
+    sync_data_files(options)
 
 if __name__ == '__main__':
     main(sys.argv)
