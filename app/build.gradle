@@ -1,17 +1,20 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        releaseconfig {
+            storeFile file('/home/alex/github/365browser/keystore')
+        }
+    }
     compileSdkVersion 23
     buildToolsVersion "23.0.0"
-
     enforceUniquePackageName false
-
     defaultConfig {
-        applicationId "com.mogoweb.browser"
+        applicationId "com.mogoweb"
         minSdkVersion 16
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionCode 15
+        versionName "3.0.0"
 
         multiDexEnabled true
     }
@@ -21,12 +24,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
     dexOptions {
         jumboMode = true
         javaMaxHeapSize "4g"
     }
-
     aaptOptions {
         noCompress "dat", "bin", "pak"
     }
@@ -43,7 +44,7 @@ dependencies {
     compile 'com.android.support:multidex:1.0.0'
     compile 'com.google.android.gms:play-services-cast:8.1.0'
     compile 'com.google.android.gms:play-services-gcm:8.1.0'
-    compile project(":libraries:chrome_res")
-    compile project(":libraries:ui_res")
-    compile project(":libraries:content_res")
+    compile project(':libraries:chrome_res')
+    compile project(':libraries:ui_res')
+    compile project(':libraries:content_res')
 }
