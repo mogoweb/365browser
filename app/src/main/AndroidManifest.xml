@@ -561,7 +561,7 @@ by a child template that "extends" this file.
 
         <!-- Providers for chrome data. -->
         <provider android:name="org.chromium.chrome.browser.ChromeBrowserProvider"
-            android:authorities="org.chromium.chrome.ChromeBrowserProvider;org.chromium.chrome.browser;org.chromium.chrome"
+            android:authorities="com.mogoweb.browser.ChromeBrowserProvider;com.mogoweb.browser"
             android:exported="true">
             <path-permission android:path="/bookmarks/search_suggest_query"
                     android:readPermission="android.permission.GLOBAL_SEARCH" />
@@ -569,7 +569,7 @@ by a child template that "extends" this file.
 
         <!-- Provider for FileProvider. -->
         <provider android:name="org.chromium.chrome.browser.util.CompatibilityFileProvider"
-            android:authorities="org.chromium.chrome.FileProvider"
+            android:authorities="com.mogoweb.browser.FileProvider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
