@@ -4,96 +4,60 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file.
 -->
-<org.chromium.chrome.browser.firstrun.TosAndUmaView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent" >
+<org.chromium.chrome.browser.firstrun.TosAndUmaView android:layout_height="match_parent" android:layout_width="match_parent" xmlns:android="http://schemas.android.com/apk/res/android">
+  
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginBottom="57dp"
-        android:fillViewport="true"
-        android:scrollbarStyle="outsideOverlay" >
+    
+  <ScrollView android:fillViewport="true" android:layout_height="match_parent" android:layout_marginBottom="57dp" android:layout_width="match_parent" android:scrollbarStyle="outsideOverlay">
+    
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="vertical" >
+        
+    <LinearLayout android:gravity="center" android:layout_height="wrap_content" android:layout_width="match_parent" android:orientation="vertical">
+      
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/fre_margin"
-                android:gravity="center"
-                android:lineSpacingMultiplier="1.4"
-                android:text="@string/fre_welcome"
-                android:textColor="@color/fre_title_color"
-                android:textSize="@dimen/fre_title_text_size" />
+            
+      <TextView android:gravity="center" android:layout_height="wrap_content" android:layout_marginTop="@dimen/fre_margin" android:layout_width="wrap_content" android:lineSpacingMultiplier="1.4" android:text="@string/fre_welcome" android:textColor="@color/fre_title_color" android:textSize="@dimen/fre_title_text_size"/>
+      
 
-            <LinearLayout
-                android:id="@+id/fre_content"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/fre_margin"
-                android:gravity="center_horizontal">
+            
+      <LinearLayout android:gravity="center_horizontal" android:id="@+id/fre_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/fre_margin" android:layout_width="match_parent">
+        
 
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="@dimen/fre_image_carousel_height"
-                    android:layout_marginBottom="@dimen/fre_margin"
-                    android:contentDescription="@null"
-                    android:src="@drawable/fre_product_logo" />
+                
+        <ImageView android:contentDescription="@null" android:layout_height="@dimen/fre_image_carousel_height" android:layout_marginBottom="@dimen/fre_margin" android:layout_width="wrap_content" android:src="@drawable/fre_product_logo"/>
+        
 
-                <LinearLayout
-                    android:id="@+id/text_wrapper"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:layout_marginBottom="@dimen/fre_margin"
-                    android:orientation="vertical"
-                    android:paddingEnd="@dimen/fre_margin"
-                    android:paddingStart="@dimen/fre_margin" >
+                
+        <LinearLayout android:id="@+id/text_wrapper" android:layout_height="0dp" android:layout_marginBottom="@dimen/fre_margin" android:layout_weight="1" android:layout_width="0dp" android:orientation="vertical" android:paddingLeft="@dimen/fre_margin" android:paddingRight="@dimen/fre_margin">
+          
 
-                    <org.chromium.ui.widget.TextViewWithClickableSpans
-                        android:id="@+id/tos_and_privacy"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="@dimen/fre_margin"
-                        android:gravity="center"
-                        android:lineSpacingMultiplier="1.4"
-                        android:textColor="@color/fre_text_color"
-                        android:textSize="@dimen/fre_normal_text_size" />
+                    
+          <org.chromium.ui.widget.TextViewWithClickableSpans android:gravity="center" android:id="@+id/tos_and_privacy" android:layout_height="wrap_content" android:layout_marginBottom="@dimen/fre_margin" android:layout_width="wrap_content" android:lineSpacingMultiplier="1.4" android:textColor="@color/fre_text_color" android:textSize="@dimen/fre_normal_text_size"/>
+          
 
-                    <CheckBox
-                        android:id="@+id/send_report_checkbox"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:lineSpacingMultiplier="1.4"
-                        android:text="@string/fre_send_report_check"
-                        android:textColor="@color/fre_text_color"
-                        android:textSize="@dimen/fre_normal_text_size" />
-                </LinearLayout>
-            </LinearLayout>
+                    
+          <CheckBox android:id="@+id/send_report_checkbox" android:layout_height="wrap_content" android:layout_width="wrap_content" android:lineSpacingMultiplier="1.4" android:text="@string/fre_send_report_check" android:textColor="@color/fre_text_color" android:textSize="@dimen/fre_normal_text_size"/>
+          
+                
         </LinearLayout>
-    </ScrollView>
+        
+            
+      </LinearLayout>
+      
+        
+    </LinearLayout>
+    
+    
+  </ScrollView>
+  
 
-    <View
-        style="@style/ButtonBarTopDivider"
-        android:layout_gravity="bottom"
-        android:layout_marginBottom="56dp" />
+    
+  <View android:layout_gravity="bottom" android:layout_marginBottom="56dp" style="@style/ButtonBarTopDivider"/>
+  
 
-    <Button
-        android:id="@+id/terms_accept"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_gravity="bottom"
-        android:background="?attr/listChoiceBackgroundIndicator"
-        android:padding="16dp"
-        android:text="@string/fre_accept_continue"
-        android:textAllCaps="true"
-        android:textColor="@color/light_active_color"
-        android:textSize="@dimen/fre_button_text_size" />
+    
+  <Button android:background="?attr/listChoiceBackgroundIndicator" android:id="@+id/terms_accept" android:layout_gravity="bottom" android:layout_height="56dp" android:layout_width="match_parent" android:padding="16dp" android:text="@string/fre_accept_continue" android:textAllCaps="true" android:textColor="@color/light_active_color" android:textSize="@dimen/fre_button_text_size"/>
+  
+
 
 </org.chromium.chrome.browser.firstrun.TosAndUmaView>

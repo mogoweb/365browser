@@ -4,12 +4,11 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file.
 -->
+<view android:layout_height="48dp" android:layout_width="wrap_content" android:paddingRight="20dp" class="org.chromium.chrome.browser.enhancedbookmarks.EnhancedBookmarkSearchRow" xmlns:android="http://schemas.android.com/apk/res/android">
+  
 
-<view class="org.chromium.chrome.browser.enhancedbookmarks.EnhancedBookmarkSearchRow"
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="48dp"
-    android:paddingEnd="20dp" >
+    
+  <include layout="@layout/eb_row_content"/>
+  
 
-    <include layout="@layout/eb_row_content" />
 </view>

@@ -5,28 +5,13 @@
      found in the LICENSE file.
 -->
 <!-- Layout for each item in the menu popup -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="?android:attr/listPreferredItemHeightSmall"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:background="?attr/listChoiceBackgroundIndicator">
-    <TextView
-        android:id="@+id/menu_item_text"
-        android:textAppearance="?android:attr/textAppearanceLargePopupMenu"
-        android:layout_weight="1"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:gravity="center_vertical"
-        android:singleLine="true"
-        android:paddingEnd="9dp" />
-    <view
-        class="org.chromium.chrome.browser.appmenu.AppMenuItemIcon"
-        android:id="@+id/menu_item_icon"
-        android:layout_weight="0"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_gravity="end"
-        android:gravity="center_vertical" />
+<LinearLayout android:background="?attr/listChoiceBackgroundIndicator" android:layout_height="?android:attr/listPreferredItemHeightSmall" android:layout_width="match_parent" android:paddingLeft="16dp" android:paddingRight="16dp" xmlns:android="http://schemas.android.com/apk/res/android">
+  
+    
+  <TextView android:gravity="center_vertical" android:id="@+id/menu_item_text" android:layout_gravity="start" android:layout_height="match_parent" android:layout_weight="1" android:layout_width="wrap_content" android:paddingRight="9dp" android:singleLine="true" android:textAppearance="?android:attr/textAppearanceLargePopupMenu"/>
+  
+    
+  <view android:gravity="center_vertical" android:id="@+id/menu_item_icon" android:layout_gravity="end" android:layout_height="match_parent" android:layout_weight="0" android:layout_width="wrap_content" class="org.chromium.chrome.browser.appmenu.AppMenuItemIcon"/>
+  
+
 </LinearLayout>
