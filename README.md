@@ -10,3 +10,9 @@ Check out the repository in your Android Studio workspace, and open the project 
 
 Have a fun :)
 
+## Copyright and License
+
+The project contains code from the The Chromium Project, which is subject to the copyright and license on the project site.
+
+The rest of the code is Copyright 2015 mogoweb, All rights reserved. Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
+
