@@ -24,6 +24,9 @@ import android.provider.Browser;
 import android.support.customtabs.CustomTabsIntent;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.MotionEvent;
+
+import com.bugtags.library.Bugtags;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
@@ -207,7 +210,21 @@ public class ChromeLauncherActivity extends Activity
     @Override
     public void onPause() {
         super.onPause();
+        Bugtags.onPause(this);
         TraceEvent.end("ChromeLauncherActivity");
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Bugtags.onResume(this);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        //注：回调 3
+        Bugtags.onDispatchTouchEvent(this, event);
+        return super.dispatchTouchEvent(event);
     }
 
     @Override
