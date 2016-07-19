@@ -17,7 +17,6 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 
-import com.bugtags.library.Bugtags;
 import com.google.ipc.invalidation.external.client.android.service.AndroidLogger;
 
 import org.chromium.base.ActivityState;
@@ -198,9 +197,6 @@ public class ChromeApplication extends ContentApplication {
     public void onCreate() {
         UmaUtils.recordMainEntryPointTime();
         super.onCreate();
-
-        Bugtags.start("88891228c72668ac258ccf90c513dc73", this, Bugtags.BTGInvocationEventBubble);
-
         UiUtils.setKeyboardShowingDelegate(new UiUtils.KeyboardShowingDelegate() {
             @Override
             public boolean disableKeyboardCheck(Context context, View view) {

@@ -1,16 +1,4 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.bugtags.library.plugin'
-
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.properties').newDataInputStream())
-
-// auto upload plugin
-bugtags {
-    appKey "88891228c72668ac258ccf90c513dc73"
-    appSecret properties.getProperty("bugtags.appSecret")
-
-    trackingNetworkEnabled true
-}
 
 android {
     signingConfigs {
@@ -59,5 +47,4 @@ dependencies {
     compile project(':libraries:chrome_res')
     compile project(':libraries:ui_res')
     compile project(':libraries:content_res')
-    compile 'com.bugtags.library:bugtags-lib:latest.integration'
 }
