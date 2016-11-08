@@ -1,24 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:android="http://schemas.android.com/apk/res/android">
 <string name="infobar_update_permissions_button_text">"Actualizar permisos"</string>
-<string name="login_dialog_title">"Se requiere autenticación"</string>
-<string name="login_dialog_username_field">"Nombre de usuario:"</string>
-<string name="login_dialog_password_field">"Contraseña:"</string>
-<string name="login_dialog_ok_button_label">"Acceder"</string>
-<string name="http_post_warning">"La página que buscas ha utilizado la información que has especificado. Volver a la página podría provocar la repetición de alguna acción. ¿Deseas continuar?"</string>
-<string name="http_post_warning_resend">"Continuar"</string>
-<string name="sad_tab_title">"¡Oh, no!"</string>
-<string name="sad_tab_message">"Se produjo un error al mostrar esta página web. Puedes cerrar las aplicaciones y las pestañas que no necesites para ayudar a que haya más memoria disponible."</string>
-<string name="sad_tab_reload_label">"Cargar de nuevo"</string>
 <string name="options_homepage_title">"Página principal"</string>
-<string name="autofill_card_unmask_prompt_storage_checkbox">"Conservar una copia de la tarjeta en el dispositivo."</string>
-<string name="autofill_card_unmask_prompt_storage_tooltip">"Si marcas esta opción, Chrome almacenará una copia de la tarjeta en el dispositivo para completar más rápidamente los formularios."</string>
-<string name="autofill_card_unmask_prompt_storage_tooltip_ios">"Si se habilita esta opción, Chrome almacenará una copia de la tarjeta en el dispositivo para llenar más rápidamente los formularios."</string>
-<string name="autofill_card_unmask_confirm_button">"Verificar"</string>
-<string name="autofill_card_unmask_verification_in_progress">"Verificando la tarjeta"</string>
-<string name="autofill_card_unmask_verification_success">"Se verificó tu tarjeta."</string>
-<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
-<string name="autofill_card_unmask_new_card_link">"¿Una tarjeta nueva?"</string>
 <string name="autofill_from_google_account">"Google Payments"</string>
-<string name="autofill_clear_local_copy_button">"Borrar la copia"</string>
+<string name="sync_confirmation_chrome_sync_title">"Chrome Sync"</string>
+<string name="sync_confirmation_chrome_sync_message">"Tus marcadores, historial, contraseñas y otras opciones de configuración se sincronizarán con tu cuenta de Google para que puedas usarlos en todos tus dispositivos"</string>
+<string name="sync_confirmation_personalize_services_title">"Personalizar los servicios de Google"</string>
+<string name="sync_confirmation_personalize_services_body">"Es posible que Google use tu historial de navegación para personalizar Búsqueda, Ads y otros servicios de Google"</string>
 </resources>

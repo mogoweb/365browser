@@ -142,10 +142,6 @@ public final class PasswordUIView {
         return nativeGetAccountDashboardURL();
     }
 
-    public static boolean shouldDisplayManageAccountLink() {
-        return nativeShouldDisplayManageAccountLink();
-    }
-
     public static boolean shouldUseSmartLockBranding() {
         return nativeShouldUseSmartLockBranding();
     }
@@ -181,8 +177,6 @@ public final class PasswordUIView {
             int index);
 
     private static native String nativeGetAccountDashboardURL();
-
-    private static native boolean nativeShouldDisplayManageAccountLink();
 
     private static native boolean nativeShouldUseSmartLockBranding();
 

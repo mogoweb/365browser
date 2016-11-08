@@ -18,4 +18,8 @@
         android:key="privacy_notice"
         android:title="@string/privacy_notice_title"
         app:url="@string/chrome_privacy_notice_url" />
+    <Preference
+        android:fragment="org.chromium.chrome.browser.preferences.TrademarksPreferences"
+        android:key="trademarks"
+        android:title="@string/trademarks_title" />
 </PreferenceScreen>

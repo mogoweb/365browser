@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "update": {},
+  "subscriptions": [
+    {
+      "name"            : "Malware Domains Filter",
+      "category"        : "MALWARE_DOMAINS",
+      "format"          : "WebRefiner 1.0",
+      "url"             : "none",
+      "expiration"      : "5 days"
+    },
+    {
+      "name"            : "Privacy Filter",
+      "category"        : "TRACKERS",
+      "format"          : "WebRefiner 1.0",
+      "url"             : "none",
+      "expiration"      : "5 days"
+    },
+    {
+      "name"            : "Ad Filter",
+      "category"        : "ADS",
+      "format"          : "WebRefiner 1.0",
+      "url"             : "none",
+      "expiration"      : "5 days"
+    }
+  ]
+}

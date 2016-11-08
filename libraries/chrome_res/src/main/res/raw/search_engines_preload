@@ -1,0 +1,36 @@
+{
+    "version": "1.0",
+    "searchEngines": [{
+	"name": "Google",
+        "keyword": "google.com",
+        "searchUrl": "{google:baseURL}search?q={searchTerms}&{google:RLZ}{google:originalQueryForSuggestion}{google:assistedQueryStats}{google:searchFieldtrialParameter}{google:iOSSearchLanguage}{google:searchClient}{google:sourceId}{google:instantExtendedEnabledParameter}{google:contextualSearchVersion}ie={inputEncoding}",
+        "faviconUrl": "http://www.google.com/favicon.ico"
+        }, {
+        "name": "Yahoo!",
+        "keyword": "yahoo.com",
+        "searchUrl": "http://search.yahoo.com/search?ei={inputEncoding}&amp;fr=crmas&amp;p={searchTerms}",
+        "faviconUrl": "http://search.yahoo.com/favicon.ico"
+        }, {
+        "name": "Bing",
+        "keyword": "bing.com",
+        "searchUrl": "http://www.bing.com/search?q={searchTerms}",
+        "faviconUrl": "http://www.bing.com/s/wlflag.ico"
+        }, {
+        "name": "Ask",
+        "keyword": "ask.com",
+        "searchUrl": "http://www.ask.com/web?q={searchTerms}",
+        "faviconUrl": "http://sp.ask.com/sh/i/a16/favicon/favicon.ico"
+        }, {
+        "name": "Aol",
+        "keyword": "aol.com",
+        "searchUrl": "http://search.aol.com/aol/search?q={searchTerms}",
+        "faviconUrl": "http://search.aol.com/favicon.ico"
+        }, {
+        "name": "DuckDuckGo",
+        "keyword": "duckduckgo.com",
+        "searchUrl": "http://duckduckgo.com/?q={searchTerms}",
+        "faviconUrl": "http://duckduckgo.com/favicon.ico"
+        }],
+    "default" : 0,
+    "default_incognito" : 5
+}

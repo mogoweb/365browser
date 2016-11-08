@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"پاک کردن نسخه کپی"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"کشف کردن"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"ویزا"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"یک کپی از این کارت در این دستگاه نگهداری شود"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"‏اگر علامت زده شود، Chromium برای پر کردن سریع‌تر فرم، یک کپی از کارت شما در این دستگاه ذخیره می‌کند."</string>
+<string name="autofill_card_unmask_verification_in_progress">"درحال تایید کارت"</string>
+<string name="autofill_card_unmask_verification_success">"کارتتان تأیید شد"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"کارت جدید؟"</string>
+<string name="http_post_warning">"صفحه‌ای که جستجو می‌کنید از اطلاعاتی استفاده می‌کند که شما وارد کرده‌اید. بازگشت به آن صفحه ممکن است باعث شود اقدامی را که قبلاً انجام دادید دوباره تکرار کنید. آیا می‌خواهید ادامه دهید؟"</string>
+<string name="http_post_warning_resend">"ادامه"</string>
+<string name="login_dialog_title">"راستی‌آزمایی لازم است"</string>
+<string name="login_dialog_username_field">"نام کاربری:"</string>
+<string name="login_dialog_password_field">"گذرواژه:"</string>
+<string name="login_dialog_ok_button_label">"ورود به سیستم"</string>
+<string name="sad_tab_title">"اوه، نه!"</string>
+<string name="sad_tab_message">"هنگام نمایش این صفحه وب مشکلی پیش آمد."</string>
+<string name="sad_tab_oom_message">"‏Chromium هنگام تلاش برای نمایش این صفحه با کمبود حافظه روبرو شد."</string>
+<string name="sad_tab_reload_label">"تازه‌سازی"</string>
+<string name="snippets_disabled_signed_out_instructions">"‏برای دریافت محتوای شخصی‌سازی‌شده پیشنهادی Google، به Chrome وارد شوید."</string>
+<string name="snippets_disabled_generic_prompt">"دریافت محتوای پیشنهادی"</string>
+<string name="ntp_status_card_title_no_bookmarks">"فعلاً چیزی وجود ندارد"</string>
+<string name="ntp_status_card_no_bookmarks">"نشانک‌هایی که به‌تازگی از آن‌ها دیدن کرده‌اید، اینجا نشان داده می‌شوند."</string>
+<string name="ntp_status_card_title_no_articles">"همه خوانده شده‌اند"</string>
+<string name="ntp_status_card_no_articles">"مقالات بیشتری در زمان مناسب نشان داده خواهند شد."</string>
+</resources>

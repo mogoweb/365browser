@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2016, The Linux Foundation. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+        * Neither the name of The Linux Foundation nor the names of its
+          contributors may be used to endorse or promote products derived
+          from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+    ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+    BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+    BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+    WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+    OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+    IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<org.chromium.chrome.browser.firstrun.FirstRunView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="@dimen/fre_button_bar_height"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/fre_main_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:id="@+id/title"
+                android:text="@string/security_updates_title"
+                style="@style/FreTitle"/>
+
+            <!-- The orientation of this view is changed dynamically to give a nicer layout when in
+            landscape mode on devices with small screens. -->
+            <LinearLayout
+                android:id="@+id/fre_image_and_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginTop="@dimen/fre_vertical_spacing">
+
+                <ImageView
+                    android:id="@+id/image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/fre_image_height"
+                    android:contentDescription="@null"
+                    android:src="@drawable/security_updates_illustration" />
+
+                <LinearLayout
+                    android:id="@+id/fre_content_wrapper"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="@dimen/fre_vertical_spacing"
+                    android:layout_marginEnd="@dimen/fre_content_margin"
+                    android:layout_marginStart="@dimen/fre_content_margin"
+                    android:orientation="vertical" >
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/fre_vertical_spacing"
+                        android:gravity="start"
+                        android:lineSpacingMultiplier="1.4"
+                        android:text="@string/security_updates_description"
+                        android:textColor="@color/fre_text_color"
+                        android:textSize="@dimen/fre_normal_text_size" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="start"
+                        android:lineSpacingMultiplier="1.4"
+                        android:text="@string/security_updates_default_behavior"
+                        android:textColor="@color/fre_text_color"
+                        android:textSize="@dimen/fre_normal_text_size" />
+
+                    <android.support.v7.widget.SwitchCompat
+                        android:id="@+id/enable_mobile_updates"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minLines="2"
+                        android:lineSpacingMultiplier="1.4"
+                        android:text="@string/security_updates_switch_text"
+                        android:textColor="@color/fre_text_color"
+                        android:textSize="@dimen/fre_normal_text_size"
+                        android:fontFamily="sans-serif-medium"  />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/button_bar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/fre_button_bar_height"
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <View style="@style/ButtonBarTopDivider" />
+
+        <Button
+            android:id="@+id/next_button"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/fre_button_bar_height"
+            android:layout_gravity="bottom"
+            android:background="?attr/listChoiceBackgroundIndicator"
+            android:padding="16dp"
+            android:text="@string/next"
+            android:textAllCaps="true"
+            android:textColor="@color/light_active_color"
+            android:textSize="@dimen/fre_button_text_size"
+            style="@style/ButtonCompatBorderless" />
+    </LinearLayout>
+</org.chromium.chrome.browser.firstrun.FirstRunView>

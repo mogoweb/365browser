@@ -43,16 +43,16 @@ public class FaviconHelper {
     }
 
     /**
-     * Callback interface for the result of the ensureFaviconIsAvailable method.
+     * Callback interface for the result of the ensureIconIsAvailable method.
      */
-    public interface FaviconAvailabilityCallback {
+    public interface IconAvailabilityCallback {
         /**
-         * This method will be called when the availability of the favicon has been checked.
-         * @param newlyAvailable true if the favicon was downloaded and is now available,
+         * This method will be called when the availability of the icon has been checked.
+         * @param newlyAvailable true if the icon was downloaded and is now available,
          *            false if the favicon was already there or the download failed.
          */
-        @CalledByNative("FaviconAvailabilityCallback")
-        public void onFaviconAvailabilityChecked(boolean newlyAvailable);
+        @CalledByNative("IconAvailabilityCallback")
+        public void onIconAvailabilityChecked(boolean newlyAvailable);
     }
 
     /**
@@ -92,30 +92,6 @@ public class FaviconHelper {
     }
 
     /**
-     * Fetches the first available favicon for a URL that exceeds the minimum size threshold.  If
-     * no favicons are larger (or equal) to the threshold, the largest favicon of any type is
-     * fetched.
-     *
-     * @param profile              Profile used for the FaviconService construction.
-     * @param pageUrl              The target Page URL to get the favicon.
-     * @param iconTypes            The list of icon types (each entry can be a bitmasked collection
-     *                             of types) that should be fetched in order.  As soon as one of
-     *                             the buckets exceeds the minimum size threshold, that favicon
-     *                             will be returned.
-     * @param minSizeThresholdPx   The size threshold (inclusive) used to early exit out fetching
-     *                             subsequent favicon types.
-     * @param faviconImageCallback The callback to be notified with the best matching favicon.
-     */
-    public void getLargestRawFaviconForUrl(
-            Profile profile, String pageUrl, int[] iconTypes, int minSizeThresholdPx,
-            FaviconImageCallback faviconImageCallback) {
-        assert mNativeFaviconHelper != 0;
-        nativeGetLargestRawFaviconForUrl(
-                mNativeFaviconHelper, profile, pageUrl, iconTypes, minSizeThresholdPx - 1,
-                faviconImageCallback);
-    }
-
-    /**
      * Return the dominant color of a given bitmap in {@link Color} format.
      * @param image The bitmap image to find the dominant color for.
      * @return The dominant color in {@link Color} format.
@@ -138,11 +114,22 @@ public class FaviconHelper {
         return nativeGetSyncedFaviconImageForURL(mNativeFaviconHelper, profile, pageUrl);
     }
 
-    public void ensureFaviconIsAvailable(
-            Profile profile, WebContents webContents, String pageUrl, String faviconUrl,
-            FaviconAvailabilityCallback callback) {
-        nativeEnsureFaviconIsAvailable(
-                mNativeFaviconHelper, profile, webContents, pageUrl, faviconUrl, callback);
+    /**
+     * Tries to make sure that the specified icon is available in the cache of the provided profile.
+     * @param profile       Profile used for the FaviconService construction.
+     * @param webContents   The object used to download the icon.
+     * @param pageUrl       The target Page URL to get the favicon for.
+     * @param iconUrl       The URL of the icon to retrieve.
+     * @param isLargeIcon   Specifies whether the type is TOUCH_ICON (true) or FAVICON (false).
+     * @param isTemporary   Specifies whether the icon at iconUrl is temporary and should be updated
+     *                      as soon as the page at pageUrl is revisited.
+     * @param callback      Called when completed (download not needed, finished or failed).
+     */
+    public void ensureIconIsAvailable(Profile profile, WebContents webContents, String pageUrl,
+            String iconUrl, boolean isLargeIcon, boolean isTemporary,
+            IconAvailabilityCallback callback) {
+        nativeEnsureIconIsAvailable(mNativeFaviconHelper, profile, webContents, pageUrl, iconUrl,
+                isLargeIcon, isTemporary, callback);
     }
 
     private static native long nativeInit();
@@ -150,13 +137,10 @@ public class FaviconHelper {
     private static native boolean nativeGetLocalFaviconImageForURL(long nativeFaviconHelper,
             Profile profile, String pageUrl, int iconTypes, int desiredSizeInDip,
             FaviconImageCallback faviconImageCallback);
-    private static native void nativeGetLargestRawFaviconForUrl(long nativeFaviconHelper,
-            Profile profile, String pageUrl, int[] iconTypes, int minSizeThresholdPx,
-            FaviconImageCallback faviconImageCallback);
     private static native Bitmap nativeGetSyncedFaviconImageForURL(long nativeFaviconHelper,
             Profile profile, String pageUrl);
     private static native int nativeGetDominantColorForBitmap(Bitmap image);
-    private static native void nativeEnsureFaviconIsAvailable(
-            long nativeFaviconHelper, Profile profile, WebContents webContents, String pageUrl,
-            String faviconUrl, FaviconAvailabilityCallback callback);
+    private static native void nativeEnsureIconIsAvailable(long nativeFaviconHelper,
+            Profile profile, WebContents webContents, String pageUrl, String iconUrl,
+            boolean isLargeIcon, boolean isTemporary, IconAvailabilityCallback callback);
 }

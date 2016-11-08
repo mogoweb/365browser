@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"Șterge copia"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Păstrează o copie a cardului pe dispozitiv"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Dacă opțiunea este bifată, Chromium va stoca o copie a cardului pe dispozitiv pentru a completa formularul mai rapid."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Se confirmă cardul"</string>
+<string name="autofill_card_unmask_verification_success">"Cardul tău este confirmat"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Card nou?"</string>
+<string name="http_post_warning">"Pagina pe care o cauți a utilizat informațiile pe care le-ai introdus. Întoarcerea la acea pagină ar putea face ca orice acțiune să fie repetată. Vrei să continui?"</string>
+<string name="http_post_warning_resend">"Continuă"</string>
+<string name="login_dialog_title">"Autentificare obligatorie"</string>
+<string name="login_dialog_username_field">"Nume de utilizator:"</string>
+<string name="login_dialog_password_field">"Parolă:"</string>
+<string name="login_dialog_ok_button_label">"Conectează-te"</string>
+<string name="sad_tab_title">"Of, nu mai merge!"</string>
+<string name="sad_tab_message">"A apărut o eroare la afișarea paginii web."</string>
+<string name="sad_tab_oom_message">"Chromium nu a avut suficientă memorie la afișarea paginii web."</string>
+<string name="sad_tab_reload_label">"Reîncarcă"</string>
+<string name="snippets_disabled_signed_out_instructions">"Pentru a obține sugestii de conținut personalizat de la Google, conectează-te la Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Obține sugestii de conținut"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Gata pentru moment"</string>
+<string name="ntp_status_card_no_bookmarks">"Marcajele accesate recent vor apărea aici."</string>
+<string name="ntp_status_card_title_no_articles">"Tot conținutul este citit"</string>
+<string name="ntp_status_card_no_articles">"La momentul potrivit vor apărea mai multe articole."</string>
+</resources>

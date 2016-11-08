@@ -18,6 +18,7 @@ public class FrozenNativePage implements NativePage {
     private final String mHost;
     private final String mTitle;
     private final int mBackgroundColor;
+    private final int mThemeColor;
 
     /**
      * Creates a FrozenNativePage to replace the given NativePage and destroys the NativePage.
@@ -33,6 +34,7 @@ public class FrozenNativePage implements NativePage {
         mUrl = nativePage.getUrl();
         mTitle = nativePage.getTitle();
         mBackgroundColor = nativePage.getBackgroundColor();
+        mThemeColor = nativePage.getThemeColor();
     }
 
     @Override
@@ -59,6 +61,16 @@ public class FrozenNativePage implements NativePage {
     @Override
     public int getBackgroundColor() {
         return mBackgroundColor;
+    }
+
+    @Override
+    public int getThemeColor() {
+        return mThemeColor;
+    }
+
+    @Override
+    public boolean needsToolbarShadow() {
+        return true;
     }
 
     @Override

@@ -43,12 +43,12 @@ public class SwipeRecognizer extends SimpleOnGestureListener {
     /**
      * The threshold for a vertical swipe gesture, in dps.
      */
-    private static final float SWIPE_VERTICAL_DRAG_THRESHOLD_DP = 5.f;
+    private float mSwipeVerticalDragThresholdDp = 5.f;
 
     /**
      * The threshold for a horizontal swipe gesture, in dps.
      */
-    private static final float SWIPE_HORIZONTAL_DRAG_THRESHOLD_DP = 10.f;
+    private float mSwipeHorizontalDragThresholdDp = 10.f;
 
     /**
      * The {@link EdgeSwipeHandler} that will respond to recognized gestures.
@@ -84,6 +84,16 @@ public class SwipeRecognizer extends SimpleOnGestureListener {
     public SwipeRecognizer(Context context) {
         mPxToDp = 1.f / context.getResources().getDisplayMetrics().density;
         mGestureDetector = new GestureDetector(context, this);
+    }
+
+    /**
+     * Define the vertical and horizontal drag thresholds for this swipe recognizer
+     * @param verticalDp The minimum vertical travel in DP that will trigger a Vertical Swipe.
+     * @param horizontalDp The minimum horizontal travel in DP that will trigger a Horizontal Swipe.
+     */
+    public void setDetectionThresholds(float verticalDp, float horizontalDp) {
+        if (verticalDp > 0) mSwipeVerticalDragThresholdDp = verticalDp;
+        if (horizontalDp > 0) mSwipeHorizontalDragThresholdDp = horizontalDp;
     }
 
     /**
@@ -148,9 +158,9 @@ public class SwipeRecognizer extends SimpleOnGestureListener {
 
             ScrollDirection direction = ScrollDirection.UNKNOWN;
 
-            if (Math.abs(tx) > SWIPE_HORIZONTAL_DRAG_THRESHOLD_DP) {
+            if (Math.abs(tx) > mSwipeHorizontalDragThresholdDp) {
                 direction = tx > 0.f ? ScrollDirection.RIGHT : ScrollDirection.LEFT;
-            } else if (Math.abs(ty) > SWIPE_VERTICAL_DRAG_THRESHOLD_DP) {
+            } else if (Math.abs(ty) > mSwipeVerticalDragThresholdDp) {
                 direction = ty > 0.f ? ScrollDirection.DOWN : ScrollDirection.UP;
             }
 

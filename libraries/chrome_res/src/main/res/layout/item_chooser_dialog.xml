@@ -3,57 +3,81 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file.
  -->
-<LinearLayout android:layout_height="fill_parent" android:layout_width="fill_parent" android:orientation="vertical" android:paddingBottom="8dp" android:paddingTop="20dp" xmlns:android="http://schemas.android.com/apk/res/android">
-  
 
-    
-  <!-- The title at the top. -->
-  
-    
-  <org.chromium.ui.widget.TextViewWithClickableSpans android:id="@+id/dialog_title" android:layout_height="wrap_content" android:layout_width="wrap_content" android:paddingBottom="8dp" android:paddingLeft="16dp" android:paddingRight="16dp" android:textSize="16sp"/>
-  
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical"
+    android:paddingBottom="8dp"
+    android:paddingTop="20dp" >
 
-    
-  <!-- The "no item found" message. -->
-  
-    
-  <org.chromium.ui.widget.TextViewWithClickableSpans android:id="@+id/not_found_message" android:layout_height="wrap_content" android:layout_marginLeft="16dp" android:layout_marginRight="16dp" android:layout_marginTop="8dp" android:layout_width="wrap_content" android:textSize="16sp" android:visibility="gone"/>
-  
+    <!-- The title at the top. -->
+    <org.chromium.ui.widget.TextViewWithClickableSpans
+        android:id="@+id/dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textSize="16sp" />
 
-    
-  <!-- A layout containing a spinning progress bar that gets replaced with a
+    <!-- The "no item found" message. -->
+    <org.chromium.ui.widget.TextViewWithClickableSpans
+        android:id="@+id/not_found_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <!-- A layout containing a spinning progress bar that gets replaced with a
          list of items. -->
-  
-    
-  <FrameLayout android:id="@+id/container" android:layout_height="100dp" android:layout_width="fill_parent">
-    
-        
-    <ProgressBar android:id="@+id/progress" android:indeterminate="true" android:layout_gravity="center" android:layout_height="24dp" android:layout_width="24dp"/>
-    
+    <FrameLayout
+        android:id="@+id/container"
+        android:layout_width="fill_parent"
+        android:layout_height="100dp" >
+        <ProgressBar
+            android:id="@+id/progress"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:indeterminate="true" />
 
-        
-    <ListView android:fadeScrollbars="false" android:id="@+id/items" android:layout_gravity="center" android:layout_height="wrap_content" android:layout_width="fill_parent" android:visibility="gone"/>
-    
-    
-  </FrameLayout>
-  
+        <ListView
+            android:id="@+id/items"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:fadeScrollbars="false"
+            android:visibility="gone" />
+    </FrameLayout>
 
-    
-  <View style="@style/ButtonBarTopDivider"/>
-  
+    <View style="@style/ButtonBarTopDivider" />
 
-    
-  <!-- Status message at the bottom. -->
-  
-    
-  <org.chromium.ui.widget.TextViewWithClickableSpans android:id="@+id/status" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:layout_width="wrap_content" android:paddingLeft="16dp" android:paddingRight="16dp" android:textSize="14sp"/>
-  
+    <!-- Status message at the bottom. -->
+    <org.chromium.ui.widget.TextViewWithClickableSpans
+        android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textSize="14sp" />
 
-    
-  <!-- Button row. -->
-  
-    
-  <Button android:id="@+id/positive" android:layout_gravity="end" android:layout_height="wrap_content" android:layout_width="wrap_content" android:paddingRight="16dp" android:paddingTop="12dp" style="?android:attr/buttonBarButtonStyle"/>
-  
-
+    <!-- Button row. -->
+    <org.chromium.ui.widget.ButtonCompat
+        android:id="@+id/positive"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="12dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textAllCaps="true"
+        android:textColor="#fff"
+        chrome:buttonColor="@color/pref_accent_color" />
 </LinearLayout>

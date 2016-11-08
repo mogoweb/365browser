@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"Počisti kopijo"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Ohrani kopijo te kartice v tej napravi"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Če je izbrana ta možnost, bo Chromium shranil kopijo kartice v tej napravi za hitrejše izpolnjevanje obrazcev."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Potrjevanje kartice"</string>
+<string name="autofill_card_unmask_verification_success">"Kartica je potrjena."</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Nova kartica?"</string>
+<string name="http_post_warning">"Stran, ki jo iščete, je uporabila informacije, ki ste jih vnesli. Z vrnitvijo na to stran se bodo morda ponovila vsa vaša dejanja, ki ste jih opravili. Ali želite nadaljevati?"</string>
+<string name="http_post_warning_resend">"Nadaljuj"</string>
+<string name="login_dialog_title">"Zahtevano je preverjanje pristnosti"</string>
+<string name="login_dialog_username_field">"Uporabniško ime:"</string>
+<string name="login_dialog_password_field">"Geslo:"</string>
+<string name="login_dialog_ok_button_label">"Prijava"</string>
+<string name="sad_tab_title">"Ti šment!"</string>
+<string name="sad_tab_message">"Med prikazom spletne strani je prišlo do napake."</string>
+<string name="sad_tab_oom_message">"Chromiumu je med poskusom prikazovanja te spletne strani zmanjkalo pomnilnika."</string>
+<string name="sad_tab_reload_label">"Ponovno naloži"</string>
+<string name="snippets_disabled_signed_out_instructions">"Če želite prejemati prilagojeno vsebino, ki jo predlaga Google, se prijavite v Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Prejemanje predlagane vsebine"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Končano za zdaj"</string>
+<string name="ntp_status_card_no_bookmarks">"Tu bodo prikazani nedavno obiskani zaznamki"</string>
+<string name="ntp_status_card_title_no_articles">"Vse je prebrano"</string>
+<string name="ntp_status_card_no_articles">"Ob pravem času bo prikazanih več člankov."</string>
+</resources>

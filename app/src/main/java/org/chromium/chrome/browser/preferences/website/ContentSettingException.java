@@ -16,20 +16,21 @@ import java.io.Serializable;
 public class ContentSettingException implements Serializable {
     private final int mContentSettingType;
     private final String mPattern;
-    private final String mSetting;
+    private final ContentSetting mContentSetting;
     private final String mSource;
 
     /**
      * Construct a ContentSettingException.
      * @param type The content setting type this exception covers.
      * @param pattern The host/domain pattern this exception covers.
+     * @param setting The setting for this exception, e.g. ALLOW or BLOCK.
      * @param source The source for this exception, e.g. "policy".
      */
     public ContentSettingException(
-            int type, String pattern, String setting, String source) {
+            int type, String pattern, ContentSetting setting, String source) {
         mContentSettingType = type;
         mPattern = pattern;
-        mSetting = setting;
+        mContentSetting = setting;
         mSource = source;
     }
 
@@ -37,8 +38,8 @@ public class ContentSettingException implements Serializable {
         return mPattern;
     }
 
-    public String getSetting() {
-        return mSetting;
+    public ContentSetting getContentSetting() {
+        return mContentSetting;
     }
 
     public String getSource() {
@@ -46,30 +47,10 @@ public class ContentSettingException implements Serializable {
     }
 
     /**
-     * Returns the content setting value for this pattern, if one exists.
-     */
-    public ContentSetting getContentSetting() {
-        if (mSetting.equals(PrefServiceBridge.EXCEPTION_SETTING_ALLOW)) {
-            return ContentSetting.ALLOW;
-        } else if (mSetting.equals(PrefServiceBridge.EXCEPTION_SETTING_BLOCK)) {
-            return ContentSetting.BLOCK;
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Sets the content setting value for this pattern.
+     * Sets the content setting value for this exception.
      */
     public void setContentSetting(ContentSetting value) {
-        if (value != null) {
-            PrefServiceBridge.getInstance().nativeSetContentSettingForPattern(
-                    mContentSettingType, mPattern, value == ContentSetting.ALLOW
-                            ? ContentSetting.ALLOW.toInt()
-                            : ContentSetting.BLOCK.toInt());
-        } else {
-            PrefServiceBridge.getInstance().nativeSetContentSettingForPattern(
-                    mContentSettingType, mPattern, ContentSetting.DEFAULT.toInt());
-        }
+        PrefServiceBridge.getInstance().nativeSetContentSettingForPattern(mContentSettingType,
+                mPattern, value.toInt());
     }
 }

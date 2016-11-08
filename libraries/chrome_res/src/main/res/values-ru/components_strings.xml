@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"Удалить данные"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Хранить данные карты на этом устройстве"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Если флажок установлен, Chromium будет хранить на этом устройстве данные карты для быстрого заполнения форм."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Подтверждение карты…"</string>
+<string name="autofill_card_unmask_verification_success">"Ваша карта подтверждена"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Добавить карту?"</string>
+<string name="http_post_warning">"На странице, которую вы ищете, использовалась введенная вами информация. При возврате на эту страницу может потребоваться повторить выполненные ранее действия. Продолжить?"</string>
+<string name="http_post_warning_resend">"Далее"</string>
+<string name="login_dialog_title">"Необходима авторизация"</string>
+<string name="login_dialog_username_field">"Имя пользователя:"</string>
+<string name="login_dialog_password_field">"Пароль:"</string>
+<string name="login_dialog_ok_button_label">"Вход"</string>
+<string name="sad_tab_title">"Опаньки…"</string>
+<string name="sad_tab_message">"При загрузке этой страницы возникли неполадки."</string>
+<string name="sad_tab_oom_message">"Chromium не хватает памяти для показа этой страницы."</string>
+<string name="sad_tab_reload_label">"Перезагрузить"</string>
+<string name="snippets_disabled_signed_out_instructions">"Чтобы мы могли рекомендовать вам интересный контент, войдите в свой аккаунт в Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Получайте рекомендации"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Новых закладок нет"</string>
+<string name="ntp_status_card_no_bookmarks">"Здесь появятся закладки, которые вы недавно открывали."</string>
+<string name="ntp_status_card_title_no_articles">"Все просмотрено"</string>
+<string name="ntp_status_card_no_articles">"Скоро здесь появятся другие статьи."</string>
+</resources>

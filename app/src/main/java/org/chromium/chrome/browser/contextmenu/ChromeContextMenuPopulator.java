@@ -6,24 +6,89 @@ package org.chromium.chrome.browser.contextmenu;
 
 import android.content.Context;
 import android.net.MailTo;
+import android.support.annotation.IntDef;
 import android.text.TextUtils;
 import android.view.ContextMenu;
 import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.webkit.MimeTypeMap;
 
+import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.UrlUtilities;
 import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
+import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.preferences.datareduction.DataReductionProxyUma;
 import org.chromium.chrome.browser.search_engines.TemplateUrlService;
+import org.chromium.chrome.browser.util.UrlUtilities;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
 
 /**
  * A {@link ContextMenuPopulator} used for showing the default Chrome context menu.
  */
 public class ChromeContextMenuPopulator implements ContextMenuPopulator {
-    private final ChromeContextMenuItemDelegate mDelegate;
+
+    private static final String TAG = "CCMenuPopulator";
+
+    /**
+     * Defines the context menu modes
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({
+        NORMAL_MODE, /* Default mode */
+        CUSTOM_TAB_MODE, /* Custom tab mode */
+        FULLSCREEN_TAB_MODE /* Full screen mode */
+    })
+    public @interface ContextMenuMode {}
+
+    public static final int NORMAL_MODE = 0;
+    public static final int CUSTOM_TAB_MODE = 1;
+    public static final int FULLSCREEN_TAB_MODE = 2;
+
+    // Items that are included in all context menus.
+    private static final int[] BASE_WHITELIST = {
+            R.id.contextmenu_copy_link_address,
+            R.id.contextmenu_copy_email_address,
+            R.id.contextmenu_copy_link_text,
+            R.id.contextmenu_save_link_as,
+            R.id.contextmenu_save_image,
+            R.id.contextmenu_share_image,
+            R.id.contextmenu_save_video,
+    };
+
+    // Items that are included for normal Chrome browser mode.
+    private static final int[] NORMAL_MODE_WHITELIST = {
+            R.id.contextmenu_load_images,
+            R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_other_window,
+            R.id.contextmenu_open_in_incognito_tab,
+            R.id.contextmenu_save_link_as,
+            R.id.contextmenu_load_original_image,
+            R.id.contextmenu_open_image_in_new_tab,
+            R.id.contextmenu_search_by_image,
+            R.id.contextmenu_save_offline,
+    };
+
+    // Additional items for custom tabs mode.
+    private static final int[] CUSTOM_TAB_MODE_WHITELIST = {
+            R.id.contextmenu_open_image,
+            R.id.contextmenu_search_by_image
+    };
+
+    // Additional items for fullscreen tabs mode.
+    private static final int[] FULLSCREEN_TAB_MODE_WHITELIST = {
+            R.id.menu_id_open_in_chrome
+    };
+
+    private final ContextMenuItemDelegate mDelegate;
     private MenuInflater mMenuInflater;
     private static final String BLANK_URL = "about:blank";
+    private final int mMode;
 
     static class ContextMenuUma {
         // Note: these values must match the ContextMenuOption enum in histograms.xml.
@@ -36,13 +101,24 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         static final int ACTION_SAVE_IMAGE = 6;
         static final int ACTION_OPEN_IMAGE = 7;
         static final int ACTION_OPEN_IMAGE_IN_NEW_TAB = 8;
-        static final int ACTION_COPY_IMAGE = 9;
-        static final int ACTION_COPY_IMAGE_URL = 10;
         static final int ACTION_SEARCH_BY_IMAGE = 11;
         static final int ACTION_LOAD_IMAGES = 12;
         static final int ACTION_LOAD_ORIGINAL_IMAGE = 13;
         static final int ACTION_SAVE_VIDEO = 14;
-        static final int NUM_ACTIONS = 15;
+        static final int ACTION_SHARE_IMAGE = 19;
+        static final int ACTION_OPEN_IN_OTHER_WINDOW = 20;
+        static final int NUM_ACTIONS = 21;
+
+        // Note: these values must match the ContextMenuSaveLinkType enum in histograms.xml.
+        // Only add new values at the end, right before NUM_TYPES. We depend on these specific
+        // values in UMA histograms.
+        static final int TYPE_UNKNOWN = 0;
+        static final int TYPE_TEXT = 1;
+        static final int TYPE_IMAGE = 2;
+        static final int TYPE_AUDIO = 3;
+        static final int TYPE_VIDEO = 4;
+        static final int TYPE_PDF = 5;
+        static final int NUM_TYPES = 6;
 
         /**
          * Records a histogram entry when the user selects an item from a context menu.
@@ -65,20 +141,44 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             }
             RecordHistogram.recordEnumeratedHistogram(histogramName, action, NUM_ACTIONS);
         }
+
+        /**
+         * Records the content types when user downloads the file by long pressing the
+         * save link context menu option.
+         */
+        static void recordSaveLinkTypes(String url) {
+            String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+            int mimeType = TYPE_UNKNOWN;
+            if (extension != null) {
+                String type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                if (type != null) {
+                    if (type.startsWith("text")) {
+                        mimeType = TYPE_TEXT;
+                    } else if (type.startsWith("image")) {
+                        mimeType = TYPE_IMAGE;
+                    } else if (type.startsWith("audio")) {
+                        mimeType = TYPE_AUDIO;
+                    } else if (type.startsWith("video")) {
+                        mimeType = TYPE_VIDEO;
+                    } else if (type.equals("application/pdf")) {
+                        mimeType = TYPE_PDF;
+                    }
+                }
+            }
+            RecordHistogram.recordEnumeratedHistogram(
+                    "ContextMenu.SaveLinkType", mimeType, NUM_TYPES);
+        }
     }
 
     /**
      * Builds a {@link ChromeContextMenuPopulator}.
-     * @param delegate The {@link ChromeContextMenuItemDelegate} that will be notified with actions
+     * @param delegate The {@link ContextMenuItemDelegate} that will be notified with actions
      *                 to perform when menu items are selected.
+     * @param mode Defines the context menu mode
      */
-    public ChromeContextMenuPopulator(ChromeContextMenuItemDelegate delegate) {
+    public ChromeContextMenuPopulator(ContextMenuItemDelegate delegate, @ContextMenuMode int mode) {
         mDelegate = delegate;
-    }
-
-    @Override
-    public boolean shouldShowContextMenu(ContextMenuParams params) {
-        return params != null && (params.isAnchor() || params.isImage() || params.isVideo());
+        mMode = mode;
     }
 
     @Override
@@ -97,12 +197,22 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         menu.setGroupVisible(R.id.contextmenu_group_image, params.isImage());
         menu.setGroupVisible(R.id.contextmenu_group_video, params.isVideo());
 
+        if (params.isAnchor() && !mDelegate.isOpenInOtherWindowSupported()) {
+            menu.findItem(R.id.contextmenu_open_in_other_window).setVisible(false);
+        }
+
         if (mDelegate.isIncognito() || !mDelegate.isIncognitoSupported()) {
             menu.findItem(R.id.contextmenu_open_in_incognito_tab).setVisible(false);
         }
 
-        if (params.getLinkText().trim().isEmpty()) {
+        if (params.getLinkText().trim().isEmpty() || params.isImage()) {
             menu.findItem(R.id.contextmenu_copy_link_text).setVisible(false);
+        }
+
+        if (params.isAnchor() && !UrlUtilities.isAcceptedScheme(params.getLinkUrl())) {
+            menu.findItem(R.id.contextmenu_open_in_other_window).setVisible(false);
+            menu.findItem(R.id.contextmenu_open_in_new_tab).setVisible(false);
+            menu.findItem(R.id.contextmenu_open_in_incognito_tab).setVisible(false);
         }
 
         if (MailTo.isMailTo(params.getLinkUrl())) {
@@ -113,6 +223,13 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
         menu.findItem(R.id.contextmenu_save_link_as).setVisible(
                 UrlUtilities.isDownloadableScheme(params.getLinkUrl()));
+
+        // Only enable the save as offline feature if OfflinePagesBackgroundLoading is enabled, and
+        // it looks like a web page.
+        boolean showSaveOfflineMenuItem =
+                shouldShowBackgroundLoadingContextMenu(params.getLinkUrl());
+
+        menu.findItem(R.id.contextmenu_save_offline).setVisible(showSaveOfflineMenuItem);
 
         if (params.imageWasFetchedLoFi()
                 || !DataReductionProxySettings.getInstance().wasLoFiModeActiveOnMainFrame()
@@ -130,7 +247,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
         if (params.isVideo()) {
             menu.findItem(R.id.contextmenu_save_video).setVisible(
-                    UrlUtilities.isDownloadableScheme(params.getSrcUrl()));
+                    params.canSaveMedia() && UrlUtilities.isDownloadableScheme(params.getSrcUrl()));
         } else if (params.isImage() && params.imageWasFetchedLoFi()) {
             DataReductionProxyUma.dataReductionProxyLoFiUIAction(
                     DataReductionProxyUma.ACTION_LOAD_IMAGE_CONTEXT_MENU_SHOWN);
@@ -138,20 +255,13 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             // new tab," and "Copy image URL" should be disabled on Lo-Fi images.
             menu.findItem(R.id.contextmenu_save_image).setVisible(false);
             menu.findItem(R.id.contextmenu_open_image).setVisible(false);
-            menu.findItem(R.id.contextmenu_open_image_in_new_tab).setVisible(false);
             menu.findItem(R.id.contextmenu_search_by_image).setVisible(false);
-            menu.findItem(R.id.contextmenu_copy_image).setVisible(false);
+            menu.findItem(R.id.contextmenu_share_image).setVisible(false);
         } else if (params.isImage() && !params.imageWasFetchedLoFi()) {
             menu.findItem(R.id.contextmenu_load_original_image).setVisible(false);
 
             menu.findItem(R.id.contextmenu_save_image).setVisible(
                     UrlUtilities.isDownloadableScheme(params.getSrcUrl()));
-
-            if (mDelegate.canLoadOriginalImage()) {
-                menu.findItem(R.id.contextmenu_open_image_in_new_tab).setVisible(false);
-            } else {
-                menu.findItem(R.id.contextmenu_open_original_image_in_new_tab).setVisible(false);
-            }
 
             // Avoid showing open image option for same image which is already opened.
             if (mDelegate.getPageUrl().equals(params.getSrcUrl())) {
@@ -173,11 +283,35 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                         .getDefaultSearchEngineTemplateUrl().getShortName()));
             }
         }
+
+        if (mMode == FULLSCREEN_TAB_MODE) {
+            removeUnsupportedItems(menu, FULLSCREEN_TAB_MODE_WHITELIST);
+        } else if (mMode == CUSTOM_TAB_MODE) {
+            removeUnsupportedItems(menu, CUSTOM_TAB_MODE_WHITELIST);
+        } else {
+            removeUnsupportedItems(menu, NORMAL_MODE_WHITELIST);
+        }
+    }
+
+    private void removeUnsupportedItems(ContextMenu menu, int[] whitelist) {
+        Arrays.sort(BASE_WHITELIST);
+        Arrays.sort(whitelist);
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            if (Arrays.binarySearch(whitelist, item.getItemId()) < 0
+                    && Arrays.binarySearch(BASE_WHITELIST, item.getItemId()) < 0) {
+                menu.removeItem(item.getItemId());
+                i--;
+            }
+        }
     }
 
     @Override
     public boolean onItemSelected(ContextMenuHelper helper, ContextMenuParams params, int itemId) {
-        if (itemId == R.id.contextmenu_open_in_new_tab) {
+        if (itemId == R.id.contextmenu_open_in_other_window) {
+            ContextMenuUma.record(params, ContextMenuUma.ACTION_OPEN_IN_OTHER_WINDOW);
+            mDelegate.onOpenInOtherWindow(params.getLinkUrl(), params.getReferrer());
+        } else if (itemId == R.id.contextmenu_open_in_new_tab) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_OPEN_IN_NEW_TAB);
             mDelegate.onOpenInNewTab(params.getLinkUrl(), params.getReferrer());
         } else if (itemId == R.id.contextmenu_open_in_incognito_tab) {
@@ -186,15 +320,14 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         } else if (itemId == R.id.contextmenu_open_image) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_OPEN_IMAGE);
             mDelegate.onOpenImageUrl(params.getSrcUrl(), params.getReferrer());
-        } else if (itemId == R.id.contextmenu_open_image_in_new_tab
-                || itemId == R.id.contextmenu_open_original_image_in_new_tab) {
+        } else if (itemId == R.id.contextmenu_open_image_in_new_tab) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_OPEN_IMAGE_IN_NEW_TAB);
             mDelegate.onOpenImageInNewTab(params.getSrcUrl(), params.getReferrer());
         } else if (itemId == R.id.contextmenu_load_images) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_LOAD_IMAGES);
             DataReductionProxyUma.dataReductionProxyLoFiUIAction(
                     DataReductionProxyUma.ACTION_LOAD_IMAGES_CONTEXT_MENU_CLICKED);
-            mDelegate.onReloadIgnoringCache();
+            mDelegate.onReloadLoFiImages();
         } else if (itemId == R.id.contextmenu_load_original_image) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_LOAD_ORIGINAL_IMAGE);
             DataReductionProxyUma.dataReductionProxyLoFiUIAction(
@@ -208,15 +341,15 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         } else if (itemId == R.id.contextmenu_copy_link_address) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_COPY_LINK_ADDRESS);
             mDelegate.onSaveToClipboard(params.getUnfilteredLinkUrl(),
-                    ChromeContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_URL);
+                    ContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_URL);
         } else if (itemId == R.id.contextmenu_copy_email_address) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_COPY_EMAIL_ADDRESS);
             mDelegate.onSaveToClipboard(MailTo.parse(params.getLinkUrl()).getTo(),
-                    ChromeContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_URL);
+                    ContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_URL);
         } else if (itemId == R.id.contextmenu_copy_link_text) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_COPY_LINK_TEXT);
             mDelegate.onSaveToClipboard(
-                    params.getLinkText(), ChromeContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_TEXT);
+                    params.getLinkText(), ContextMenuItemDelegate.CLIPBOARD_TYPE_LINK_TEXT);
         } else if (itemId == R.id.contextmenu_save_image) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_SAVE_IMAGE);
             if (mDelegate.startDownload(params.getSrcUrl(), false)) {
@@ -230,24 +363,57 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             }
         } else if (itemId == R.id.contextmenu_save_link_as) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_SAVE_LINK);
-            if (mDelegate.startDownload(params.getUnfilteredLinkUrl(), true)) {
+            String url = params.getUnfilteredLinkUrl();
+            if (mDelegate.startDownload(url, true)) {
+                ContextMenuUma.recordSaveLinkTypes(url);
                 helper.startContextMenuDownload(true, false);
             }
+        } else if (itemId == R.id.contextmenu_save_offline) {
+            // This is a temporary hookup point to save a page later.
+            mDelegate.onSavePageLater(params.getLinkUrl());
         } else if (itemId == R.id.contextmenu_search_by_image) {
             ContextMenuUma.record(params, ContextMenuUma.ACTION_SEARCH_BY_IMAGE);
-            mDelegate.onSearchByImageInNewTab();
-        } else if (itemId == R.id.contextmenu_copy_image) {
-            ContextMenuUma.record(params, ContextMenuUma.ACTION_COPY_IMAGE);
-            mDelegate.onSaveImageToClipboard(params.getSrcUrl());
-        } else if (itemId == R.id.contextmenu_copy_image_url) {
-            ContextMenuUma.record(params, ContextMenuUma.ACTION_COPY_IMAGE_URL);
-            mDelegate.onSaveToClipboard(
-                    params.getSrcUrl(), ChromeContextMenuItemDelegate.CLIPBOARD_TYPE_IMAGE_URL);
+            helper.searchForImage();
+        } else if (itemId == R.id.contextmenu_share_image) {
+            ContextMenuUma.record(params, ContextMenuUma.ACTION_SHARE_IMAGE);
+            helper.shareImage();
+        } else if (itemId == R.id.menu_id_open_in_chrome) {
+            mDelegate.onOpenInChrome(params.getLinkUrl(), params.getPageUrl());
         } else {
             assert false;
         }
 
         return true;
+    }
+
+    /**
+     * Return true if we should show a context menu for background loading.  Make sure the uri looks
+     * like a web page (scheme is http or https) and has mime type of unknown or text.
+     * @param uriString The uri that we are showing a context menu on.
+     */
+    private static boolean shouldShowBackgroundLoadingContextMenu(String uriString) {
+
+        if (!OfflinePageBridge.isBackgroundLoadingEnabled()) return false;
+
+        URI uri = null;
+        try {
+            uri = new URI(uriString);
+        } catch (URISyntaxException e) {
+            Log.e(TAG, "Trying to parse a link that is not a URI " + e);
+            return false;
+        }
+
+        String scheme = uri.getScheme();
+        if (scheme == null) return false;
+
+        String extension = MimeTypeMap.getFileExtensionFromUrl(uriString);
+        String type = null;
+        if (extension != null) {
+            type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+        }
+
+        return (scheme.equals("http") || scheme.equals("https"))
+                && (type == null || type.startsWith("text"));
     }
 
     private void setHeaderText(Context context, ContextMenu menu, String text) {

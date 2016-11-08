@@ -28,21 +28,19 @@ public interface ContextualSearchNetworkCommunicator {
      * @param searchTerm the term to search for.
      * @param displayText the text to display that describes the search term.
      * @param alternateTerm the alternate search term.
+     * @param mid the MID for an entity to use to trigger a Knowledge Panel, or an empty string.
+     *            A MID is a unique identifier for an entity in the Search Knowledge Graph.
      * @param doPreventPreload whether to prevent preloading the search result.
      * @param selectionStartAdjust The start offset adjustment of the selection to use to highlight
      *        the search term.
      * @param selectionEndAdjust The end offset adjustment of the selection to use to highlight
      *        the search term.
+     * @param contextLanguage The language of the context, or the empty string if unknown.
      */
     void handleSearchTermResolutionResponse(boolean isNetworkUnavailable, int responseCode,
-            String searchTerm, String displayText, String alternateTerm, boolean doPreventPreload,
-            int selectionStartAdjust, int selectionEndAdjust);
-
-    /**
-     * Loads a URL in the search content view.
-     * @param url the URL of the page to load.
-     */
-    void loadUrl(String url);
+            String searchTerm, String displayText, String alternateTerm, String mid,
+            boolean doPreventPreload, int selectionStartAdjust, int selectionEndAdjust,
+            String contextLanguage);
 
     // --------------------------------------------------------------------------------------------
     // These are non-network actions that need to be stubbed out for testing.
@@ -55,23 +53,4 @@ public interface ContextualSearchNetworkCommunicator {
      * @return The URL of the base page (needed for testing purposes).
      */
     @Nullable URL getBasePageUrl();
-
-    /**
-     * Handles the WebContentsObserver#didNavigateMainFrame callback.
-     * @param url The URL of the navigation.
-     * @param httpResultCode The HTTP result code of the navigation.
-     */
-    void handleDidNavigateMainFrame(String url, int httpResultCode);
-
-    /**
-     * Creates and sets up a new Search Panel's {@code ContentViewCore}. If there's an existing
-     * {@code ContentViewCore} being used, it will be destroyed first. This should be called as
-     * late as possible to avoid unnecessarily consuming memory.
-     */
-    void createNewSearchContentView();
-
-    /**
-     * Destroys the Search Panel's {@code ContentViewCore}.
-     */
-    void destroySearchContentView();
 }

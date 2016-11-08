@@ -10,6 +10,7 @@ import sys
 
 import constants
 import resource_util
+import zipfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "dirsync-2.1"))
 from dirsync import sync
@@ -20,20 +21,33 @@ def sync_java_files(options):
     args = {'exclude': ['\S+\\.aidl']}
     sync(chrome_java_dir, app_java_dir, "sync", **args)
 
-    # sync aidl files
+    chrome_java_dir = os.path.join(options.chromium_root, "chrome/android/webapk/libs/client/src")
+    sync(chrome_java_dir, app_java_dir, "sync")
 
+    chrome_java_dir = os.path.join(options.chromium_root, "chrome/android/webapk/libs/common/src")
+    sync(chrome_java_dir, app_java_dir, "sync")
+
+    chrome_java_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                   "gen/chrome/android/webapk/libs/client/runtime_library_version_java/java_cpp_template/org/chromium/webapk/lib/client")
+    sync(chrome_java_dir, app_java_dir, "sync")
+
+    # sync aidl files
     app_aidl_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "aidl")
     args = {'only': ['\S+\\.aidl'], 'ignore': ['\S*common.aidl']}
     sync(chrome_java_dir, app_aidl_dir, "sync", **args)
 
+    # sync aidl file for webapk
+    webapk_aidl_dir = os.path.join(options.chromium_root, "chrome/android/webapk/libs/runtime_library/src")
+    sync(webapk_aidl_dir, app_aidl_dir, "sync", **args)
+
     # sync generated enums files
-    gen_enums_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                 "gen", "enums")
-    for dir in os.listdir(gen_enums_dir):
-        java_dir = os.path.join(gen_enums_dir, dir)
-        args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*',
-                           'org/chromium/components/(dom_distiller|bookmarks)S*']}
-        sync(java_dir, app_java_dir, "sync", **args)
+    #gen_enums_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+    #                             "gen", "enums")
+    #for dir in os.listdir(gen_enums_dir):
+    #    java_dir = os.path.join(gen_enums_dir, dir)
+    #    args = {'exclude':['org/chromium/(android_webview|base|blink_public|content|content_public|media|net|sync|ui)\S*',
+    #                       'org/chromium/components/(dom_distiller|bookmarks)S*']}
+    #    sync(java_dir, app_java_dir, "sync", **args)
 
     # sync generated template files
     gen_template_dir = os.path.join(options.chromium_root, "out", options.buildtype,
@@ -44,11 +58,43 @@ def sync_java_files(options):
                            'org/chromium/components/(dom_distiller|bookmarks)S*']}
         sync(java_dir, app_java_dir, "sync", **args)
 
-    # syn NativeLibraries.java
+    # sync NativeLibraries.java
     native_libraries_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                        "chrome_public_apk", "native_libraries_java")
-    java_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "java", "org", "chromium", "base", "library_loader")
-    sync(native_libraries_dir, java_dir, "sync")
+                                        "gen", "chrome", "android", "swe_browser_apk_common__native_libraries_java",
+                                        "java_cpp_template")
+    sync(native_libraries_dir, app_java_dir, "sync")
+
+    # sync BuildConfig.java
+    build_config_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                    "gen", "base/base_build_config_gen/java_cpp_template")
+    sync(build_config_dir, app_java_dir, "sync")
+
+    # unzip generated srcjar files
+    srcjars = ["chrome/android/document_tab_model_info_proto_java__protoc_java.srcjar",
+               "chrome/android/chrome_android_java_enums_srcjar.srcjar",
+               "chrome/android/chrome_android_java_google_api_keys_srcjar.srcjar",
+               "chrome/android/resource_id_javagen.srcjar",
+               "chrome/content_setting_javagen.srcjar",
+               "chrome/content_settings_type_javagen.srcjar",
+               "chrome/data_use_ui_message_enum_javagen.srcjar",
+               "chrome/signin_metrics_enum_javagen.srcjar",
+               "chrome/website_settings_action_javagen.srcjar",
+               "components/browsing_data/core/browsing_data_utils_java.srcjar",
+               "components/infobars/core/infobar_enums_java.srcjar",
+               "components/ntp_snippets/ntp_snippets_java_enums_srcjar.srcjar",
+               "components/ntp_tiles/ntp_tiles_enums_java.srcjar",
+               "components/offline_pages/offline_page_model_enums_java.srcjar",
+               "components/omnibox/browser/autocomplete_match_javagen.srcjar",
+               "components/omnibox/browser/autocomplete_match_type_javagen.srcjar",
+               "components/security_state/security_state_enums_java.srcjar",
+               "third_party/WebKit/public/blink_headers_java_enums_srcjar.srcjar",
+               "third_party/WebKit/public/platform/modules/payments/payment_request.mojom.srcjar",
+               "third_party/WebKit/public/platform/modules/webshare/webshare.mojom.srcjar"]
+    for srcjar in srcjars:
+        zip_ref = zipfile.ZipFile(os.path.join(options.chromium_root, "out", options.buildtype,
+                                               "gen", srcjar), 'r')
+        zip_ref.extractall(app_java_dir)
+        zip_ref.close()
 
 def sync_so_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "jniLibs")
@@ -59,11 +105,39 @@ def sync_so_files(options):
 
 def sync_jar_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs")
-    chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java")
-    args = {'only':['\w+_java\\.jar$', 'cacheinvalidation_javalib\\.jar$', 'jsr_305_javalib\\.jar$',
-                'protobuf_nano_javalib\\.jar$', 'web_contents_delegate_android_java\\.jar$'],
+    java_modules = ["base", "blimp/client/public",
+                    "components/bookmarks/common/android", "components/dom_distiller/android",
+                    "components/gcm_driver/android",
+                    "components/invalidation/impl",
+                    "components/location/android",
+                    "components/navigation_interception/android", "components/policy/android",
+                    'components/precache/android',
+                    "components/safe_json/android", "components/sync/android",
+                    "components/url_formatter/android", "components/variations/android", "components/web_contents_delegate_android",
+                    "components/web_restrictions",
+                    "content/public/android", "mojo/android", "mojo/public/java",
+                    "net/android", "printing",
+                    "third_party/android_data_chart",
+                    "third_party/android_media",
+                    "third_party/android_protobuf", "third_party/android_swipe_refresh",
+                    "third_party/cacheinvalidation",
+                    "third_party/gif_player", "third_party/leakcanary", "third_party/jsr-305",
+                    "ui/android"]
+    args = {'only': ['\w+_java\\.jar$', '\w+_\w+_java\\.jar$', '\w+_\w+_\w+_java\\.jar$', 'bindings\\.jar$', 'system\\.jar$',
+                    'cacheinvalidation_javalib\\.jar$', 'jsr_305_javalib\\.jar$', 'java\\.jar$',
+                    'protobuf_nano_javalib\\.jar$', 'web_contents_delegate_android_java\\.jar$'],
             'ignore': ['chrome_java\\.jar$']}
-    sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
+    for mod in java_modules:
+        chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java", mod)
+        sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
+
+    # sync generated jars
+    #java_modules = ["base"]
+    #args = {'only':['base_java__compile_java\\.javac\\.jar$'],
+    #        'ignore': []}
+    #for mod in java_modules:
+    #    chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "gen", mod)
+    #    sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
 
 def sync_chromium_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res")
@@ -73,20 +147,33 @@ def sync_chromium_res_files(options):
     chrome_res_dir = os.path.join(options.chromium_root, "chrome", "android", "java", "res_chromium")
     sync(chrome_res_dir, library_res_dir, "sync")
 
+    chrome_res_dir = os.path.join(options.chromium_root, "chrome", "android", "java", "res_template")
+    sync(chrome_res_dir, library_res_dir, "sync")
+
     # sync chrome generated string resources
     chrome_gen_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
                                       "gen", "chrome", "java", "res")
     sync(chrome_gen_res_dir, library_res_dir, "sync")
 
+    # sync chrome app policy resources
+    chrome_gen_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                      "gen", "chrome", "app", "policy", "android")
+    sync(chrome_gen_res_dir, library_res_dir, "sync")
+
+    # sync components generated string resources
+    chrome_gen_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
+                                          "gen", "components", "strings", "java", "res")
+    sync(chrome_gen_res_dir, library_res_dir, "sync")
+
     # sync grd generated string resources
     chrome_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                      "obj", "chrome", "chrome_strings_grd.gen", "chrome_strings_grd", "res_grit")
+                                      "gen", "chrome", "android", "chrome_strings_grd_grit_output")
     args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
     sync(chrome_grd_res_dir, library_res_dir, "sync", **args)
 
     # remove duplicate strings in android_chrome_strings.xml and generated_resources.xml
-    resource_util.remove_duplicated_strings(library_res_dir + '/values/android_chrome_strings.xml',
-                                            library_res_dir + '/values/generated_resources.xml')
+    #resource_util.remove_duplicated_strings(library_res_dir + '/values/android_chrome_strings.xml',
+    #                                        library_res_dir + '/values/generated_resources.xml')
 
 def sync_ui_res_files(options):
     library_res_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "ui_res", "src", "main", "res")
@@ -96,7 +183,7 @@ def sync_ui_res_files(options):
 
     # sync grd generated string resources
     ui_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                      "obj", "ui", "android", "ui_strings_grd.gen", "ui_strings_grd", "res_grit")
+                                      "gen", "ui", "android", "ui_strings_grd_grit_output")
     args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
     sync(ui_grd_res_dir, library_res_dir, "sync", **args)
 
@@ -107,7 +194,7 @@ def sync_content_res_files(options):
 
     # sync grd generated string resources
     content_grd_res_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                  "obj", "content", "content_strings_grd.gen", "content_strings_grd", "res_grit")
+                                  "gen", "content", "public", "android", "content_strings_grd_grit_output")
     args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
     sync(content_grd_res_dir, library_res_dir, "sync", **args)
 
@@ -137,14 +224,14 @@ def sync_manifest_files(options):
 
 def sync_data_files(options):
     # TODO(alex)
-    # locales_dir = os.path.join(constants.DIR_LIBRARIES_ROOT, "chrome_res", "src", "main", "res", "raw")
-    # pak_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype, "locales")
-    # args = {'only': ['en-US.pak', 'zh-CN.pak']}
-    # sync(pak_gen_dir, locales_dir, "sync", **args)
+    locales_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "assets")
+    pak_gen_dir = os.path.join(options.chromium_root, "out", options.buildtype, "locales")
+    args = {'only': ['en-US.pak', 'zh-CN.pak']}
+    sync(pak_gen_dir, locales_dir, "sync", **args)
 
     assets_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "assets")
     chrome_public_assets_dir = os.path.join(options.chromium_root, "out", options.buildtype, "assets", "chrome_public_apk")
-    sync(chrome_public_assets_dir, assets_dir, "sync")
+    #sync(chrome_public_assets_dir, assets_dir, "sync")
 
 def main(argv):
     parser = optparse.OptionParser(usage='Usage: %prog [options]', description=__doc__)
@@ -152,13 +239,9 @@ def main(argv):
                       default="/work/chromium/master/chromium-android/src",
                       help="The root of chromium sources")
     parser.add_option('--buildtype',
-                      default="Debug",
-                      help="build type of chromium build(Debug or Release), default Debug")
+                      default="Default",
+                      help="build type of chromium build")
     options, args = parser.parse_args(argv)
-
-    if options.buildtype not in ["Debug", "Release"]:
-        print("buildtype argument value must be Debug or Release")
-        exit(0)
 
     sync_java_files(options)
     sync_jar_files(options)

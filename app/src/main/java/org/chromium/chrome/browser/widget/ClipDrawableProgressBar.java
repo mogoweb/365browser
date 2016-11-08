@@ -36,9 +36,10 @@ public class ClipDrawableProgressBar extends ImageView {
     // http://developer.android.com/reference/android/graphics/drawable/ClipDrawable.html
     private static final int CLIP_DRAWABLE_MAX = 10000;
 
-    private int mProgressBarColor = Color.TRANSPARENT;
+    private final ColorDrawable mForegroundDrawable;
     private int mBackgroundColor = Color.TRANSPARENT;
     private float mProgress;
+    private int mProgressUpdateCount;
     private int mDesiredVisibility;
 
     /**
@@ -57,28 +58,25 @@ public class ClipDrawableProgressBar extends ImageView {
      */
     public ClipDrawableProgressBar(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init(context, attrs, 0);
-    }
-
-    private void init(Context context, AttributeSet attrs, int defStyle) {
         mDesiredVisibility = getVisibility();
 
         assert attrs != null;
         TypedArray a = context.obtainStyledAttributes(
-                attrs, R.styleable.ClipDrawableProgressBar, defStyle, 0);
+                attrs, R.styleable.ClipDrawableProgressBar, 0, 0);
 
-        mProgressBarColor = a.getColor(
+        int foregroundColor = a.getColor(
                 R.styleable.ClipDrawableProgressBar_progressBarColor, Color.TRANSPARENT);
         mBackgroundColor = a.getColor(
                 R.styleable.ClipDrawableProgressBar_backgroundColor, Color.TRANSPARENT);
-        assert mProgressBarColor != Color.TRANSPARENT;
-        assert Color.alpha(mProgressBarColor) == 255
+        assert foregroundColor != Color.TRANSPARENT;
+        assert Color.alpha(foregroundColor) == 255
                 : "Currently ClipDrawableProgressBar only supports opaque progress bar color.";
 
         a.recycle();
 
-        setImageDrawable(new ClipDrawable(new ColorDrawable(mProgressBarColor), Gravity.START,
-                ClipDrawable.HORIZONTAL));
+        mForegroundDrawable = new ColorDrawable(foregroundColor);
+        setImageDrawable(
+                new ClipDrawable(mForegroundDrawable, Gravity.START, ClipDrawable.HORIZONTAL));
         setBackgroundColor(mBackgroundColor);
     }
 
@@ -101,6 +99,7 @@ public class ClipDrawableProgressBar extends ImageView {
         if (mProgress == progress) return;
 
         mProgress = progress;
+        mProgressUpdateCount += 1;
         getDrawable().setLevel(Math.round(progress * CLIP_DRAWABLE_MAX));
     }
 
@@ -112,12 +111,20 @@ public class ClipDrawableProgressBar extends ImageView {
     }
 
     /**
+     * @return Foreground color of the progress bar.
+     */
+    public int getForegroundColor() {
+        return mForegroundDrawable.getColor();
+    }
+
+    /**
      * Get progress bar drawing information.
      * @param drawingInfoOut An instance that the result will be written.
      */
     public void getDrawingInfo(DrawingInfo drawingInfoOut) {
+        int foregroundColor = mForegroundDrawable.getColor();
         float effectiveAlpha = getVisibility() == VISIBLE ? getAlpha() : 0.0f;
-        drawingInfoOut.progressBarColor = applyAlpha(mProgressBarColor, effectiveAlpha);
+        drawingInfoOut.progressBarColor = applyAlpha(foregroundColor, effectiveAlpha);
         drawingInfoOut.progressBarBackgroundColor = applyAlpha(mBackgroundColor, effectiveAlpha);
 
         if (ViewCompat.getLayoutDirection(this) == LAYOUT_DIRECTION_LTR) {
@@ -143,6 +150,20 @@ public class ClipDrawableProgressBar extends ImageView {
                     drawingInfoOut.progressBarRect.left,
                     getBottom());
         }
+    }
+
+    /**
+     * Resets progress update count to 0.
+     */
+    public void resetProgressUpdateCount() {
+        mProgressUpdateCount = 0;
+    }
+
+    /**
+     * @return Progress update count since reset.
+     */
+    public int getProgressUpdateCount() {
+        return mProgressUpdateCount;
     }
 
     private void updateInternalVisibility() {
@@ -177,6 +198,14 @@ public class ClipDrawableProgressBar extends ImageView {
         }
 
         mBackgroundColor = color;
+    }
+
+    /**
+     * Sets the color for the foreground (i.e. the moving part) of the progress bar.
+     * @param color The new color of the progress bar foreground.
+     */
+    public void setForegroundColor(int color) {
+        mForegroundDrawable.setColor(color);
     }
 
     @Override

@@ -19,7 +19,6 @@ public class TabModelSelectorTabObserver extends EmptyTabObserver {
     private final TabModelObserver mTabModelObserver;
 
     private TabModelSelectorObserver mSelectorObserver;
-    private boolean mIsDestroyed;
 
     /**
      * Constructs an observer that should be notified of tabs changes for all tabs owned
@@ -37,11 +36,12 @@ public class TabModelSelectorTabObserver extends EmptyTabObserver {
         mTabModelObserver = new EmptyTabModelObserver() {
             @Override
             public void didAddTab(Tab tab, TabLaunchType type) {
+                // This observer is automatically removed by tab when it is destroyed.
                 tab.addObserver(TabModelSelectorTabObserver.this);
             }
 
             @Override
-            public void didCloseTab(Tab tab) {
+            public void tabRemoved(Tab tab) {
                 tab.removeObserver(TabModelSelectorTabObserver.this);
             }
         };
@@ -84,8 +84,6 @@ public class TabModelSelectorTabObserver extends EmptyTabObserver {
      * Destroys the observer and removes itself as a listener for Tab updates.
      */
     public void destroy() {
-        mIsDestroyed = true;
-
         if (mSelectorObserver != null) {
             mTabModelSelector.removeObserver(mSelectorObserver);
             mSelectorObserver = null;

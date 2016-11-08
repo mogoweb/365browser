@@ -9,13 +9,9 @@ import android.view.KeyEvent;
 import org.chromium.base.annotations.SuppressFBWarnings;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabCreatorManager.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tabmodel.TabModel.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.content.browser.ContentViewCore;
-import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.ui.base.PageTransition;
 
 /**
  * Implements app-level keyboard shortcuts for ChromeTabbedActivity and DocumentActivity.
@@ -74,6 +70,10 @@ public class KeyboardShortcuts {
                     activity.onMenuOrKeyboardAction(R.id.show_menu, false);
                 }
                 return true;
+            case KeyEvent.KEYCODE_ESCAPE:
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    return activity.exitFullscreenIfShowing();
+                }
             case KeyEvent.KEYCODE_TV:
             case KeyEvent.KEYCODE_GUIDE:
             case KeyEvent.KEYCODE_DVR:
@@ -115,6 +115,7 @@ public class KeyboardShortcuts {
         } else if (!event.isCtrlPressed() && !event.isAltPressed()
                 && keyCode != KeyEvent.KEYCODE_F3
                 && keyCode != KeyEvent.KEYCODE_F5
+                && keyCode != KeyEvent.KEYCODE_F10
                 && keyCode != KeyEvent.KEYCODE_FORWARD) {
             return false;
         }
@@ -126,6 +127,9 @@ public class KeyboardShortcuts {
         int keyCodeAndMeta = keyCode | metaState;
 
         switch (keyCodeAndMeta) {
+            case CTRL | SHIFT | KeyEvent.KEYCODE_T:
+                activity.onMenuOrKeyboardAction(R.id.open_recently_closed_tab, false);
+                return true;
             case CTRL | KeyEvent.KEYCODE_T:
                 activity.onMenuOrKeyboardAction(curModel.isIncognito()
                         ? R.id.new_incognito_tab_menu_id
@@ -137,22 +141,12 @@ public class KeyboardShortcuts {
             case CTRL | SHIFT | KeyEvent.KEYCODE_N:
                 activity.onMenuOrKeyboardAction(R.id.new_incognito_tab_menu_id, false);
                 return true;
-            case CTRL | SHIFT | KeyEvent.KEYCODE_B:
-            case CTRL | KeyEvent.KEYCODE_H:
-                String url = keyCode == KeyEvent.KEYCODE_B
-                        ? UrlConstants.BOOKMARKS_URL
-                        : UrlConstants.HISTORY_URL;
-                Tab currentTab = TabModelUtils.getCurrentTab(curModel);
-                if (currentTab != null && isCurrentTabVisible) {
-                    currentTab.loadUrl(new LoadUrlParams(url, PageTransition.AUTO_BOOKMARK));
-                } else {
-                    TabCreator tabCreator = activity.getCurrentTabCreator();
-                    if (tabCreator != null) {
-                        tabCreator.launchUrl(url, TabLaunchType.FROM_KEYBOARD);
-                    }
-                }
-                return true;
+            // Alt+E represents a special character ´ (latin code: &#180) in Android.
+            // If an EditText or ContentView has focus, Alt+E will be swallowed by
+            // the default dispatchKeyEvent and cannot open the menu.
+            case ALT | KeyEvent.KEYCODE_E:
             case ALT | KeyEvent.KEYCODE_F:
+            case KeyEvent.KEYCODE_F10:
             case KeyEvent.KEYCODE_BUTTON_Y:
                 activity.onMenuOrKeyboardAction(R.id.show_menu, false);
                 return true;
@@ -204,9 +198,15 @@ public class KeyboardShortcuts {
                 case KeyEvent.KEYCODE_BUTTON_X:
                     activity.onMenuOrKeyboardAction(R.id.focus_url_bar, false);
                     return true;
+                case CTRL | SHIFT | KeyEvent.KEYCODE_B:
+                    activity.onMenuOrKeyboardAction(R.id.all_bookmarks_menu_id, false);
+                    return true;
                 case KeyEvent.KEYCODE_BOOKMARK:
                 case CTRL | KeyEvent.KEYCODE_D:
                     activity.onMenuOrKeyboardAction(R.id.bookmark_this_page_id, false);
+                    return true;
+                case CTRL | KeyEvent.KEYCODE_H:
+                    activity.onMenuOrKeyboardAction(R.id.open_history_menu_id, false);
                     return true;
                 case CTRL | KeyEvent.KEYCODE_P:
                     activity.onMenuOrKeyboardAction(R.id.print_id, false);
@@ -228,10 +228,26 @@ public class KeyboardShortcuts {
                     cvc = activity.getCurrentContentViewCore();
                     if (cvc != null) cvc.zoomReset();
                     return true;
+                case SHIFT | CTRL | KeyEvent.KEYCODE_R:
                 case CTRL | KeyEvent.KEYCODE_R:
+                case SHIFT | KeyEvent.KEYCODE_F5:
                 case KeyEvent.KEYCODE_F5:
                     Tab tab = activity.getActivityTab();
-                    if (tab != null) tab.reload();
+                    if (tab != null) {
+                        if ((keyCodeAndMeta & SHIFT) == SHIFT) {
+                            tab.reloadIgnoringCache();
+                        } else {
+                            tab.reload();
+                        }
+
+                        if (activity.getToolbarManager() != null
+                                && tab.getWebContents() != null
+                                && tab.getWebContents().focusLocationBarByDefault()) {
+                            activity.getToolbarManager().revertLocationBarChanges();
+                        } else {
+                            tab.requestFocus();
+                        }
+                    }
                     return true;
                 case ALT | KeyEvent.KEYCODE_DPAD_LEFT:
                     tab = activity.getActivityTab();
@@ -242,9 +258,6 @@ public class KeyboardShortcuts {
                 case KeyEvent.KEYCODE_BUTTON_START:
                     tab = activity.getActivityTab();
                     if (tab != null && tab.canGoForward()) tab.goForward();
-                    return true;
-                case CTRL | SHIFT | KeyEvent.KEYCODE_SLASH:  // i.e. Ctrl+?
-                    activity.onMenuOrKeyboardAction(R.id.help_id, false);
                     return true;
             }
         }

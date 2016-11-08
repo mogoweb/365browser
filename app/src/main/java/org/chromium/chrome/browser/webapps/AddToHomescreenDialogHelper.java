@@ -7,9 +7,7 @@ package org.chromium.chrome.browser.webapps;
 import android.content.Context;
 import android.graphics.Bitmap;
 
-import org.chromium.base.ApplicationStatus;
 import org.chromium.base.annotations.CalledByNative;
-import org.chromium.chrome.browser.ShortcutHelper;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.WebContents;
 
@@ -75,8 +73,8 @@ public class AddToHomescreenDialogHelper {
 
     @CalledByNative
     private void onIconAvailable(Bitmap icon) {
-        mObserver.onIconAvailable(icon);
         mIsInitialized = true;
+        mObserver.onIconAvailable(icon);
     }
 
     /**
@@ -85,16 +83,6 @@ public class AddToHomescreenDialogHelper {
      */
     public void addShortcut(String userRequestedTitle) {
         nativeAddShortcut(mNativeAddToHomescreenDialogHelper, userRequestedTitle);
-    }
-
-    /**
-     * Creates an icon that is acceptable to show on the launcher.
-     */
-    @CalledByNative
-    private static Bitmap finalizeLauncherIcon(
-            String url, Bitmap icon, int red, int green, int blue) {
-        return ShortcutHelper.createLauncherIcon(
-                ApplicationStatus.getApplicationContext(), icon, url, red, green, blue);
     }
 
     private native long nativeInitialize(WebContents webContents);

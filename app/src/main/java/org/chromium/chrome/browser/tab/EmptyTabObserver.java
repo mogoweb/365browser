@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tab;
 
+import android.graphics.Bitmap;
 import android.view.ContextMenu;
 
 import org.chromium.content.browser.ContentViewCore;
@@ -49,7 +50,7 @@ public class EmptyTabObserver implements TabObserver {
     public void onPageLoadFailed(Tab tab, int errorCode) { }
 
     @Override
-    public void onFaviconUpdated(Tab tab) { }
+    public void onFaviconUpdated(Tab tab, Bitmap icon) { }
 
     @Override
     public void onTitleUpdated(Tab tab) { }
@@ -76,10 +77,10 @@ public class EmptyTabObserver implements TabObserver {
     public void onWebContentsInstantSupportDisabled() { }
 
     @Override
-    public void onLoadStarted(Tab tab) { }
+    public void onLoadStarted(Tab tab, boolean toDifferentDocument) { }
 
     @Override
-    public void onLoadStopped(Tab tab) { }
+    public void onLoadStopped(Tab tab, boolean toDifferentDocument) { }
 
     @Override
     public void onLoadProgressChanged(Tab tab, int progress) { }
@@ -128,4 +129,7 @@ public class EmptyTabObserver implements TabObserver {
     @Override
     public void webContentsCreated(Tab tab, WebContents sourceWebContents, long openerRenderFrameId,
             String frameName, String targetUrl, WebContents newWebContents) { }
+
+    @Override
+    public void onReparentingFinished(Tab tab) { }
 }

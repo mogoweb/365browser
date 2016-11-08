@@ -12,8 +12,8 @@ package org.chromium.chrome.browser.widget;
 class ProgressAnimationSmooth implements ToolbarProgressBar.AnimationLogic {
     // The (de)acceleration unit is progress per second squared where 0 <= progress <= 1.
     private static final float FINISHING_ACCELERATION = 7.0f;
-    private static final float ACCELERATION = 0.15f;
-    private static final float DECELERATION = 0.15f;
+    private static final float ACCELERATION = 3.5f;
+    private static final float DECELERATION = 3.5f;
 
     // Precomputed constants
     private static final float CONSTANT_1 = -1.0f / ACCELERATION;
@@ -26,15 +26,13 @@ class ProgressAnimationSmooth implements ToolbarProgressBar.AnimationLogic {
     private float mVelocity;
 
     @Override
-    public void reset() {
-        mProgress = 0.0f;
+    public void reset(float startProgress) {
+        mProgress = startProgress;
         mVelocity = 0.0f;
     }
 
     @Override
     public float updateProgress(float targetProgress, float frameTimeSec, int resolution) {
-        assert mProgress <= targetProgress;
-
         final float acceleratingDuration = computeAcceleratingDuration(
                 targetProgress, frameTimeSec);
         final float deceleratingDuration = frameTimeSec - acceleratingDuration;

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.partnerbookmarks;
 
+import org.chromium.chrome.R;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 
@@ -17,6 +18,7 @@ import android.content.pm.ApplicationInfo;
  */
 public class PartnerBookmarksShim {
     private static boolean sIsReadingAttempted;
+    private static boolean sForceRead = false;
 
     /**
      * Checks if we need to fetch the Partner bookmarks and kicks the reading off. If reading was
@@ -25,9 +27,13 @@ public class PartnerBookmarksShim {
     public static void kickOffReading(Context context) {
         if (sIsReadingAttempted) return;
         sIsReadingAttempted = true;
+        if (context.getResources().getBoolean(
+                R.bool.swe_force_enable_partner_customization))
+            sForceRead = true;
 
         PartnerBookmarksReader reader = new PartnerBookmarksReader(context);
-        if ((context.getApplicationInfo().flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+        if ((context.getApplicationInfo().flags &
+                ApplicationInfo.FLAG_SYSTEM) == 0 && !sForceRead) {
             reader.onBookmarksRead();
             return;
         }

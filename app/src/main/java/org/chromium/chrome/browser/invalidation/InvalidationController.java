@@ -18,10 +18,10 @@ import org.chromium.base.FieldTrialList;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.sync.ProfileSyncService;
 import org.chromium.components.invalidation.InvalidationClientService;
-import org.chromium.sync.AndroidSyncSettings;
-import org.chromium.sync.ModelType;
-import org.chromium.sync.notifier.InvalidationIntentProtocol;
-import org.chromium.sync.signin.ChromeSigninController;
+import org.chromium.components.sync.AndroidSyncSettings;
+import org.chromium.components.sync.ModelType;
+import org.chromium.components.sync.notifier.InvalidationIntentProtocol;
+import org.chromium.components.sync.signin.ChromeSigninController;
 
 import java.util.HashSet;
 
@@ -168,6 +168,9 @@ public class InvalidationController implements ApplicationStatus.ApplicationStat
      * sync types.  Starts the client if needed.
      */
     public void ensureStartedAndUpdateRegisteredTypes() {
+        ProfileSyncService syncService = ProfileSyncService.get();
+        if (syncService == null) return;
+
         mStarted = true;
 
         // Ensure GCM has been initialized.
@@ -178,7 +181,7 @@ public class InvalidationController implements ApplicationStatus.ApplicationStat
         mEnableSessionInvalidationsTimer.resume();
 
         HashSet<Integer> typesToRegister = new HashSet<Integer>();
-        typesToRegister.addAll(ProfileSyncService.get().getPreferredDataTypes());
+        typesToRegister.addAll(syncService.getPreferredDataTypes());
         if (!mSessionInvalidationsEnabled) {
             typesToRegister.remove(ModelType.SESSIONS);
             typesToRegister.remove(ModelType.FAVICON_TRACKING);
@@ -234,6 +237,13 @@ public class InvalidationController implements ApplicationStatus.ApplicationStat
     }
 
     /**
+     * Returns whether the invalidation client has been started.
+     */
+    public boolean isStarted() {
+        return mStarted;
+    }
+
+    /**
      * Called when a RecentTabsPage is opened.
      */
     public void onRecentTabsPageOpened() {
@@ -266,9 +276,12 @@ public class InvalidationController implements ApplicationStatus.ApplicationStat
     public static InvalidationController get(Context context) {
         synchronized (LOCK) {
             if (sInstance == null) {
-                boolean canDisableSessionInvalidations =
-                        FieldTrialList.findFullName("AndroidSessionNotifications")
-                                .equals("Disabled");
+                // The PageRevisitInstrumentation trial needs sessions invalidations to be on such
+                // that local session data is current and can be used to perform checks.
+                boolean requireInvalidationsForInstrumentation =
+                        FieldTrialList.findFullName("PageRevisitInstrumentation").equals("Enabled");
+                boolean canDisableSessionInvalidations = !requireInvalidationsForInstrumentation;
+
                 boolean canUseGcmUpstream =
                         FieldTrialList.findFullName("InvalidationsGCMUpstream").equals("Enabled");
                 sInstance = new InvalidationController(

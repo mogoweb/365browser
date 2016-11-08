@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"Hapus salinan"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Menyimpan salinan kartu ini di perangkat ini"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Jika dicentang, Chromium akan menyimpan salinan kartu Anda di perangkat ini untuk pengisian formulir yang lebih cepat."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Mengonfirmasi kartu"</string>
+<string name="autofill_card_unmask_verification_success">"Kartu telah dikonfirmasi"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Kartu baru?"</string>
+<string name="http_post_warning">"Laman yang dicari menggunakan informasi yang Anda masukkan. Kembali ke laman tersebut dapat menyebabkan pengulangan tindakan apa pun yang Anda lakukan. Apakah Anda ingin melanjutkan?"</string>
+<string name="http_post_warning_resend">"Lanjut"</string>
+<string name="login_dialog_title">"Diperlukan Otentikasi"</string>
+<string name="login_dialog_username_field">"Nama Pengguna:"</string>
+<string name="login_dialog_password_field">"Sandi:"</string>
+<string name="login_dialog_ok_button_label">"Log In"</string>
+<string name="sad_tab_title">"Yah!"</string>
+<string name="sad_tab_message">"Terjadi masalah sewaktu menampilkan laman web ini."</string>
+<string name="sad_tab_oom_message">"Chromium kehabisan memori saat mencoba menampilkan laman web ini."</string>
+<string name="sad_tab_reload_label">"Muat ulang"</string>
+<string name="snippets_disabled_signed_out_instructions">"Untuk mendapatkan konten hasil personalisasi yang disarankan oleh Google, masuk ke Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Dapatkan konten yang disarankan"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Sudah tidak ada konten baru"</string>
+<string name="ntp_status_card_no_bookmarks">"Bookmark yang baru-baru ini dikunjungi akan muncul di sini."</string>
+<string name="ntp_status_card_title_no_articles">"Sudah Dibaca Semua"</string>
+<string name="ntp_status_card_no_articles">"Artikel lainnya akan muncul di waktu yang tepat."</string>
+</resources>

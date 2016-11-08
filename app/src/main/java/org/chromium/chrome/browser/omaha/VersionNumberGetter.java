@@ -21,10 +21,9 @@ public class VersionNumberGetter {
      * @return The latest version if we retrieved one from the Omaha server, or "" if we haven't.
      */
     public String getLatestKnownVersion(
-            Context applicationContext, String prefPackage, String prefLatestVersion) {
+            Context context, String prefPackage, String prefLatestVersion) {
         assert Looper.myLooper() != Looper.getMainLooper();
-        SharedPreferences prefs = applicationContext.getSharedPreferences(
-                prefPackage, Context.MODE_PRIVATE);
+        SharedPreferences prefs = context.getSharedPreferences(prefPackage, Context.MODE_PRIVATE);
         return prefs.getString(prefLatestVersion, "");
     }
 
@@ -32,7 +31,34 @@ public class VersionNumberGetter {
      * Retrieve the version of Chrome we're using.
      * @return The latest version if we retrieved one from the Omaha server, or "" if we haven't.
      */
-    public String getCurrentlyUsedVersion(Context applicationContext) {
-        return BuildInfo.getPackageVersionName(applicationContext);
+    public String getCurrentlyUsedVersion(Context context) {
+        return BuildInfo.getPackageVersionName(context);
+    }
+
+    /**
+     * Gets the milestone from an AboutVersionStrings#getApplicationVersion string. These strings
+     * are of the format "ProductName xx.xx.xx.xx".
+     *
+     * @param version The version to extract the milestone number from.
+     * @return The milestone of the given version string.
+     */
+    public static int getMilestoneFromVersionNumber(String version) {
+        if (version.isEmpty()) {
+            throw new IllegalArgumentException("Application version incorrectly formatted");
+        }
+
+        version = version.replaceAll("[^\\d.]", "");
+
+        // Parse out the version numbers.
+        String[] pieces = version.split("\\.");
+        if (pieces.length != 4) {
+            throw new IllegalArgumentException("Application version incorrectly formatted");
+        }
+
+        try {
+            return Integer.parseInt(pieces[0]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Application version incorrectly formatted");
+        }
     }
 }

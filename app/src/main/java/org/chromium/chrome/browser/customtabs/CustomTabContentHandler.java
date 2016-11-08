@@ -4,8 +4,11 @@
 
 package org.chromium.chrome.browser.customtabs;
 
+import android.app.PendingIntent;
 import android.content.Intent;
-import android.os.IBinder;
+import android.graphics.Bitmap;
+import android.support.customtabs.CustomTabsSessionToken;
+import android.widget.RemoteViews;
 
 import org.chromium.content_public.browser.LoadUrlParams;
 
@@ -27,7 +30,7 @@ public interface CustomTabContentHandler {
     /**
      * @return The session this {@link CustomTabContentHandler} is associated with.
      */
-    IBinder getSession();
+    CustomTabsSessionToken getSession();
 
     /**
      * Check whether an intent is valid or should be ignored within this content handler.
@@ -35,4 +38,17 @@ public interface CustomTabContentHandler {
      * @return Whether the intent should be ignored.
      */
     boolean shouldIgnoreIntent(Intent intent);
+
+    /**
+     * Finds the action button with the given id, and updates it with the new content.
+     * @return Whether the action button has been updated.
+     */
+    boolean updateCustomButton(int id, Bitmap bitmap, String description);
+
+    /**
+     * Updates the {@link RemoteViews} shown on the secondary toolbar.
+     * @return Whether this update is successful.
+     */
+    boolean updateRemoteViews(RemoteViews remoteViews, int[] clickableIDs,
+            PendingIntent pendingIntent);
 }

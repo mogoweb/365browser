@@ -95,7 +95,7 @@ public class AddToHomescreenDialog {
                 progressBarView.setVisibility(View.GONE);
                 iconView.setVisibility(View.VISIBLE);
                 iconView.setImageBitmap(icon);
-                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(true);
+                updateAddButtonEnabledState(dialog, dialogHelper, input);
             }
         });
 
@@ -110,11 +110,7 @@ public class AddToHomescreenDialog {
 
             @Override
             public void afterTextChanged(Editable editableText) {
-                if (TextUtils.isEmpty(editableText)) {
-                    dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
-                } else {
-                    dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(true);
-                }
+                updateAddButtonEnabledState(dialog, dialogHelper, input);
             }
         });
 
@@ -133,8 +129,7 @@ public class AddToHomescreenDialog {
         dialog.setOnShowListener(new DialogInterface.OnShowListener() {
             @Override
             public void onShow(DialogInterface d) {
-                dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(
-                        dialogHelper.isInitialized());
+                updateAddButtonEnabledState(dialog, dialogHelper, input);
             }
         });
 
@@ -149,5 +144,17 @@ public class AddToHomescreenDialog {
         });
 
         dialog.show();
+    }
+
+    /**
+     * Updates whether the dialog's OK button is enabled.
+     * @param dialog The dialog whose "OK" button to enable or disable.
+     * @param helper
+     * @param input The dialog's text field.
+     */
+    public static void updateAddButtonEnabledState(
+            AlertDialog dialog, AddToHomescreenDialogHelper helper, EditText input) {
+        boolean enable = helper.isInitialized() && !TextUtils.isEmpty(input.getText());
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(enable);
     }
 }

@@ -10,6 +10,7 @@ package org.chromium.chrome.browser;
 public class UrlConstants {
     public static final String CHROME_SCHEME = "chrome://";
     public static final String CHROME_NATIVE_SCHEME = "chrome-native://";
+    public static final String CUSTOM_TAB_SCHEME = "customtab";
     public static final String DOCUMENT_SCHEME = "document";
     public static final String HTTP_SCHEME = "http://";
     public static final String HTTPS_SCHEME = "https://";
@@ -22,7 +23,18 @@ public class UrlConstants {
     public static final String
             BOOKMARKS_UNCATEGORIZED_URL = "chrome-native://bookmarks/uncategorized/";
     public static final String BOOKMARKS_HOST = "bookmarks";
+    public static final String DOWNLOADS_URL = "chrome-native://downloads/";
+    public static final String DOWNLOADS_FILTER_URL = "chrome-native://downloads/filter/";
+    public static final String DOWNLOADS_HOST = "downloads";
     public static final String RECENT_TABS_URL = "chrome-native://recent-tabs/";
     public static final String RECENT_TABS_HOST = "recent-tabs";
     public static final String HISTORY_URL = "chrome://history/";
+    public static final String INTERESTS_URL = "chrome-native://interests/";
+    public static final String INTERESTS_HOST = "interests";
+    public static final String PHYSICAL_WEB_URL = "chrome-native://physical-web/";
+    public static final String PHYSICAL_WEB_HOST = "physical-web";
+    public static final String ABOUT_BLANK = "about:blank";
+
+    public static final String GOOGLE_ACCOUNT_ACTIVITY_CONTROLS_URL =
+            "https://myaccount.google.com/activitycontrols/search";
 }

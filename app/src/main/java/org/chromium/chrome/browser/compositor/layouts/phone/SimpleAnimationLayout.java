@@ -21,6 +21,7 @@ import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackAnimation
 import org.chromium.chrome.browser.compositor.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.TabListSceneLayer;
 import org.chromium.chrome.browser.fullscreen.ChromeFullscreenManager;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.ui.interpolators.BakedBezierInterpolator;
 import org.chromium.ui.resources.ResourceManager;
@@ -87,6 +88,12 @@ public class SimpleAnimationLayout
     @Override
     public void show(long time, boolean animate) {
         super.show(time, animate);
+
+        if (mTabModelSelector != null && mTabContentManager != null) {
+            Tab tab = mTabModelSelector.getCurrentTab();
+            if (tab != null && tab.isNativePage()) mTabContentManager.cacheTabThumbnail(tab);
+        }
+
         reset();
     }
 
@@ -395,6 +402,9 @@ public class SimpleAnimationLayout
             default:
         }
     }
+
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {}
 
     @Override
     protected SceneLayer getSceneLayer() {

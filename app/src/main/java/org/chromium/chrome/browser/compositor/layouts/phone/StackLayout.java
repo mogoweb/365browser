@@ -28,7 +28,8 @@ import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackTab;
 import org.chromium.chrome.browser.compositor.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.TabListSceneLayer;
 import org.chromium.chrome.browser.fullscreen.ChromeFullscreenManager;
-import org.chromium.chrome.browser.partnercustomizations.HomepageManager;
+import org.chromium.chrome.browser.incognito.IncognitoOnlyModeUtil;
+import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -169,8 +170,10 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     @Override
     public void setTabModelSelector(TabModelSelector modelSelector, TabContentManager manager) {
         super.setTabModelSelector(modelSelector, manager);
-        mStacks[0].setTabModel(modelSelector.getModel(false));
-        mStacks[1].setTabModel(modelSelector.getModel(true));
+        mStacks[0].setTabModel(modelSelector
+            .getModel(IncognitoOnlyModeUtil.getInstance().isIncognitoOnlyModeEnabled()));
+        mStacks[1].setTabModel(modelSelector
+            .getModel(!IncognitoOnlyModeUtil.getInstance().isIncognitoOnlyModeEnabled()));
         resetScrollData();
     }
 
@@ -182,7 +185,16 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
      * @VisibleForTesting
      */
     public Stack getTabStack(boolean incognito) {
-        return mStacks[incognito ? 1 : 0];
+        return mStacks[getStackIndex(incognito)];
+    }
+
+    private int getStackIndex(boolean incognito) {
+        if (IncognitoOnlyModeUtil.getInstance().isIncognitoOnlyModeEnabled()) {
+            return incognito ? 0 : 1;
+        } else {
+            return incognito ? 1 : 0;
+        }
+
     }
 
     /**
@@ -205,10 +217,10 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
             boolean incognito = mTemporarySelectedStack != null
                     ? mTemporarySelectedStack
                     : mTabModelSelector.isIncognitoSelected();
-            return incognito ? 1 : 0;
+            return getStackIndex(incognito);
         } else {
-            return TabModelUtils.getTabById(mTabModelSelector.getModel(true), tabId) != null ? 1
-                                                                                             : 0;
+            return getStackIndex(TabModelUtils.getTabById(
+                    mTabModelSelector.getModel(true), tabId) != null);
         }
     }
 
@@ -253,7 +265,7 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         startMarginAnimation(true);
 
         // Animate the stack to leave incognito mode.
-        if (!mStacks[1].isDisplayable()) uiPreemptivelySelectTabModel(false);
+        if (!mStacks[getStackIndex(true)].isDisplayable()) uiPreemptivelySelectTabModel(false);
     }
 
     @Override
@@ -263,7 +275,7 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         // trigger the overlap animation.
         startMarginAnimation(true);
         // Animate the stack to leave incognito mode.
-        if (!mStacks[1].isDisplayable()) uiPreemptivelySelectTabModel(false);
+        if (!mStacks[getStackIndex(true)].isDisplayable()) uiPreemptivelySelectTabModel(false);
     }
 
     @Override
@@ -344,6 +356,14 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     @Override
+    public void onTabRestored(long time, int tabId) {
+        super.onTabRestored(time, tabId);
+        // Call show() so that new stack tabs and potentially new stacks get created.
+        // TODO(twellington): add animation for showing the restored tab.
+        show(time, false);
+    }
+
+    @Override
     public void onTabModelSwitched(boolean toIncognitoTabModel) {
         flingStacks(toIncognitoTabModel);
         mFlingFromModelChange = true;
@@ -406,14 +426,15 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         // Start the tab closing effect if necessary.
         getTabStack(id).tabClosingEffect(time, id);
 
-        int incognitoCount = mTabModelSelector.getModel(true).getCount();
+        int secondStackCount = mStacks[1].getCount();
         TabModel model = mTabModelSelector.getModelForTabId(id);
-        if (model != null && model.isIncognito()) incognitoCount--;
-        boolean incognitoVisible = incognitoCount > 0;
+        if (model != null && getTabStackIndex(id) == 1) secondStackCount = model.getCount() - 1;
+
+        boolean secondStackVisible = secondStackCount > 0;
 
         // Make sure we show/hide both stacks depending on which tab we're closing.
-        startMarginAnimation(true, incognitoVisible);
-        if (!incognitoVisible) uiPreemptivelySelectTabModel(false);
+        startMarginAnimation(true, secondStackVisible);
+        if (!secondStackVisible) uiPreemptivelySelectTabModel(false);
     }
 
     /**
@@ -427,10 +448,10 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     public void uiDoneClosingTab(long time, int id, boolean canUndo, boolean incognito) {
         // If homepage is enabled and there is a maximum of 1 tab in both models
         // (this is the last tab), the tab closure cannot be undone.
-        canUndo &= !(HomepageManager.isHomepageEnabled(getContext())
+        canUndo &= !(PartnerBrowserCustomizations.isLastTabExitEnabled()
                            && (mTabModelSelector.getModel(true).getCount()
                                               + mTabModelSelector.getModel(false).getCount()
-                                      < 2));
+                               < 2));
 
         // Propagate the tab closure to the model.
         TabModelUtils.closeTabById(mTabModelSelector.getModel(incognito), id, canUndo);
@@ -490,11 +511,12 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         // Remove any views in case we're getting another call to show before we hide (quickly
         // toggling the tab switcher button).
         mViewContainer.removeAllViews();
+        int currentTabModel = getStackIndex(mTabModelSelector.isIncognitoSelected());
 
         for (int i = mStacks.length - 1; i >= 0; --i) {
             mStacks[i].reset();
             if (mStacks[i].isDisplayable()) {
-                mStacks[i].show();
+                mStacks[i].show(i == currentTabModel);
             } else {
                 mStacks[i].cleanupTabs();
             }
@@ -944,12 +966,15 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         mStackRects[1].top = mStackRects[0].top + viewport.getStack0ToStack1TranslationY();
         mStackRects[1].bottom = mStackRects[1].top + viewport.getHeight();
 
-        mStacks[0].setStackFocusInfo(1.0f + mRenderedScrollOffset,
-                mSortingComparator == mOrderComparator ? mTabModelSelector.getModel(false).index()
-                                                       : -1);
-        mStacks[1].setStackFocusInfo(-mRenderedScrollOffset, mSortingComparator == mOrderComparator
-                        ? mTabModelSelector.getModel(true).index()
-                        : -1);
+          mStacks[0].setStackFocusInfo(1.0f + mRenderedScrollOffset,
+                  mSortingComparator == mOrderComparator
+                          ? mTabModelSelector.getModel(getStackIndex(false) != 0).index()
+                          : -1);
+
+          mStacks[1].setStackFocusInfo(-mRenderedScrollOffset,
+                mSortingComparator == mOrderComparator
+                          ? mTabModelSelector.getModel(getStackIndex(true) != 0).index()
+                          : -1);
 
         // Compute position and visibility
         mStacks[0].computeTabPosition(time, mStackRects[0]);
@@ -1005,7 +1030,8 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
      * @return Whether the tab stack index passed in differed from the currently selected stack.
      */
     public boolean setActiveStackState(boolean isIncognito) {
-        if (isIncognito == mTabModelSelector.isIncognitoSelected()) return false;
+        if ((isIncognito ? 1 : 0) == getStackIndex(mTabModelSelector.isIncognitoSelected()))
+            return false;
         mTemporarySelectedStack = isIncognito;
         return true;
     }
@@ -1040,6 +1066,9 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     @Override
     public void doneHiding() {
         super.doneHiding();
+
+        mInnerMarginPercent = 0.0f;
+        mStackOffsetYPercent = 0.0f;
         mTabModelSelector.commitAllTabClosures();
     }
 
@@ -1175,6 +1204,9 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
                 break;
         }
     }
+
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {}
 
     /**
      * Called by the stacks whenever they start an animation.

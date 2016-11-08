@@ -8,60 +8,96 @@ import android.text.TextUtils;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.SysUtils;
+import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.ChromeSwitches;
-import org.chromium.chrome.browser.ChromeVersionInfo;
 import org.chromium.components.variations.VariationsAssociatedData;
-
-import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * Provides Field Trial support for the Contextual Search application within Chrome for Android.
  */
 public class ContextualSearchFieldTrial {
     private static final String FIELD_TRIAL_NAME = "ContextualSearch";
-    private static final String ENABLED_PARAM = "enabled";
+    private static final String DISABLED_PARAM = "disabled";
     private static final String ENABLED_VALUE = "true";
 
-    private static final String DISABLE_FOR_CJK = "disable_for_cjk";
-    private static final String DISABLE_FOR_CHINESE = "disable_for_chinese";
-    private static final String DISABLE_FOR_JAPANESE = "disable_for_japanese";
-    private static final String DISABLE_FOR_KOREAN = "disable_for_korean";
+    static final String MANDATORY_PROMO_ENABLED = "mandatory_promo_enabled";
+    static final String MANDATORY_PROMO_LIMIT = "mandatory_promo_limit";
+    static final int MANDATORY_PROMO_DEFAULT_LIMIT = 10;
 
-    // TODO(pedrosimonetti): Confirm if we can delete promo_on_longpress_only now.
-    private static final String PROMO_ON_LONGPRESS_ONLY = "promo_on_longpress_only";
-    static final String PROMO_ON_LIMITED_TAPS = "promo_on_limited_taps";
-    static final String TAP_TRIGGERED_PROMO_LIMIT = "tap_triggered_promo_limit";
-    static final String TAP_RESOLVE_LIMIT_FOR_DECIDED = "tap_resolve_limit_for_decided";
-    static final String TAP_PREFETCH_LIMIT_FOR_DECIDED = "tap_prefetch_limit_for_decided";
-    static final String TAP_RESOLVE_LIMIT_FOR_UNDECIDED = "tap_resolve_limit_for_undecided";
-    static final String TAP_PREFETCH_LIMIT_FOR_UNDECIDED = "tap_prefetch_limit_for_undecided";
+    private static final String PEEK_PROMO_FORCED = "peek_promo_forced";
+    @VisibleForTesting
+    static final String PEEK_PROMO_ENABLED = "peek_promo_enabled";
+    private static final String PEEK_PROMO_MAX_SHOW_COUNT = "peek_promo_max_show_count";
+    private static final int PEEK_PROMO_DEFAULT_MAX_SHOW_COUNT = 10;
 
-    static final String SELECTION_EXPANSION_DISABLED =
-            "contextual_search_selection_expansion_disabled";
+    private static final String DISABLE_SEARCH_TERM_RESOLUTION = "disable_search_term_resolution";
+    private static final String DISABLE_EXTRA_SEARCH_BAR_ANIMATIONS =
+            "disable_extra_search_bar_animations";
+    private static final String ENABLE_BLACKLIST = "enable_blacklist";
 
-    static final String NARROW_PANEL_SUPPORTED = "contextual_search_narrow_panel_supported";
+    // Translation.  All these members are private, except for usage by testing.
+    // Master switch, needed to enable any translate code for Contextual Search.
+    @VisibleForTesting
+    static final String ENABLE_TRANSLATION = "enable_translation";
+    // Switch to disable translation, but not logging, used for experiment comparison.
+    @VisibleForTesting
+    static final String DISABLE_FORCE_TRANSLATION_ONEBOX = "disable_force_translation_onebox";
+    // Disables translation when we need to auto-detect the source language (when we don't resolve).
+    @VisibleForTesting
+    static final String DISABLE_AUTO_DETECT_TRANSLATION_ONEBOX =
+            "disable_auto_detect_translation_onebox";
+    // Disables using the keyboard languages to determine the target language.
+    private static final String DISABLE_KEYBOARD_LANGUAGES_FOR_TRANSLATION =
+            "disable_keyboard_languages_for_translation";
+    // Disables using the accept-languages list to determine the target language.
+    private static final String DISABLE_ACCEPT_LANGUAGES_FOR_TRANSLATION =
+            "disable_accept_languages_for_translation";
+    // Enables usage of English as the target language even when it's the primary UI language.
+    private static final String ENABLE_ENGLISH_TARGET_TRANSLATION =
+            "enable_english_target_translation";
+    // Enables relying on the server to control whether the onebox is actually shown, rather
+    // than checking if translation is needed client-side based on source/target languages.
+    @VisibleForTesting
+    static final String ENABLE_SERVER_CONTROLLED_ONEBOX = "enable_server_controlled_onebox";
 
-    private static final String CHINESE_LANGUAGE_CODE = "zh";
-    private static final String JAPANESE_LANGUAGE_CODE = "ja";
-    private static final String KOREAN_LANGUAGE_CODE = "ko";
-    private static final String[] CJK_LANGUAGE_CODES = {CHINESE_LANGUAGE_CODE,
-        JAPANESE_LANGUAGE_CODE, KOREAN_LANGUAGE_CODE};
+    // Quick Answers.
+    private static final String ENABLE_QUICK_ANSWERS = "enable_quick_answers";
 
-    // The default navigation-detection-delay in milliseconds.
-    private static final int DEFAULT_TAP_NAVIGATION_DETECTION_DELAY = 16;
-    private static final String NAVIGATION_DETECTION_DELAY = "tap_navigation_detection_delay";
+    // Tap triggering suppression.
+    static final String SUPPRESSION_TAPS = "suppression_taps";
+    // Enables collection of recent scroll seen/unseen histograms.
+    // TODO(donnd): remove all supporting code once short-lived data collection is done.
+    private static final String ENABLE_RECENT_SCROLL_COLLECTION = "enable_recent_scroll_collection";
+    // Set non-zero to establish an recent scroll suppression threshold for taps.
+    private static final String RECENT_SCROLL_DURATION_MS = "recent_scroll_duration_ms";
+    // TODO(donnd): remove all supporting code once short-lived data collection is done.
+    private static final String ENABLE_SCREEN_TOP_COLLECTION = "enable_screen_top_collection";
+    private static final String SCREEN_TOP_SUPPRESSION_DPS = "screen_top_suppression_dps";
+    private static final String ENABLE_BAR_OVERLAP_COLLECTION = "enable_bar_overlap_collection";
+    private static final String BAR_OVERLAP_SUPPRESSION_ENABLED = "enable_bar_overlap_suppression";
 
-    private static final int UNLIMITED_TAPS = -1;
-    private static final int DEFAULT_TAP_RESOLVE_LIMIT_FOR_DECIDED = UNLIMITED_TAPS;
-    private static final int DEFAULT_TAP_PREFETCH_LIMIT_FOR_DECIDED = UNLIMITED_TAPS;
-    private static final int DEFAULT_TAP_RESOLVE_LIMIT_FOR_UNDECIDED = 100;
-    private static final int DEFAULT_TAP_PREFETCH_LIMIT_FOR_UNDECIDED = 10;
-
-    // Cached value to avoid repeated and redundant JNI operations.
+    // Cached values to avoid repeated and redundant JNI operations.
     private static Boolean sEnabled;
-    private static Boolean sSelectionExpansionDisabled;
-    private static Boolean sNarrowPanelSupported;
+    private static Boolean sDisableSearchTermResolution;
+    private static Boolean sIsMandatoryPromoEnabled;
+    private static Integer sMandatoryPromoLimit;
+    private static Boolean sIsPeekPromoEnabled;
+    private static Integer sPeekPromoMaxCount;
+    private static Boolean sIsTranslationEnabled;
+    private static Boolean sIsForceTranslationOneboxDisabled;
+    private static Boolean sIsAutoDetectTranslationOneboxDisabled;
+    private static Boolean sIsAcceptLanguagesForTranslationDisabled;
+    private static Boolean sIsKeyboardLanguagesForTranslationDisabled;
+    private static Boolean sIsEnglishTargetTranslationEnabled;
+    private static Boolean sIsServerControlledOneboxEnabled;
+    private static Boolean sIsQuickAnswersEnabled;
+    private static Boolean sIsRecentScrollCollectionEnabled;
+    private static Integer sRecentScrollDurationMs;
+    private static Boolean sIsScreenTopCollectionEnabled;
+    private static Integer sScreenTopSuppressionDps;
+    private static Boolean sIsBarOverlapCollectionEnabled;
+    private static Boolean sIsBarOverlapSuppressionEnabled;
+    private static Integer sSuppressionTaps;
 
     /**
      * Don't instantiate.
@@ -85,52 +121,18 @@ public class ContextualSearchFieldTrial {
             return false;
         }
 
-        // This is used for instrumentation tests (i.e. it is not a user-flippable flag). We cannot
-        // use Variations params because in the test harness, the initialization comes before any
-        // native methods are available. And the ContextualSearchManager is initialized very early
-        // in the Chrome initialization.
-        if (CommandLine.getInstance().hasSwitch(
-                    ChromeSwitches.ENABLE_CONTEXTUAL_SEARCH_FOR_TESTING)) {
-            return true;
-        }
-
         // Allow this user-flippable flag to disable the feature.
         if (CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_CONTEXTUAL_SEARCH)) {
             return false;
         }
 
-        // Allow this user-flippable flag to override disabling due to language.
+        // Allow this user-flippable flag to enable the feature.
         if (CommandLine.getInstance().hasSwitch(ChromeSwitches.ENABLE_CONTEXTUAL_SEARCH)) {
             return true;
         }
 
-        String languageCode = Locale.getDefault().getLanguage();
-        if (!isLanguageSupported(languageCode)) return false;
-
-        if (ChromeVersionInfo.isLocalBuild()) return true;
-
-        return getBooleanParam(ENABLED_PARAM);
-    }
-
-    /**
-     * @param languageCode The language code of the system.
-     * @return Whether the language is supported, given the language code.
-     */
-    static boolean isLanguageSupported(String languageCode) {
-        if (Arrays.asList(CJK_LANGUAGE_CODES).contains(languageCode)
-                && getBooleanParam(DISABLE_FOR_CJK)) {
-            return false;
-        }
-
-        if (languageCode.equals(CHINESE_LANGUAGE_CODE) && getBooleanParam(DISABLE_FOR_CHINESE)) {
-            return false;
-        }
-
-        if (languageCode.equals(JAPANESE_LANGUAGE_CODE) && getBooleanParam(DISABLE_FOR_JAPANESE)) {
-            return false;
-        }
-
-        if (languageCode.equals(KOREAN_LANGUAGE_CODE) && getBooleanParam(DISABLE_FOR_KOREAN)) {
+        // Allow disabling the feature remotely.
+        if (getBooleanParam(DISABLED_PARAM)) {
             return false;
         }
 
@@ -138,124 +140,250 @@ public class ContextualSearchFieldTrial {
     }
 
     /**
-     * Gets whether the promo should be triggered on longpress only.
-     * @return {@code true} iff Finch says we should trigger the promo only on touch-and-hold.
+     * @return Whether the search term resolution is enabled.
      */
-    static boolean isPromoLongpressTriggeredOnly() {
-        return getBooleanParam(PROMO_ON_LONGPRESS_ONLY);
-    }
-
-    /**
-     * @return Whether the promo should be triggered by a limited number of taps.
-     */
-    public static boolean isPromoLimitedByTapCounts() {
-        return getBooleanParam(PROMO_ON_LIMITED_TAPS);
-    }
-
-    /**
-     * @return The maximum number of times the promo can be triggered by a tap, or
-     * {@code ContextualSearchUma#PROMO_TAPS_REMAINING_INVALID} if no value is present in the finch
-     * configuration.
-     */
-    static int getPromoTapTriggeredLimit() {
-        return getIntParamValueOrDefault(TAP_TRIGGERED_PROMO_LIMIT, UNLIMITED_TAPS);
-    }
-
-    /**
-     * @return The delay to use for navigation-detection when triggering on a Tap.
-     */
-    static int getNavigationDetectionDelay() {
-        return getIntParamValueOrDefault(NAVIGATION_DETECTION_DELAY,
-                DEFAULT_TAP_NAVIGATION_DETECTION_DELAY);
-    }
-
-    /**
-     * @return Whether Search Term Resolution in response to a Tap gesture is limited for decided
-     *         users.
-     */
-    static boolean isTapResolveLimitedForDecided() {
-        return getTapResolveLimitForDecided() != ContextualSearchFieldTrial.UNLIMITED_TAPS;
-    }
-
-    /**
-     * @return Whether prefetch in response to a Tap gesture is limited for decided users.
-     */
-    static boolean isTapPrefetchLimitedForDecided() {
-        return getTapPrefetchLimitForDecided() != ContextualSearchFieldTrial.UNLIMITED_TAPS;
-    }
-
-    /**
-     * @return Whether Search Term Resolution in response to a Tap gesture is limited for undecided
-     *         users.
-     */
-    static boolean isTapResolveLimitedForUndecided() {
-        return getTapResolveLimitForUndecided() != ContextualSearchFieldTrial.UNLIMITED_TAPS;
-    }
-
-    /**
-     * @return Whether prefetch in response to a Tap gesture is limited for undecided users.
-     */
-    static boolean isTapPrefetchLimitedForUndecided() {
-        return getTapPrefetchLimitForUndecided() != ContextualSearchFieldTrial.UNLIMITED_TAPS;
-    }
-    /**
-     * @return The limit on the number of taps to resolve for decided users, or the default if no
-     *         value is present in the Finch configuration.
-     */
-    static int getTapResolveLimitForDecided() {
-        return getIntParamValueOrDefault(TAP_RESOLVE_LIMIT_FOR_DECIDED,
-                DEFAULT_TAP_RESOLVE_LIMIT_FOR_DECIDED);
-    }
-
-    /**
-     * @return The limit on the number of prefetches to issue for decided users, or the default
-     *         if no value is present.
-     */
-    static int getTapPrefetchLimitForDecided() {
-        return getIntParamValueOrDefault(TAP_PREFETCH_LIMIT_FOR_DECIDED,
-                DEFAULT_TAP_PREFETCH_LIMIT_FOR_DECIDED);
-    }
-
-    /**
-     * @return The limit on the number of taps to resolve for undecided users, or the default if no
-     *         value is present in the Finch configuration.
-     */
-    static int getTapResolveLimitForUndecided() {
-        return getIntParamValueOrDefault(TAP_RESOLVE_LIMIT_FOR_UNDECIDED,
-                DEFAULT_TAP_RESOLVE_LIMIT_FOR_UNDECIDED);
-    }
-
-    /**
-     * @return The limit on the number of prefetches to issue for undecided users, or the default
-     *         if no value is present.
-     */
-    static int getTapPrefetchLimitForUndecided() {
-        return getIntParamValueOrDefault(TAP_PREFETCH_LIMIT_FOR_UNDECIDED,
-                DEFAULT_TAP_PREFETCH_LIMIT_FOR_UNDECIDED);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Experimental UI Features.
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * @return Whether the base page selection expansion after server response is disabled.
-     */
-    public static boolean isSelectionExpansionDisabled() {
-        if (sSelectionExpansionDisabled == null) {
-            sSelectionExpansionDisabled = getBooleanParam(SELECTION_EXPANSION_DISABLED);
+    static boolean isSearchTermResolutionEnabled() {
+        if (sDisableSearchTermResolution == null) {
+            sDisableSearchTermResolution = getBooleanParam(DISABLE_SEARCH_TERM_RESOLUTION);
         }
-        return sSelectionExpansionDisabled.booleanValue();
+
+        if (sDisableSearchTermResolution.booleanValue()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
-     * @return Whether the narrow version of the Search Panel is supported.
+     * @return Whether the Mandatory Promo is enabled.
      */
-    public static boolean isNarrowPanelSupported() {
-        if (sNarrowPanelSupported == null) {
-            sNarrowPanelSupported = getBooleanParam(NARROW_PANEL_SUPPORTED);
+    static boolean isMandatoryPromoEnabled() {
+        if (sIsMandatoryPromoEnabled == null) {
+            sIsMandatoryPromoEnabled = getBooleanParam(MANDATORY_PROMO_ENABLED);
         }
-        return sNarrowPanelSupported.booleanValue();
+        return sIsMandatoryPromoEnabled.booleanValue();
+    }
+
+    /**
+     * @return The number of times the Promo should be seen before it becomes mandatory.
+     */
+    static int getMandatoryPromoLimit() {
+        if (sMandatoryPromoLimit == null) {
+            sMandatoryPromoLimit = getIntParamValueOrDefault(
+                    MANDATORY_PROMO_LIMIT,
+                    MANDATORY_PROMO_DEFAULT_LIMIT);
+        }
+        return sMandatoryPromoLimit.intValue();
+    }
+
+    /**
+     * @return Whether the Peek Promo is forcibly enabled (used for testing).
+     */
+    static boolean isPeekPromoForced() {
+        return CommandLine.getInstance().hasSwitch(PEEK_PROMO_FORCED);
+    }
+
+    /**
+     * @return Whether the Peek Promo is enabled.
+     */
+    static boolean isPeekPromoEnabled() {
+        if (sIsPeekPromoEnabled == null) {
+            sIsPeekPromoEnabled = getBooleanParam(PEEK_PROMO_ENABLED);
+        }
+        return sIsPeekPromoEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether extra search bar animations are disabled.
+     */
+    static boolean areExtraSearchBarAnimationsDisabled() {
+        return getBooleanParam(DISABLE_EXTRA_SEARCH_BAR_ANIMATIONS);
+    }
+
+    /**
+     * @return Whether the blacklist is enabled.
+     */
+    static boolean isBlacklistEnabled() {
+        return getBooleanParam(ENABLE_BLACKLIST);
+    }
+
+    /**
+     * @return The maximum number of times the Peek Promo should be displayed.
+     */
+    static int getPeekPromoMaxShowCount() {
+        if (sPeekPromoMaxCount == null) {
+            sPeekPromoMaxCount = getIntParamValueOrDefault(
+                    PEEK_PROMO_MAX_SHOW_COUNT,
+                    PEEK_PROMO_DEFAULT_MAX_SHOW_COUNT);
+        }
+        return sPeekPromoMaxCount.intValue();
+    }
+
+    /**
+     * @return Whether any translate code is enabled.
+     */
+    static boolean isTranslationEnabled() {
+        if (sIsTranslationEnabled == null) {
+            sIsTranslationEnabled = getBooleanParam(ENABLE_TRANSLATION);
+        }
+        return sIsTranslationEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether forcing a translation Onebox is disabled.
+     */
+    static boolean isForceTranslationOneboxDisabled() {
+        if (sIsForceTranslationOneboxDisabled == null) {
+            sIsForceTranslationOneboxDisabled = getBooleanParam(DISABLE_FORCE_TRANSLATION_ONEBOX);
+        }
+        return sIsForceTranslationOneboxDisabled.booleanValue();
+    }
+
+    /**
+     * @return Whether forcing a translation Onebox based on auto-detection of the source language
+     *         is disabled.
+     */
+    static boolean isAutoDetectTranslationOneboxDisabled() {
+        if (sIsAutoDetectTranslationOneboxDisabled == null) {
+            sIsAutoDetectTranslationOneboxDisabled = getBooleanParam(
+                    DISABLE_AUTO_DETECT_TRANSLATION_ONEBOX);
+        }
+        return sIsAutoDetectTranslationOneboxDisabled.booleanValue();
+    }
+
+    /**
+     * @return Whether considering accept-languages for translation is disabled.
+     */
+    static boolean isAcceptLanguagesForTranslationDisabled() {
+        if (sIsAcceptLanguagesForTranslationDisabled == null) {
+            sIsAcceptLanguagesForTranslationDisabled = getBooleanParam(
+                    DISABLE_ACCEPT_LANGUAGES_FOR_TRANSLATION);
+        }
+        return sIsAcceptLanguagesForTranslationDisabled.booleanValue();
+    }
+
+    /**
+     * @return Whether considering keyboards for translation is disabled.
+     */
+    static boolean isKeyboardLanguagesForTranslationDisabled() {
+        if (sIsKeyboardLanguagesForTranslationDisabled == null) {
+            sIsKeyboardLanguagesForTranslationDisabled =
+                    getBooleanParam(DISABLE_KEYBOARD_LANGUAGES_FOR_TRANSLATION);
+        }
+        return sIsKeyboardLanguagesForTranslationDisabled.booleanValue();
+    }
+
+    /**
+     * @return Whether English-target translation should be enabled (default is disabled for 'en').
+     */
+    static boolean isEnglishTargetTranslationEnabled() {
+        if (sIsEnglishTargetTranslationEnabled == null) {
+            sIsEnglishTargetTranslationEnabled = getBooleanParam(ENABLE_ENGLISH_TARGET_TRANSLATION);
+        }
+        return sIsEnglishTargetTranslationEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether relying on server-control of showing the translation one-box is enabled.
+     */
+    static boolean isServerControlledOneboxEnabled() {
+        if (sIsServerControlledOneboxEnabled == null) {
+            sIsServerControlledOneboxEnabled = getBooleanParam(ENABLE_SERVER_CONTROLLED_ONEBOX);
+        }
+        return sIsServerControlledOneboxEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether showing "quick answers" in the Bar is enabled.
+     */
+    static boolean isQuickAnswersEnabled() {
+        if (sIsQuickAnswersEnabled == null) {
+            sIsQuickAnswersEnabled = getBooleanParam(ENABLE_QUICK_ANSWERS);
+        }
+        return sIsQuickAnswersEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether collecting metrics for tap triggering after a scroll is enabled.
+     */
+    static boolean isRecentScrollCollectionEnabled() {
+        if (sIsRecentScrollCollectionEnabled == null) {
+            sIsRecentScrollCollectionEnabled = getBooleanParam(ENABLE_RECENT_SCROLL_COLLECTION);
+        }
+        return sIsRecentScrollCollectionEnabled.booleanValue();
+    }
+
+    /**
+     * Gets the duration to use for suppressing Taps after a recent scroll, or {@code 0} if no
+     * suppression is configured.
+     * @return The period of time after a scroll when tap triggering is suppressed.
+     */
+    static int getRecentScrollSuppressionDurationMs() {
+        if (sRecentScrollDurationMs == null) {
+            sRecentScrollDurationMs = getIntParamValueOrDefault(RECENT_SCROLL_DURATION_MS, 0);
+        }
+        return sRecentScrollDurationMs.intValue();
+    }
+
+    /**
+     * @return Whether collecting metrics for tap triggering near the top of the screen is enabled.
+     */
+    static boolean isScreenTopCollectionEnabled() {
+        if (sIsScreenTopCollectionEnabled == null) {
+            sIsScreenTopCollectionEnabled = getBooleanParam(ENABLE_SCREEN_TOP_COLLECTION);
+        }
+        return sIsScreenTopCollectionEnabled.booleanValue();
+    }
+
+    /**
+     * Gets a Y value limit that will suppress a Tap near the top of the screen.
+     * Any Y value less than the limit will suppress the Tap trigger.
+     * @return The Y value triggering limit in DPs, a value of zero will not limit.
+     */
+    static int getScreenTopSuppressionDps() {
+        if (sScreenTopSuppressionDps == null) {
+            sScreenTopSuppressionDps = getIntParamValueOrDefault(SCREEN_TOP_SUPPRESSION_DPS, 0);
+        }
+        return sScreenTopSuppressionDps.intValue();
+    }
+
+    /**
+     * @return Whether collecting data on Bar overlap is enabled.
+     */
+    static boolean isBarOverlapCollectionEnabled() {
+        if (sIsBarOverlapCollectionEnabled == null) {
+            sIsBarOverlapCollectionEnabled = getBooleanParam(ENABLE_BAR_OVERLAP_COLLECTION);
+        }
+        return sIsBarOverlapCollectionEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether triggering is suppressed by a selection nearly overlapping the normal
+     *         Bar peeking location.
+     */
+    static boolean isBarOverlapSuppressionEnabled() {
+        if (sIsBarOverlapSuppressionEnabled == null) {
+            sIsBarOverlapSuppressionEnabled = getBooleanParam(BAR_OVERLAP_SUPPRESSION_ENABLED);
+        }
+        return sIsBarOverlapSuppressionEnabled.booleanValue();
+    }
+
+    /**
+     * @return Whether triggering by Tap is suppressed (through a combination of various signals).
+     */
+    static boolean isTapSuppressionEnabled() {
+        return getSuppressionTaps() > 0;
+    }
+
+    /**
+     * @return The suppression threshold, expressed as the number of Taps since the last open where
+     *         we start suppressing the UX on Tap.
+     */
+    static int getSuppressionTaps() {
+        if (sSuppressionTaps == null) {
+            sSuppressionTaps = getIntParamValueOrDefault(SUPPRESSION_TAPS, 0);
+        }
+        return sSuppressionTaps.intValue();
     }
 
     // --------------------------------------------------------------------------------------------

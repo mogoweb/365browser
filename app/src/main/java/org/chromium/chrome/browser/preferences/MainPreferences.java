@@ -4,56 +4,61 @@
 
 package org.chromium.chrome.browser.preferences;
 
-import android.app.DialogFragment;
-import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.Preference;
-import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceFragment;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 
+import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.base.CommandLine;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.blimp_public.BlimpClientContext;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ChromeFeatureList;
+import org.chromium.chrome.browser.ChromeSwitches;
 import org.chromium.chrome.browser.PasswordUIView;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.bookmarkimport.AndroidBrowserImporter;
-import org.chromium.chrome.browser.bookmarkimport.ImportBookmarksAlertDialog;
+import org.chromium.chrome.browser.blimp.BlimpClientContextFactory;
+import org.chromium.chrome.browser.blimp.BlimpSettingsCallbacksImpl;
 import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
 import org.chromium.chrome.browser.partnercustomizations.HomepageManager;
 import org.chromium.chrome.browser.preferences.datareduction.DataReductionPreferences;
-import org.chromium.chrome.browser.signin.AccountAdder;
-import org.chromium.chrome.browser.signin.AddGoogleAccountDialogFragment;
-import org.chromium.chrome.browser.signin.AddGoogleAccountDialogFragment.AddGoogleAccountListener;
+import org.chromium.chrome.browser.preferences.password.SavePasswordsPreferences;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.SigninManager;
 import org.chromium.chrome.browser.signin.SigninManager.SignInStateObserver;
-import org.chromium.chrome.browser.sync.ui.ChooseAccountFragment;
-import org.chromium.chrome.browser.util.FeatureUtilities;
-import org.chromium.sync.signin.AccountManagerHelper;
-import org.chromium.sync.signin.ChromeSigninController;
+import org.chromium.chrome.browser.sync.ProfileSyncService;
+import org.chromium.components.sync.AndroidSyncSettings;
 
 /**
  * The main settings screen, shown when the user first opens Settings.
  */
-public class MainPreferences extends PreferenceFragment implements SignInStateObserver {
+public class MainPreferences extends PreferenceFragment implements SignInStateObserver,
+        Preference.OnPreferenceClickListener {
 
     public static final String PREF_SIGN_IN = "sign_in";
-    public static final String PREF_SEARCH_ENGINE = "search_engine";
+    public static final String PREF_NIGHT_MODE = "night_mode";
+    public static final String PREF_POWERSAVE_MODE = "powersave_mode";
     public static final String PREF_DOCUMENT_MODE = "document_mode";
     public static final String PREF_AUTOFILL_SETTINGS = "autofill_settings";
     public static final String PREF_SAVED_PASSWORDS = "saved_passwords";
+    public static final String PREF_BACKGROUND_AUDIO = "background_audio";
     public static final String PREF_HOMEPAGE = "homepage";
     public static final String PREF_DATA_REDUCTION = "data_reduction";
 
     public static final String ACCOUNT_PICKER_DIALOG_TAG = "account_picker_dialog_tag";
-    public static final String EXTRA_SHOW_SEARCH_ENGINE_PICKER = "show_search_engine_picker";
+
+    public static final String PREF_MANAGE_ACCOUNT_LINK = "manage_account_link";
+
+    @VisibleForTesting
+    public static final String VIEW_PASSWORDS = "view-passwords";
 
     private SignInPreference mSignInPreference;
     private ManagedPreferenceDelegate mManagedPreferenceDelegate;
 
-    private boolean mShowSearchEnginePicker;
+    private boolean mIsDemoUser;
 
     public MainPreferences() {
         setHasOptionsMenu(true);
@@ -63,77 +68,53 @@ public class MainPreferences extends PreferenceFragment implements SignInStateOb
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (savedInstanceState == null && getArguments() != null
-                && getArguments().getBoolean(EXTRA_SHOW_SEARCH_ENGINE_PICKER, false)) {
-            mShowSearchEnginePicker = true;
-        }
-    }
-
-    @Override
-    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        if (getActivity() == null) return;
-
-        AndroidBrowserImporter androidBrowserImporter = new AndroidBrowserImporter(getActivity());
-        if (androidBrowserImporter.areBookmarksAccessible()) {
-            menu.add(Menu.NONE, R.id.menu_id_import_bookmarks, Menu.NONE,
-                    R.string.import_bookmarks);
-        }
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.menu_id_import_bookmarks) {
-            ImportBookmarksAlertDialog importBookmarksFragment =
-                    new ImportBookmarksAlertDialog();
-            importBookmarksFragment.show(getFragmentManager(), null);
-            return true;
-        }
-        return false;
+        mIsDemoUser = ApiCompatibilityUtils.isDemoUser(getActivity());
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        SigninManager.get(getActivity()).addSignInStateObserver(this);
+        // updatePreferences() must be called before setupSignInPref as updatePreferences loads
+        // the SignInPreference.
         updatePreferences();
 
-        if (mShowSearchEnginePicker) {
-            mShowSearchEnginePicker = false;
-            ((SearchEnginePreference) findPreference(PREF_SEARCH_ENGINE)).showDialog();
+        if (!mIsDemoUser) {
+            SigninManager.get(getActivity()).addSignInStateObserver(this);
+            setupSignInPref();
         }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        SigninManager.get(getActivity()).removeSignInStateObserver(this);
-        unregisterSignInPref();
+        if (!mIsDemoUser) {
+            SigninManager.get(getActivity()).removeSignInStateObserver(this);
+            clearSignInPref();
+        }
+    }
+
+    @Override
+    public boolean onPreferenceClick(Preference preference) {
+        Intent intent = new Intent(
+                  Intent.ACTION_VIEW,
+                  Uri.parse(PasswordUIView.getAccountDashboardURL()));
+        intent.setPackage(getActivity().getPackageName());
+        getActivity().startActivity(intent);
+        return true;
     }
 
     private void updatePreferences() {
         if (getPreferenceScreen() != null) getPreferenceScreen().removeAll();
         addPreferencesFromResource(R.xml.main_preferences);
 
-        registerSignInPref();
-        mSignInPreference.setOnPreferenceClickListener(new OnPreferenceClickListener() {
-            @Override
-            public boolean onPreferenceClick(Preference preference) {
-                if (!ChromeSigninController.get(getActivity()).isSignedIn()) {
-                    displayAccountPicker();
-                    return true;
-                }
-                return false;
-            }
-        });
+        Preference nightMode = findPreference(PREF_NIGHT_MODE);
+        setOnOffSummary(nightMode,
+                PrefServiceBridge.getInstance().getNightModeEnabled());
+        Preference powersaveMode = findPreference(PREF_POWERSAVE_MODE);
+        setOnOffSummary(powersaveMode,
+                PrefServiceBridge.getInstance().getPowersaveModeEnabled());
 
-        Preference documentMode = findPreference(PREF_DOCUMENT_MODE);
-        if (FeatureUtilities.isDocumentModeEligible(getActivity())) {
-            setOnOffSummary(documentMode,
-                    !DocumentModeManager.getInstance(getActivity()).isOptedOutOfDocumentMode());
-        } else {
-            getPreferenceScreen().removePreference(documentMode);
-        }
+        addBlimpPreferences();
 
         ChromeBasePreference autofillPref =
                 (ChromeBasePreference) findPreference(PREF_AUTOFILL_SETTINGS);
@@ -142,30 +123,63 @@ public class MainPreferences extends PreferenceFragment implements SignInStateOb
 
         ChromeBasePreference passwordsPref =
                 (ChromeBasePreference) findPreference(PREF_SAVED_PASSWORDS);
-        if (PasswordUIView.shouldUseSmartLockBranding()) {
-            passwordsPref.setTitle(getResources().getString(
-                    R.string.prefs_smart_lock_for_passwords));
-        }
-        setOnOffSummary(passwordsPref,
-                PrefServiceBridge.getInstance().isRememberPasswordsEnabled());
-        passwordsPref.setManagedPreferenceDelegate(mManagedPreferenceDelegate);
 
-        Preference homepagePref = findPreference(PREF_HOMEPAGE);
-        if (HomepageManager.shouldShowHomepageSetting()) {
-            setOnOffSummary(homepagePref,
-                    HomepageManager.getInstance(getActivity()).getPrefHomepageEnabled());
+        ProfileSyncService syncService = ProfileSyncService.get();
+
+        if (AndroidSyncSettings.isSyncEnabled(getActivity().getApplicationContext())
+                  && syncService.isBackendInitialized()
+                  && !syncService.isUsingSecondaryPassphrase()
+                  && ChromeFeatureList.isEnabled(VIEW_PASSWORDS)) {
+            passwordsPref.setKey(PREF_MANAGE_ACCOUNT_LINK);
+            passwordsPref.setTitle(R.string.redirect_to_passwords_text);
+            passwordsPref.setSummary(R.string.redirect_to_passwords_link);
+            passwordsPref.setOnPreferenceClickListener(this);
+            passwordsPref.setManagedPreferenceDelegate(null);
         } else {
+            if (PasswordUIView.shouldUseSmartLockBranding()) {
+                passwordsPref.setTitle(getResources().getString(
+                         R.string.prefs_smart_lock_for_passwords));
+            } else {
+                passwordsPref.setTitle(getResources().getString(
+                          R.string.prefs_saved_passwords));
+            }
+            passwordsPref.setFragment(SavePasswordsPreferences.class.getCanonicalName());
+            setOnOffSummary(passwordsPref,
+                    PrefServiceBridge.getInstance().isRememberPasswordsEnabled());
+            passwordsPref.setManagedPreferenceDelegate(mManagedPreferenceDelegate);
+        }
+
+        Preference backgroundAudio = findPreference(PREF_BACKGROUND_AUDIO);
+        setOnOffSummary(backgroundAudio,
+                PrefServiceBridge.getInstance().getBackgroundAudioEnabled());
+
+        BrowserHomepagePreferences homepagePref = (BrowserHomepagePreferences)
+                findPreference(PREF_HOMEPAGE);
+        if (!HomepageManager.isHomepageEnabled(getActivity())) {
             getPreferenceScreen().removePreference(homepagePref);
+        } else {
+            homepagePref.setSummary(homepagePref.getDisplayString());
+            if (getArguments() != null) {
+                homepagePref.setCurrentURL(getArguments().getString(
+                        BrowserHomepagePreferences.CURRENT_URL));
+            }
         }
 
         ChromeBasePreference dataReduction =
                 (ChromeBasePreference) findPreference(PREF_DATA_REDUCTION);
-        if (DataReductionProxySettings.getInstance().isDataReductionProxyAllowed()) {
+
+        if (CommandLine.getInstance().hasSwitch(
+                    DataReductionPreferences.ENABLE_DATA_REDUCTION_PROXY) &&
+                DataReductionProxySettings.getInstance().isDataReductionProxyAllowed()) {
             dataReduction.setSummary(
                     DataReductionPreferences.generateSummary(getResources()));
             dataReduction.setManagedPreferenceDelegate(mManagedPreferenceDelegate);
         } else {
             getPreferenceScreen().removePreference(dataReduction);
+        }
+
+        if (mIsDemoUser) {
+            getPreferenceScreen().removePreference(findPreference(PREF_SIGN_IN));
         }
     }
 
@@ -173,54 +187,21 @@ public class MainPreferences extends PreferenceFragment implements SignInStateOb
         pref.setSummary(getResources().getString(isOn ? R.string.text_on : R.string.text_off));
     }
 
-    private void registerSignInPref() {
-        unregisterSignInPref();
+    private void setupSignInPref() {
         mSignInPreference = (SignInPreference) findPreference(PREF_SIGN_IN);
-        mSignInPreference.registerForUpdates();
+        if (!CommandLine.getInstance()
+                .hasSwitch(ChromeSwitches.ENABLE_SUPPRESSED_CHROMIUM_FEATURES)) {
+            getPreferenceScreen().removePreference(mSignInPreference);
+        } else {
+            mSignInPreference.registerForUpdates();
+            mSignInPreference.setEnabled(true);
+        }
     }
 
-    private void unregisterSignInPref() {
+    private void clearSignInPref() {
         if (mSignInPreference != null) {
             mSignInPreference.unregisterForUpdates();
             mSignInPreference = null;
-        }
-    }
-
-    /**
-     * Displays the account picker or the add account dialog and signs the user in.
-     *
-     * @return The fragment that was shown.
-     */
-    @VisibleForTesting
-    public DialogFragment displayAccountPicker() {
-        Context context = getActivity();
-        if (context == null) return null;
-
-        if (!SigninManager.get(context).isSignInAllowed()) {
-            if (SigninManager.get(context).isSigninDisabledByPolicy()) {
-                ManagedPreferencesUtils.showManagedByAdministratorToast(context);
-            }
-            return null;
-        }
-
-        if (AccountManagerHelper.get(context).hasGoogleAccounts()) {
-            if (getFragmentManager().findFragmentByTag(ACCOUNT_PICKER_DIALOG_TAG) != null) {
-                return null;
-            }
-            ChooseAccountFragment chooserFragment = new ChooseAccountFragment();
-            chooserFragment.show(getFragmentManager(), ACCOUNT_PICKER_DIALOG_TAG);
-            return chooserFragment;
-        } else {
-            AddGoogleAccountDialogFragment dialog = new AddGoogleAccountDialogFragment();
-            dialog.setListener(new AddGoogleAccountListener() {
-                @Override
-                public void onAddAccountClicked() {
-                    AccountAdder.getInstance().addAccount(MainPreferences.this,
-                            AccountAdder.ADD_ACCOUNT_RESULT);
-                }
-            });
-            dialog.show(getFragmentManager(), null);
-            return dialog;
         }
     }
 
@@ -278,5 +259,11 @@ public class MainPreferences extends PreferenceFragment implements SignInStateOb
                 return super.isPreferenceClickDisabledByPolicy(preference);
             }
         };
+    }
+
+    private void addBlimpPreferences() {
+        BlimpClientContext blimpClientContext = BlimpClientContextFactory
+                .getBlimpClientContextForProfile(Profile.getLastUsedProfile().getOriginalProfile());
+        blimpClientContext.attachBlimpPreferences(this, new BlimpSettingsCallbacksImpl());
     }
 }

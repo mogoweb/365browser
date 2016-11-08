@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"स्‍पष्‍ट प्रतिलिपि"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"तलाश करें"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"इस डिवाइस पर इस कार्ड की प्रतिलिपि रखें"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"यदि चेक किया गया हो, तो अधिक तेज़ी से फ़ॉर्म भरने के लिए क्रोमियम इस डिवाइस पर आपके कार्ड की कॉपी संग्रहीत करेगा."</string>
+<string name="autofill_card_unmask_verification_in_progress">"कार्ड की पुष्टि की जा रही है"</string>
+<string name="autofill_card_unmask_verification_success">"आपके कार्ड की पुष्टि हो गई है"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"नया कार्ड?"</string>
+<string name="http_post_warning">"आपके द्वारा खोजे जा रहे पृष्ठ ने आपके द्वारा प्रविष्ट की गई जानकारी का उपयोग किया है. उस पृष्ठ पर वापस जाने से आपके द्वारा की गई किसी क्रिया को दोहराने की आवश्यकता हो सकती है. क्या आप जारी रखना चाहते हैं?"</string>
+<string name="http_post_warning_resend">"जारी रखें"</string>
+<string name="login_dialog_title">"प्रमाणीकरण आवश्यक"</string>
+<string name="login_dialog_username_field">"उपयोगकर्ता नाम:"</string>
+<string name="login_dialog_password_field">"पासवर्ड:"</string>
+<string name="login_dialog_ok_button_label">"प्रवेश करें"</string>
+<string name="sad_tab_title">"हे भगवान!"</string>
+<string name="sad_tab_message">"यह वेबपृष्ठ प्रदर्शित करते समय कोई समस्या हुई."</string>
+<string name="sad_tab_oom_message">"यह वेबपृष्ठ दिखाते समय क्रोमियम में जगह नहीं बची."</string>
+<string name="sad_tab_reload_label">"पुन: लोड करें"</string>
+<string name="snippets_disabled_signed_out_instructions">"Google द्वारा सुझाई गई वैयक्तिकृत सामग्री प्राप्त करने के लिए, Chrome में प्रवेश करें."</string>
+<string name="snippets_disabled_generic_prompt">"सुझाई गई सामग्री प्राप्त करें"</string>
+<string name="ntp_status_card_title_no_bookmarks">"अभी के लिए हो गया"</string>
+<string name="ntp_status_card_no_bookmarks">"आपके द्वारा हाल में विज़िट किए गए बुकमार्क यहां दिखाई देंगे."</string>
+<string name="ntp_status_card_title_no_articles">"सभी पढ़ी गई"</string>
+<string name="ntp_status_card_no_articles">"सही समय पर और अधिक लेख दिखाई देंगे."</string>
+</resources>

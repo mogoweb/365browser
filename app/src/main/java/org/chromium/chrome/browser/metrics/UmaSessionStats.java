@@ -4,14 +4,12 @@
 
 package org.chromium.chrome.browser.metrics;
 
-import android.app.Activity;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.text.TextUtils;
 
-import org.chromium.base.ActivityState;
-import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.chrome.browser.preferences.PrefServiceBridge;
 import org.chromium.chrome.browser.preferences.privacy.CrashReportingPermissionManager;
 import org.chromium.chrome.browser.preferences.privacy.PrivacyPreferencesManager;
@@ -29,6 +27,8 @@ import org.chromium.net.NetworkChangeNotifier;
  * and the framework's MetricService.
  */
 public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObserver {
+    public static final String LAST_USED_TIME_PREF = "umasessionstats.lastusedtime";
+
     private static final String SAMSUNG_MULTWINDOW_PACKAGE = "com.sec.feature.multiwindow";
 
     private static long sNativeUmaSessionStats = 0;
@@ -49,7 +49,7 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
         mContext = context;
         mIsMultiWindowCapable = context.getPackageManager().hasSystemFeature(
                 SAMSUNG_MULTWINDOW_PACKAGE);
-        mReportingPermissionManager = PrivacyPreferencesManager.getInstance(context);
+        mReportingPermissionManager = PrivacyPreferencesManager.getInstance();
     }
 
     private void recordPageLoadStats(Tab tab) {
@@ -144,26 +144,48 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
 
         nativeUmaEndSession(sNativeUmaSessionStats);
         NetworkChangeNotifier.removeConnectionTypeObserver(this);
+        ContextUtils.getAppSharedPreferences()
+                .edit()
+                .putLong(LAST_USED_TIME_PREF, System.currentTimeMillis())
+                .apply();
     }
 
-    public static void logRendererCrash(Activity activity) {
-        int activityState = ApplicationStatus.getStateForActivity(activity);
-        nativeLogRendererCrash(
-                activityState == ActivityState.PAUSED
-                || activityState == ActivityState.STOPPED
-                || activityState == ActivityState.DESTROYED);
+    public static void logRendererCrash() {
+        nativeLogRendererCrash();
     }
 
     /**
-     * Updates the state of the MetricsService to account for the user's preferences.
+     * Updates the metrics services based on a change of consent. This can happen during first-run
+     * flow, and when the user changes their preferences.
      */
-    public void updateMetricsServiceState() {
-        boolean mayRecordStats = !PrivacyPreferencesManager.getInstance(mContext)
-                .isNeverUploadCrashDump();
-        boolean mayUploadStats = mReportingPermissionManager.isUploadPermitted();
+    public static void changeMetricsReportingConsent(boolean consent) {
+        PrivacyPreferencesManager privacyManager = PrivacyPreferencesManager.getInstance();
+        // Update the new two-choice Android preference.
+        privacyManager.setUsageAndCrashReporting(consent);
+        // Update the old three-choice Android preference, and synchronize with Chrome local state
+        // preferences. Note, this forces the three-choice preferences to be either never upload,
+        // or only upload on WiFi.
+        privacyManager.initCrashUploadPreference(consent);
 
-        // Re-start the MetricsService with the given parameters.
-        nativeUpdateMetricsServiceState(mayRecordStats, mayUploadStats);
+        // Perform native changes needed to reflect the new consent value.
+        nativeChangeMetricsReportingConsent(consent);
+
+        updateMetricsServiceState();
+    }
+
+    /**
+     * Updates the state of MetricsService to account for the user's preferences.
+     */
+    public static void updateMetricsServiceState() {
+        PrivacyPreferencesManager privacyManager = PrivacyPreferencesManager.getInstance();
+
+        // Ensure Android and Chrome local state prefs are in sync.
+        privacyManager.syncUsageAndCrashReportingPrefs();
+
+        boolean mayUploadStats = privacyManager.isUmaUploadPermitted();
+
+        // Re-start the MetricsService with the given parameter, and current consent.
+        nativeUpdateMetricsServiceState(mayUploadStats);
     }
 
     /**
@@ -171,14 +193,17 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
      * can be retrieved while native preferences are not accessible.
      */
     private void updatePreferences() {
-        // Update cellular experiment preference.
-        PrivacyPreferencesManager prefManager = PrivacyPreferencesManager.getInstance(mContext);
-        boolean cellularExperiment = TextUtils.equals("true",
-                VariationsAssociatedData.getVariationParamValue(
-                        "UMA_EnableCellularLogUpload", "Enabled"));
+        PrivacyPreferencesManager prefManager = PrivacyPreferencesManager.getInstance();
+
+        // Update cellular experiment preference. Cellular experiment is ON by default.
+        boolean cellularExperiment = true;
+        if (TextUtils.equals("false", VariationsAssociatedData.getVariationParamValue(
+                                            "UMA_EnableCellularLogUpload", "Enabled"))) {
+            cellularExperiment = false;
+        }
         prefManager.setCellularExperiment(cellularExperiment);
 
-        // Update metrics reporting preference.
+        // Migrate to new preferences for cellular experiment.
         if (cellularExperiment) {
             PrefServiceBridge prefBridge = PrefServiceBridge.getInstance();
             // If the native preference metrics reporting has not been set, then initialize it
@@ -190,6 +215,13 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
             // Set new Android preference for usage and crash reporting.
             prefManager.setUsageAndCrashReporting(prefBridge.isMetricsReportingEnabled());
         }
+
+        // Update the metrics sampling state so it's available before the native feature list is
+        // available.
+        prefManager.setClientInMetricsSample(UmaUtils.isClientInMetricsReportingSample());
+
+        // Make sure preferences are in sync.
+        prefManager.syncUsageAndCrashReportingPrefs();
     }
 
     @Override
@@ -197,8 +229,8 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
         updateMetricsServiceState();
     }
 
-    public static void registerExternalExperiment(int studyId, int experimentId) {
-        nativeRegisterExternalExperiment(studyId, experimentId);
+    public static void registerExternalExperiment(String studyName, int[] experimentIds) {
+        nativeRegisterExternalExperiment(studyName, experimentIds);
     }
 
     public static void registerSyntheticFieldTrial(String trialName, String groupName) {
@@ -206,12 +238,13 @@ public class UmaSessionStats implements NetworkChangeNotifier.ConnectionTypeObse
     }
 
     private static native long nativeInit();
-    private native void nativeUpdateMetricsServiceState(boolean mayRecord, boolean mayUpload);
+    private static native void nativeChangeMetricsReportingConsent(boolean consent);
+    private static native void nativeUpdateMetricsServiceState(boolean mayUpload);
     private native void nativeUmaResumeSession(long nativeUmaSessionStats);
     private native void nativeUmaEndSession(long nativeUmaSessionStats);
-    private static native void nativeLogRendererCrash(boolean isPaused);
-    private static native void nativeRegisterExternalExperiment(int studyId,
-                                                                int experimentId);
+    private static native void nativeLogRendererCrash();
+    private static native void nativeRegisterExternalExperiment(
+            String studyName, int[] experimentIds);
     private static native void nativeRegisterSyntheticFieldTrial(
             String trialName, String groupName);
     private static native void nativeRecordMultiWindowSession(int areaPercent, int instanceCount);

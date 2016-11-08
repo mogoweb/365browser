@@ -19,7 +19,8 @@
         android:id="@+id/button_preference"
         android:layout_height="wrap_content"
         android:layout_width="wrap_content"
-        android:minHeight="40dp"
+        android:minHeight="32dp"
+        android:layout_gravity="end"
         android:textColor="#fff"
         chrome:buttonColor="@color/pref_accent_color" />
 

@@ -112,10 +112,11 @@ public class CreditCardScanner {
     /**
      * Notifies the native object that scanning was successful.
      * @param nativeCreditCardScannerViewAndroid Pointer to the native object.
+     * @param cardHolderName The card holder name.
      * @param cardNumber Credit card number.
      * @param expirationMonth Expiration month in the range [1, 12].
      * @param expirationYear Expiration year, e.g. 2000.
      */
     protected native void nativeScanCompleted(long nativeCreditCardScannerViewAndroid,
-            String cardNumber, int expirationMonth, int expirationYear);
+            String cardHolderName, String cardNumber, int expirationMonth, int expirationYear);
 }

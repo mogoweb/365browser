@@ -25,7 +25,7 @@ public class CrashDumpUploadPreference extends ChromeBaseListPreference
         mContext = context;
         setOnPreferenceChangeListener(this);
         String currentCrashPreference =
-                PrivacyPreferencesManager.getInstance(context).getPrefCrashDumpUploadPreference();
+                PrivacyPreferencesManager.getInstance().getPrefCrashDumpUploadPreference();
         setSummary(getSummaryText(currentCrashPreference));
     }
 

@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.preferences;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
 
@@ -26,7 +27,9 @@ public class SearchEnginePreference extends DialogPreference
     public SearchEnginePreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         setEnabled(false);
-        mSearchEngineAdapter = new SearchEngineAdapter(getContext(), this);
+        TypedArray a = context.obtainStyledAttributes(attrs,R.styleable.SearchEnginePreference);
+        boolean isIncognito = a.getBoolean(R.styleable.SearchEnginePreference_isIncognito, false);
+        mSearchEngineAdapter = new SearchEngineAdapter(getContext(), this, isIncognito);
     }
 
     @VisibleForTesting

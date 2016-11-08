@@ -4,15 +4,24 @@
      found in the LICENSE file. -->
 
 <resources>
+    <style name="RobotoMediumStyle">
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
     <!-- Preferences -->
     <style name="PreferencesTheme" parent="ThemeWithActionBar">
+        <item name="android:listDivider">@null</item>
         <item name="android:textColorLink">@color/pref_accent_color</item>
+        <item name="android:preferenceCategoryStyle">@style/SWEPreferenceCategory</item>
         <item name="android:alertDialogTheme">@style/PreferencesDialogTheme</item>
+        <item name="android:divider">@null</item>
         <item name="android:spinnerItemStyle">@style/PreferenceSpinnerItem</item>
         <item name="floatLabelTextAppearance">@style/PreferenceFloatLabelTextAppearance</item>
         <item name="floatLabelPaddingLeft">@dimen/pref_autofill_field_horizontal_padding</item>
         <item name="floatLabelPaddingRight">@dimen/pref_autofill_field_horizontal_padding</item>
-        <item name="floatLabelPaddingTop">@dimen/pref_autofill_field_top_padding</item>
+        <item name="floatLabelPaddingTop">@dimen/pref_autofill_field_top_margin</item>
+    </style>
+    <style name="SWEPreferenceCategory" parent="PreferenceCategory">
+        <item name="android:layout">@layout/browser_preference_category</item>
     </style>
     <style name="PreferencesDialogTheme" parent="@android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:colorAccent">@color/pref_accent_color</item>
@@ -61,6 +70,45 @@
         <item name="android:minHeight">5dp</item>
     </style>
 
+    <!-- Web Notifications -->
+    <style name="WebNotificationTitle"
+        parent="@android:style/TextAppearance.Material.Notification.Title"/>
+    <style name="WebNotificationBody"
+        parent="@android:style/TextAppearance.Material.Notification.Line2"/>
+    <style name="WebNotificationBodyBig"
+        parent="@android:style/TextAppearance.Material.Notification"/>
+    <style name="WebNotificationOrigin"
+        parent="@android:style/TextAppearance.Material.Notification.Info"/>
+    <style name="WebNotificationTime"
+        parent="@android:style/TextAppearance.Material.Notification.Time"/>
+    <style name="WebNotificationDivider">
+        <!-- From the non-public Drawable notification_template_divider -->
+        <item name="android:background">#29000000</item>
+    </style>
+    <style name="WebNotificationButtons">
+        <item name="android:layout_marginStart">-8dp</item>
+    </style>
+    <style name="WebNotificationButton"
+        parent="@android:style/Widget.DeviceDefault.Light.Button.Borderless.Small">
+        <item name="android:background">@drawable/web_notification_button_background</item>
+        <item name="android:textColor">@color/secondary_text_default_material_light</item>
+    </style>
+    <style name="WebNotificationSettingsButton"
+        parent="@style/WebNotificationButton">
+        <item name="android:textAppearance">@android:style/TextAppearance.Material.Notification.Info</item>
+        <item name="android:paddingStart">32dp</item>
+    </style>
+    <style name="WebNotificationSettingsIcon">
+        <!-- This is a blank override of the v17 style. -->
+    </style>
+    <style name="WebNotificationLargeIcon">
+        <item name="android:padding">12dp</item>
+    </style>
+    <style name="WebNotificationSmallIcon">
+        <item name="android:background">@drawable/web_notification_small_icon_background</item>
+        <item name="android:padding">3dp</item>
+    </style>
+
     <style name="IncognitoTheme" parent="MainTheme">
         <item name="android:colorPrimary">@color/incognito_primary_color</item>
     </style>
@@ -91,5 +139,9 @@
         <item name="android:listPopupWindowStyle">@style/ListPopupWindow.LowEnd</item>
         <item name="android:spinnerStyle">@style/Spinner.LowEnd</item>
         <item name="android:autoCompleteTextViewStyle">@style/AutoCompleteTextView.LowEnd</item>
+
+        <!-- Without HW acceleration the default text cursor looks weird (top
+             half is way brighter than the bottom), so we use our own. -->
+        <item name="android:textCursorDrawable">@drawable/text_cursor_lowend</item>
     </style>
 </resources>

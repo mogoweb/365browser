@@ -70,8 +70,7 @@ public class PartnerBookmarksReader {
 
     /** Returns an iterator to the available bookmarks. Called by async task. */
     protected BookmarkIterator getAvailableBookmarks() {
-        return PartnerBookmarksProviderIterator.createIfAvailable(
-                mContext.getContentResolver());
+        return PartnerBookmarksProviderIterator.createIfAvailable(mContext);
     }
 
     /**

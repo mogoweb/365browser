@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2016, The Linux Foundation. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+        * Neither the name of The Linux Foundation nor the names of its
+          contributors may be used to endorse or promote products derived
+          from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+    ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+    BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+    BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+    WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+    OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+    IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" >
+
+    <string name="menu_load_live_page_for_offline_page">"Go live"</string>
+
+    <!-- Fre Strings -->
+    <string name="security_updates_title">"Security updates"</string>
+    <string name="security_updates_description">"The browser will automatically download updates to its security modules to protect against new security threats."</string>
+    <string name="security_updates_default_behavior">"Updates will be downloaded over Wi-Fi by default"</string>
+    <string name="security_updates_checked_behavior">"Updates will be downloaded over Wi-Fi and cellular networks"</string>
+    <string name="security_updates_switch_text">"Allow security updates over cellular networks"</string>
+
+    <!-- Trademarks  strings -->
+    <string name="trademarks_title">"Trademarks"</string>
+    <string name="trademarks_text1" translatable="false">"Qualcomm Snapdragon is a product of Qualcomm Technologies, Inc."</string>
+    <string name="trademarks_text2" translatable="false">"Qualcomm and Snapdragon are trademarks of Qualcomm Incorporated, registered in the United States and other countries."</string>
+
+    <string name="most_visited">"Most Frequent"</string>
+
+    <string name="default_homepage_url" translatable="false">""</string>
+    <string name="default_homepage">"Default Page"</string>
+    <string name="most_visited_sites_homepage">"Most Visited Sites"</string>
+    <string name="other_homepage">"Other"</string>
+    <string name="blank_homepage">"Blank Page"</string>
+    <string name="current_page_homepage">"Current Page"</string>
+
+    <string name="tooltip_favicon_change_search_engine">"Touch here to change the search engine."</string>
+    <string name="tooltip_favicon_change_site_settings">"Touch here to change preferences for the current website, including content filtering."</string>
+    <string name="tooltip_favicon_content_blocking_info">"Content filtering is active. Touch here for more information."</string>
+    <string name="tooltip_favicon_site_integrity_check">"Content filtering is active. If there are issues on this website, touch this icon and try disabling content filtering."</string>
+    <string name="tooltip_favicon_page_mainframe_upgraded">"This page was upgraded to a more secure connection. Touch this icon to see more."</string>
+    <string name="tooltip_favicon_page_mixed_content">"This page has mixed content and may not be secure."</string>
+    <string name="tooltip_favicon_page_subframes_upgraded">"Some elements on this page were upgraded to a more secure connection."</string>
+
+    <!-- Secure Connect -->
+    <string name="secure_connect_title">"Secure Connect"</string>
+    <string name="secure_connect_enable">"Enable Secure Connect"</string>
+    <string name="secure_connect_about_text">"Automatically use HTTPS when loading pages. Secure Connect upgrades webpages and their connections from HTTP to a more secure HTTPS connection."</string>
+    <string name="secure_connect_mainframes">"Webpages upgraded"</string>
+    <string name="secure_connect_subframes">"Connections upgraded"</string>
+    <string name="secure_connect_was_redirected">"Upgraded this Webpage to a secure HTTPS connection. Disable to go back to %1$s"</string>
+    <string name="secure_connect_was_redirected_with_connection">"Upgraded this Webpage and %1$s connection to a secure HTTPS connection. Disable to go back to %2$s."</string>
+    <string name="secure_connect_was_redirected_with_connection_plural">"Upgraded this Webpage and %1$s connections to a secure HTTPS connection. Disable to go back to %2$s."</string>
+    <string name="secure_connect_disable_for_redirected_origin">"%1$s will not upgrade %2$s to a secure HTTPS connection."</string>
+    <string name="secure_connect_subframes_upgraded_plural">"%s connections were upgraded to a secure HTTPS connection."</string>
+    <string name="secure_connect_subframes_upgraded">"%s connection was upgraded to a secure HTTPS connection."</string>
+    <string name="secure_connect_enabled_for_origin">"%s is enabled for this Webpage and its connections."</string>
+    <string name="secure_connect_disabled_for_origin">"%s is disabled for this Webpage and its connections."</string>
+    <string name="secure_connect_secure_content_only">"Only allow secure content"</string>
+    <string name="secure_connect_secure_content_only_summary">"Use this for untrusted networks or webpages to block all unsecure content. This will not persist across restarts as it can affect web browsing functionality."</string>
+    <string name="secure_connect_secure_content_snackbar">"Secure content only mode is active. Unsecure connections were blocked."</string>
+    <string name="secure_connect_secure_content_snackbar_action">"Disable"</string>
+
+    <string name="website_settings_webdefender_disabled_count">"You are not protected against %1$s third party tracking domains."</string>
+    <string name="swe_security_branding_label">"Smart Protect"</string>
+    <string name="advanced_settings">"Advanced settings"</string>
+    <string name="website_settings_webdefender_privacy_meter_title">"Privacy Meter"</string>
+    <string name="website_settings_webdefender_brief_message">"Traceable information will not be leaked to %1$s connected domains."</string>
+    <string name="website_settings_webdefender_tracking_vectors">"Tracking vectors on connected domains:"</string>
+    <string name="website_settings_webdefender_cookie">"Cookie Storage"</string>
+    <string name="website_settings_webdefender_fingerprint">"Fingerprinting"</string>
+    <string name="website_settings_webdefender_html5">"HTML5 Storage"</string>
+    <string name="website_settings_webdefender_font_enum">"Font Enumeration"</string>
+    <string name="website_settings_webdefender_vector_allow">"Allow"</string>
+    <string name="website_settings_webdefender_vector_strip">"Strip vectors and connect"</string>
+    <string name="website_settings_webdefender_vector_not_connect">"Do not connect"</string>
+    <string name="website_settings_webdefender_vector_system_default">"Decide for me"</string>
+    <string name="website_settings_webdefender_tracking_list">"Connected domain settings:"</string>
+    <string name="website_settings_secure_connect_configure_rulesets">"Configure Subframe rulesets:"</string>
+    <string name="website_settings_secure_connect_configure_mainframe">"Configure Mainframe ruleset:"</string>
+    <string name="website_settings_secure_connect_disabled_rulesets">"Disabled rulesets:"</string>
+    <string name="website_settings_webdefender_tracking_not_detected">"not detected"</string>
+    <string name="website_settings_security_title">"Security Information"</string>
+    <string name="website_settings_unsecure_blocked">"Some settings are disabled because of the security level of this website."</string>
+    <string name="web_refiner_title">"Web Refiner"</string>
+    <string name="web_defender_title">"Web Defender"</string>
+    <string name="website_settings_webrefiner_enabled">"Content blocking is enabled"</string>
+    <string name="website_settings_webrefiner_disabled">"Content blocking is disabled"</string>
+    <string name="website_settings_webdefender_enabled">"You are protected against third party tracking domains."</string>
+    <string name="website_settings_webdefender_disabled">"You are not protected against third party tracking domains."</string>
+    <string name="web_refiner_about_text">"Web Refiner Description - Library not loaded"</string>
+    <string name="web_defender_about_text">"Web Defender Description - Library not loaded"</string>
+
+    <string name="website_settings_category_enabled">"Enabled"</string>
+    <string name="website_settings_category_disabled">"Disabled"</string>
+    <string name="webrefiner_ads">"advertisement"</string>
+    <string name="webrefiner_ads_plural">"advertisements"</string>
+    <string name="webrefiner_trackers">"tracker"</string>
+    <string name="webrefiner_trackers_plural">"trackers"</string>
+    <string name="webrefiner_malware">"malware"</string>
+    <string name="webrefiner_one_message">"We blocked %s."</string>
+    <string name="webrefiner_two_message">"We blocked %1$s and %2$s."</string>
+    <string name="webrefiner_three_message">"We blocked %1$s, %2$s and %3$s."</string>
+    <string name="ssl_warning">"Site\'s SSL certificate has warnings"</string>
+    <string name="ssl_error">"Site has an invalid SSL certificate"</string>
+    <string name="ssl_secure">"Site\'s SSL certificate is valid. Communication is encrypted and identity is verified"</string>
+
+    <string name="infobar_permission_spinner_title">"Allow:"</string>
+    <string name="infobar_permission_allow_24h">"Allow for 24 hours"</string>
+    <string name="infobar_permission_allow_forever">"forever"</string>
+    <string name="infobar_permission_allow_for_24">"for 24 hours"</string>
+    <string name="infobar_permission_allow_for_now">"for now"</string>
+    <string name="website_settings_permission_allowed_until">"Allowed until:"</string>
+
+    <!-- XSS Defender -->
+    <string name="xss_defender_title">"XSS Defender - Beta"</string>
+    <string name="xss_defender_summary">"Protects you from cross-site scripting attacks."</string>
+
+    <!-- Incognito Only mode -->
+    <string name="incognito_only_title">"\"Incognito Only\" mode"</string>
+    <string name="incognito_only_summary">"Browse using only incognito tabs"</string>
+    <string name="incognito_only_turn_on_title">"Enable Incognito Only Mode"</string>
+    <string name="incognito_only_turn_off_title">"Disable Incognito Only Mode"</string>
+    <string name="incognito_only_turn_on_confirmation">"Browser will <b>restart</b> in incognito only mode. All opened tabs will be closed."</string>
+    <string name="incognito_only_turn_off_confirmation">"Browser will <b>restart</b> in regular mode. All opened tabs will be closed."</string>
+
+    <!-- Search Engine -->
+    <string name="prefs_search_engine_regular">"Search engine for regular tabs"</string>
+    <string name="prefs_search_engine_incognito">"Search engine for incognito tabs"</string>
+
+    <!-- Do not Translate -->
+    <string name="swe_security_docs_url" translatable="false"></string>
+    <string name="version_url" translatable="false">"chrome://version"</string>
+
+    <!-- Feedback strings -->
+    <string name="swe_feedback_subject" translatable="false">"Browser Feedback"</string>
+    <string name="swe_feedback_msg" translatable="false">"Version : %1$s
+        &lt;br&gt;&lt;/br&gt;Build Hash: %2$s
+        &lt;br&gt;&lt;/br&gt;Tab Title: %3$s
+        &lt;br&gt;&lt;/br&gt;Tab URL: %4$s
+        &lt;br&gt;&lt;/br&gt;Enter your feedback here.."</string>
+
+    <!-- Update Notification -->
+    <string name="swe_update" translatable="false">"SWE browser update available"</string>
+    <string name="swe_update_msg" translatable="false">"\"Version: \""</string>
+
+    <!-- User agent -->
+    <string name="swe_def_ua_override" translateable="false"></string>
+
+    <!-- Extra http custom header -->
+    <string name="swe_def_extra_http_headers" translateable="false"></string>
+
+    <!-- Carrier customization specific strings -->
+    <string name="swe_exit" desc="Menu option to exit the browser">Exit</string>
+    <string name="swe_exit_dialog_title" desc="Title of the dialog during exit">Exit browser</string>
+    <string name="swe_exit_dialog_msg" desc="Dialog shown to the user when exiting the browser">
+     Do you want to exit the browser?
+    </string>
+    <string name="swe_minimize" desc="Button option to minimize">Minimize</string>
+    <string name="swe_quit" desc="Button option to quit">Quit</string>
+
+    <!-- Messages for remote media playback (casting) -->
+    <string name="swe_media_msg" desc="Dialog message prompt to the user to save / play media">
+     Please select how to handle media file
+    </string>
+
+    <string name="swe_estore_homepage" translatable="false" tools:ignore="UnusedResources"></string>
+    <string name="swe_download_estore_app" tools:ignore="UnusedResources">Estore app does not exist, please download and install it.</string>
+    <string name="swe_api_key" translatable="false" tools:ignore="UnusedResources"></string>
+
+    <string name="swe_drm_file_unsupported" tools:ignore="UnusedResources">Uploading DRM files is not supported!</string>
+
+      <!-- Wifi Access Point Check -->
+      <string name="swe_action_not_found" desc="Toast displayed when an action is not found">
+        Action Not Found %1$s
+      </string>
+      <string name="swe_wifi_select_message" desc="Toast displayed when user is not connected to an access point.">
+        Wifi Detected!\n Please Select Wifi Access Point for the Browser
+      </string>
+
+      <string name="swe_def_action_wifi_selection_data_connections" translateable="false"></string>
+      <string name="swe_def_intent_pick_network" translateable="false"></string>
+
+    <!-- File Download Enhancements -->
+    <string name="swe_download_infobar_text" desc="Prompt text for the confirmation dialog as
+    king whether the user really wants to download a file">Do you want to download ^1 to ^2?</string>
+    <string name="swe_downloadpath_not_enough_space">%1$s - Not enough space for download</string>
+    <string name="swe_downloadpath_activity_intent" translateable="false"></string>
+    <string name="swe_downloadpath_activity_result_selection" translatable="false"></string>
+    <string name="swe_secure_connect_ruleset_url" translatable="false">"about:blank"</string>
+    <string name="swe_xss_defender_update_server_url" translatable="false">"https://webtech-devx.qualcomm.com/swe/feeds/xss-defender/1.0/export"</string>
+</resources>

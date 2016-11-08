@@ -15,9 +15,14 @@ public final class RapporServiceBridge {
         // Only for static use.
     }
 
+    public static void sampleString(String metric, String sampleValue) {
+        nativeSampleString(metric, sampleValue);
+    }
+
     public static void sampleDomainAndRegistryFromURL(String metric, String url) {
         nativeSampleDomainAndRegistryFromURL(metric, url);
     }
 
     private static native void nativeSampleDomainAndRegistryFromURL(String metric, String url);
+    private static native void nativeSampleString(String metric, String sampleValue);
 }

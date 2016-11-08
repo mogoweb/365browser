@@ -13,11 +13,31 @@
         android:key="read_write_toggle"
         android:defaultValue="true"
         chrome:drawDivider="true" />
+    <!-- A switch to control secure content only mode -->
+    <org.chromium.chrome.browser.preferences.ChromeSwitchPreference
+        android:key="secure_content"
+        android:title="@string/secure_connect_secure_content_only"
+        android:summary="@string/secure_connect_secure_content_only_summary"
+        android:defaultValue="false"/>
+    <!-- A pair preferences to be shown if viewing the Secure Connect category -->
+    <Preference
+        android:key="mainframe_stats"
+        android:selectable="false"/>
+    <Preference
+        android:key="subframe_stats"
+        android:selectable="false"/>
+
     <!-- A toggle for allowing third-party cookies, only shown for the Cookies category. -->
     <org.chromium.chrome.browser.preferences.ChromeBaseCheckBoxPreference
         android:key="third_party_cookies"
         android:title="@string/allow_third_party_cookies_title"
         android:summary="@string/allow_third_party_cookies_summary"
+        android:defaultValue="true" />
+    <!-- A toggle for enabling vibration in notifications. -->
+    <org.chromium.chrome.browser.preferences.ChromeBaseCheckBoxPreference
+        android:key="notifications_vibrate"
+        android:title="@string/enable_notifications_vibrate_title"
+        android:summary="@string/enable_notifications_vibrate_summary"
         android:defaultValue="true" />
     <!-- An hyperlink to explain more about Protected Media content settings. -->
     <org.chromium.chrome.browser.preferences.LearnMorePreference
@@ -29,4 +49,7 @@
         android:key="blocked_group" />
     <org.chromium.chrome.browser.preferences.ExpandablePreferenceGroup
         android:key="allowed_group" />
+    <PreferenceScreen
+        android:key="secure_connect_list"
+        android:layout="@layout/secure_connect_details_view"/>
 </PreferenceScreen>

@@ -86,6 +86,12 @@ public interface LocationBar extends UrlBarDelegate {
     void setMenuButtonHelper(AppMenuButtonHelper helper);
 
     /**
+     * @return The anchor view that should be used for the app menu. Null if there is no menu in
+     *         {@link LocationBar} for the current configuration.
+     */
+    View getMenuAnchor();
+
+    /**
      * Initialize controls that will act as hooks to various functions.
      * @param windowDelegate {@link WindowDelegate} that will provide {@link Window} related info.
      * @param delegate {@link ActionBarDelegate} to be used while creating a
@@ -107,6 +113,30 @@ public interface LocationBar extends UrlBarDelegate {
      *        and False clears focus.
      */
     void setUrlBarFocus(boolean shouldBeFocused);
+
+    /**
+     * Triggers the cursor to be visible in the UrlBar without triggering any of the focus animation
+     * logic.
+     * <p>
+     * Only applies to devices with a hardware keyboard attached.
+     */
+    void showUrlBarCursorWithoutFocusAnimations();
+
+    /**
+     * @return Whether the UrlBar currently has focus.
+     */
+    boolean isUrlBarFocused();
+
+    /**
+     * Selects all of the editable text in the UrlBar.
+     */
+    void selectAll();
+
+    /**
+     * Reverts any pending edits of the location bar and reset to the page state.  This does not
+     * change the focus state of the location bar.
+     */
+    void revertChanges();
 
     /**
      * @return The timestamp for the {@link UrlBar} gaining focus for the first time.

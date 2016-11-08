@@ -10,13 +10,14 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.preference.SwitchPreference;
+import android.support.v7.widget.SwitchCompat;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.widget.ChromeSwitchCompat;
 
 /**
  * A super-powered SwitchPreference designed especially for Chrome. Special features:
@@ -75,7 +76,7 @@ public class ChromeSwitchPreference extends SwitchPreference {
             view.setPadding(left, top, right, bottom);
         }
 
-        ChromeSwitchCompat switchView = (ChromeSwitchCompat) view.findViewById(R.id.switch_widget);
+        SwitchCompat switchView = (SwitchCompat) view.findViewById(R.id.switch_widget);
         // On BLU Life Play devices SwitchPreference.setWidgetLayoutResource() does nothing. As a
         // result, the user will see a non-material Switch and switchView will be null, hence the
         // null check below. http://crbug.com/451447
@@ -113,6 +114,10 @@ public class ChromeSwitchPreference extends SwitchPreference {
             TypedArray a = context.obtainStyledAttributes(new int[] { android.R.attr.listDivider });
             Drawable listDivider = a.getDrawable(0);
             a.recycle();
+            if (listDivider == null) {
+                listDivider = ApiCompatibilityUtils.getDrawable(context.getResources(),
+                        R.drawable.toolbar_shadow_normal);
+            }
             return new DividerDrawable(new Drawable[] { listDivider });
         }
 

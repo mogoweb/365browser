@@ -5,22 +5,26 @@
 package org.chromium.chrome.browser;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.os.AsyncTask;
 import android.security.KeyChain;
 import android.security.KeyChainAliasCallback;
 import android.security.KeyChainException;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.chrome.browser.smartcard.PKCS11AuthenticationManager;
-import org.chromium.net.AndroidPrivateKey;
-import org.chromium.net.DefaultAndroidKeyStore;
+import org.chromium.chrome.R;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.security.Principal;
+import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 
@@ -39,39 +43,37 @@ import javax.security.auth.x500.X500Principal;
 public class SSLClientCertificateRequest {
     static final String TAG = "SSLClientCertificateRequest";
 
-    private static final DefaultAndroidKeyStore sLocalKeyStore =
-            new DefaultAndroidKeyStore();
-
     /**
-     * Common implementation for anynchronous task of handling the certificate request. This
-     * AsyncTask uses the abstract methods to retrieve the authentication material from a
-     * generalized key store. The key store is accessed in background, as the APIs being exercised
+     * Implementation for anynchronous task of handling the certificate request. This
+     * AsyncTask retrieves the authentication material from the system key store.
+     * The key store is accessed in background, as the APIs being exercised
      * may be blocking. The results are posted back to native on the UI thread.
      */
-    abstract static class CertAsyncTask extends AsyncTask<Void, Void, Void> {
+    private static class CertAsyncTaskKeyChain extends AsyncTask<Void, Void, Void> {
         // These fields will store the results computed in doInBackground so that they can be posted
         // back in onPostExecute.
         private byte[][] mEncodedChain;
-        private AndroidPrivateKey mAndroidPrivateKey;
+        private PrivateKey mPrivateKey;
 
         // Pointer to the native certificate request needed to return the results.
         private final long mNativePtr;
 
-        CertAsyncTask(long nativePtr) {
-            mNativePtr = nativePtr;
-        }
+        final Context mContext;
+        final String mAlias;
 
-        // These overriden methods will be used to access the key store.
-        abstract String getAlias();
-        abstract AndroidPrivateKey getPrivateKey(String alias);
-        abstract X509Certificate[] getCertificateChain(String alias);
+        CertAsyncTaskKeyChain(Context context, long nativePtr, String alias) {
+            mNativePtr = nativePtr;
+            mContext = context;
+            assert alias != null;
+            mAlias = alias;
+        }
 
         @Override
         protected Void doInBackground(Void... params) {
             String alias = getAlias();
             if (alias == null) return null;
 
-            AndroidPrivateKey key = getPrivateKey(alias);
+            PrivateKey key = getPrivateKey(alias);
             X509Certificate[] chain = getCertificateChain(alias);
 
             if (key == null || chain == null || chain.length == 0) {
@@ -91,38 +93,23 @@ public class SSLClientCertificateRequest {
             }
 
             mEncodedChain = encodedChain;
-            mAndroidPrivateKey = key;
+            mPrivateKey = key;
             return null;
         }
 
         @Override
         protected void onPostExecute(Void result) {
             ThreadUtils.assertOnUiThread();
-            nativeOnSystemRequestCompletion(mNativePtr, mEncodedChain, mAndroidPrivateKey);
-        }
-    }
-
-    /** Implementation of CertAsyncTask for the system KeyChain API. */
-    private static class CertAsyncTaskKeyChain extends CertAsyncTask {
-        final Context mContext;
-        final String mAlias;
-
-        CertAsyncTaskKeyChain(Context context, long nativePtr, String alias) {
-            super(nativePtr);
-            mContext = context;
-            assert alias != null;
-            mAlias = alias;
+            nativeOnSystemRequestCompletion(mNativePtr, mEncodedChain, mPrivateKey);
         }
 
-        @Override
-        String getAlias() {
+        private String getAlias() {
             return mAlias;
         }
 
-        @Override
-        AndroidPrivateKey getPrivateKey(String alias) {
+        private PrivateKey getPrivateKey(String alias) {
             try {
-                return sLocalKeyStore.createKey(KeyChain.getPrivateKey(mContext, alias));
+                return KeyChain.getPrivateKey(mContext, alias);
             } catch (KeyChainException e) {
                 Log.w(TAG, "KeyChainException when looking for '" + alias + "' certificate");
                 return null;
@@ -132,8 +119,7 @@ public class SSLClientCertificateRequest {
             }
         }
 
-        @Override
-        X509Certificate[] getCertificateChain(String alias) {
+        private X509Certificate[] getCertificateChain(String alias) {
             try {
                 return KeyChain.getCertificateChain(mContext, alias);
             } catch (KeyChainException e) {
@@ -143,36 +129,6 @@ public class SSLClientCertificateRequest {
                 Log.w(TAG, "InterruptedException when looking for '" + alias + "'certificate");
                 return null;
             }
-        }
-    }
-
-    /** Implementation of CertAsyncTask for use with a PKCS11-backed KeyStore. */
-    private static class CertAsyncTaskPKCS11 extends CertAsyncTask {
-        private final PKCS11AuthenticationManager mPKCS11AuthManager;
-        private final String mHostName;
-        private final int mPort;
-
-        CertAsyncTaskPKCS11(long nativePtr, String hostName, int port,
-                PKCS11AuthenticationManager pkcs11CardAuthManager) {
-            super(nativePtr);
-            mHostName = hostName;
-            mPort = port;
-            mPKCS11AuthManager = pkcs11CardAuthManager;
-        }
-
-        @Override
-        String getAlias() {
-            return mPKCS11AuthManager.getClientCertificateAlias(mHostName, mPort);
-        }
-
-        @Override
-        AndroidPrivateKey getPrivateKey(String alias) {
-            return mPKCS11AuthManager.getPrivateKey(alias);
-        }
-
-        @Override
-        X509Certificate[] getCertificateChain(String alias) {
-            return mPKCS11AuthManager.getCertificateChain(alias);
         }
     }
 
@@ -209,6 +165,72 @@ public class SSLClientCertificateRequest {
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * Wrapper class for the static KeyChain#choosePrivateKeyAlias method to facilitate testing.
+     */
+    @VisibleForTesting
+    static class KeyChainCertSelectionWrapper {
+        private final Activity mActivity;
+        private final KeyChainAliasCallback mCallback;
+        private final String[] mKeyTypes;
+        private final Principal[] mPrincipalsForCallback;
+        private final String mHostName;
+        private final int mPort;
+        private final String mAlias;
+
+        public KeyChainCertSelectionWrapper(Activity activity, KeyChainAliasCallback callback,
+                String[] keyTypes, Principal[] principalsForCallback, String hostName, int port,
+                String alias) {
+            mActivity = activity;
+            mCallback = callback;
+            mKeyTypes = keyTypes;
+            mPrincipalsForCallback = principalsForCallback;
+            mHostName = hostName;
+            mPort = port;
+            mAlias = alias;
+        }
+
+        /**
+         * Calls KeyChain#choosePrivateKeyAlias with the provided arguments.
+         */
+        public void choosePrivateKeyAlias() throws ActivityNotFoundException {
+            KeyChain.choosePrivateKeyAlias(mActivity, mCallback, mKeyTypes, mPrincipalsForCallback,
+                    mHostName, mPort, mAlias);
+        }
+    }
+
+    /**
+     * Dialog that explains to the user that client certificates aren't supported on their operating
+     * system. Separated out into its own class to allow Robolectric unit testing of
+     * maybeShowCertSelection without depending on Chrome resources.
+     */
+    @VisibleForTesting
+    static class CertSelectionFailureDialog {
+        private final Activity mActivity;
+
+        public CertSelectionFailureDialog(Activity activity) {
+            mActivity = activity;
+        }
+
+        /**
+         * Builds and shows the dialog.
+         */
+        public void show() {
+            final AlertDialog.Builder builder =
+                    new AlertDialog.Builder(mActivity, R.style.AlertDialogTheme);
+            builder.setTitle(R.string.client_cert_unsupported_title)
+                    .setMessage(R.string.client_cert_unsupported_message)
+                    .setNegativeButton(R.string.close,
+                            new OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // Do nothing
+                                }
+                            });
+            builder.show();
         }
     }
 
@@ -250,51 +272,36 @@ public class SSLClientCertificateRequest {
             }
         }
 
-        final Principal[] principalsForCallback = principals;
-        // Certificate for client authentication can be obtained either from the system store of
-        // from a smart card (if available).
-        Runnable useSystemStore = new Runnable() {
-            @Override
-            public void run() {
-                KeyChainCertSelectionCallback callback =
-                        new KeyChainCertSelectionCallback(activity.getApplicationContext(),
-                            nativePtr);
-                KeyChain.choosePrivateKeyAlias(activity, callback, keyTypes, principalsForCallback,
-                        hostName, port, null);
-            }
-        };
-
-        final Context appContext = activity.getApplicationContext();
-        final PKCS11AuthenticationManager smartCardAuthManager =
-                ((ChromeApplication) appContext).getPKCS11AuthenticationManager();
-        if (smartCardAuthManager.isPKCS11AuthEnabled()) {
-            // Smart card support is available, prompt the user whether to use it or Android system
-            // store.
-            Runnable useSmartCard = new Runnable() {
-                @Override
-                public void run() {
-                    new CertAsyncTaskPKCS11(nativePtr, hostName, port,
-                            smartCardAuthManager).execute();
-                }
-            };
-            Runnable cancelRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    // We took ownership of the request, need to delete it.
-                    nativeOnSystemRequestCompletion(nativePtr, null, null);
-                }
-            };
-
-            KeyStoreSelectionDialog selectionDialog = new KeyStoreSelectionDialog(
-                    useSystemStore, useSmartCard, cancelRunnable);
-            selectionDialog.show(activity.getFragmentManager(), null);
-        } else {
-            // Smart card support is not available, use the system store unconditionally.
-            useSystemStore.run();
-        }
+        KeyChainCertSelectionCallback callback =
+                new KeyChainCertSelectionCallback(activity.getApplicationContext(),
+                    nativePtr);
+        KeyChainCertSelectionWrapper keyChain = new KeyChainCertSelectionWrapper(activity,
+                callback, keyTypes, principals, hostName, port, null);
+        maybeShowCertSelection(keyChain, callback,
+                new CertSelectionFailureDialog(activity));
 
         // We've taken ownership of the native ssl request object.
         return true;
+    }
+
+    /**
+     * Attempt to show the certificate selection dialog and shows the provided
+     * CertSelectionFailureDialog if the platform's cert selection activity can't be found.
+     */
+    @VisibleForTesting
+    static void maybeShowCertSelection(KeyChainCertSelectionWrapper keyChain,
+            KeyChainAliasCallback callback, CertSelectionFailureDialog failureDialog) {
+        try {
+            keyChain.choosePrivateKeyAlias();
+        } catch (ActivityNotFoundException e) {
+            // This exception can be hit when a platform is missing the activity to select
+            // a client certificate. It gets handled here to avoid a crash.
+            // Complete the callback without selecting a certificate.
+            callback.alias(null);
+            // Show a dialog letting the user know that the system does not support
+            // client certificate selection.
+            failureDialog.show();
+        }
     }
 
     public static void notifyClientCertificatesChangedOnIOThread() {
@@ -306,5 +313,5 @@ public class SSLClientCertificateRequest {
 
     // Called to pass request results to native side.
     private static native void nativeOnSystemRequestCompletion(
-            long requestPtr, byte[][] certChain, AndroidPrivateKey androidKey);
+            long requestPtr, byte[][] certChain, PrivateKey privateKey);
 }

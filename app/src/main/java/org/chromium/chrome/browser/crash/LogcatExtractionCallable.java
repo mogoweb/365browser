@@ -8,8 +8,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Patterns;
 
+import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
 import org.chromium.base.VisibleForTesting;
+
+import org.chromium.chrome.browser.ChromeSwitches;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -47,7 +50,7 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
     private static final String TAG = "LogcatExtraction";
     private static final long HALF_SECOND = 500;
 
-    protected static final int LOGCAT_SIZE = 256; // Number of lines.
+    protected static final int LOGCAT_SIZE = 1024; // Number of lines.
 
     protected static final String EMAIL_ELISION = "XXX@EMAIL.ELIDED";
 
@@ -76,7 +79,7 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
             Pattern.compile("(" + HOST_NAME + "|" + IP_ADDRESS + ")");
 
     private static final Pattern WEB_URL = Pattern.compile(
-            "((?:(http|https|Http|Https|rtsp|Rtsp):"
+            "(?:\\b|^)((?:(http|https|Http|Https|rtsp|Rtsp):"
             + "\\/\\/(?:(?:[a-zA-Z0-9\\$\\-\\_\\.\\+\\!\\*\\'\\(\\)"
             + "\\,\\;\\?\\&\\=]|(?:\\%[a-fA-F0-9]{2})){1,64}(?:\\:(?:[a-zA-Z0-9\\$\\-\\_"
             + "\\.\\+\\!\\*\\'\\(\\)\\,\\;\\?\\&\\=]|(?:\\%[a-fA-F0-9]{2})){1,25})?\\@)?)?"
@@ -85,6 +88,11 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
             + "(\\/(?:(?:[" + GOOD_IRI_CHAR + "\\;\\/\\?\\:\\@\\&\\=\\#\\~"
             + "\\-\\.\\+\\!\\*\\'\\(\\)\\,\\_])|(?:\\%[a-fA-F0-9]{2}))*)?"
             + "(?:\\b|$)");
+
+    @VisibleForTesting
+    protected static final String BEGIN_MICRODUMP = "-----BEGIN BREAKPAD MICRODUMP-----";
+    @VisibleForTesting
+    protected static final String END_MICRODUMP = "-----END BREAKPAD MICRODUMP-----";
 
     @VisibleForTesting
     protected static final String IP_ELISION = "1.2.3.4";
@@ -154,7 +162,10 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
             int len = mMinidumpFilenames.length;
             CrashFileManager fileManager = new CrashFileManager(mContext.getCacheDir());
             for (int i = 0; i < len; i++) {
-                proccessMinidump(logcatFile, mMinidumpFilenames[i], fileManager, i == len - 1);
+                // Output crash dump file path to logcat so non-browser crashes appear too.
+                Log.i(TAG, "Output crash dump:");
+                Log.i(TAG, fileManager.getCrashFile(mMinidumpFilenames[i]).getAbsolutePath());
+                processMinidump(logcatFile, mMinidumpFilenames[i], fileManager, i == len - 1);
             }
             return true;
         } catch (IOException | InterruptedException e) {
@@ -163,7 +174,7 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
         }
     }
 
-    private void proccessMinidump(File logcatFile, String name,
+    private void processMinidump(File logcatFile, String name,
             CrashFileManager manager, boolean isLast) throws IOException {
         String toPath = MINIDUMP_EXTENSION.matcher(name).replaceAll(LOGCAT_EXTENSION);
         File toFile = manager.createNewTempFile(toPath);
@@ -226,24 +237,16 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
     }
 
     private static List<String> getLogcatInternal() throws IOException, InterruptedException {
-        LinkedList<String> rawLogcat = new LinkedList<String>();
-        String logLn = null;
+        List<String> rawLogcat = null;
         Integer exitValue = null;
         // In the absence of the android.permission.READ_LOGS permission the
         // the logcat call will just hang.
         Process p = Runtime.getRuntime().exec("logcat -d");
-        BufferedReader bReader = null;
+        BufferedReader reader = null;
         try {
-            bReader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
             while (exitValue == null) {
-                while ((logLn = bReader.readLine()) != null) {
-                    // Add each new string to the end of the queue.
-                    rawLogcat.add(logLn);
-                    if (rawLogcat.size() > LOGCAT_SIZE) {
-                        // Remove the head of the queue when it gets too large.
-                        rawLogcat.remove();
-                    }
-                }
+                rawLogcat = extractLogcatFromReader(reader, LOGCAT_SIZE);
                 try {
                     exitValue = p.exitValue();
                 } catch (IllegalThreadStateException itse) {
@@ -257,10 +260,52 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
             }
             return rawLogcat;
         } finally {
-            if (bReader != null) {
-                bReader.close();
+            if (reader != null) {
+                reader.close();
             }
         }
+    }
+
+    /**
+     * Extract microdump-free logcat for more informative crash reports
+     *
+     * @param reader A buffered reader from which lines of initial logcat is read.
+     * @param maxLines The maximum number of lines logcat extracts from minidump.
+     *
+     * @return Logcat up to specified length as a list of strings.
+     * @throws IOException if the buffered reader encounters an I/O error.
+     */
+    @VisibleForTesting
+    protected static List<String> extractLogcatFromReader(
+            BufferedReader reader, int maxLines) throws IOException {
+        return extractLogcatFromReaderInternal(reader, maxLines);
+    }
+
+    private static List<String> extractLogcatFromReaderInternal(
+            BufferedReader reader, int maxLines) throws IOException {
+        boolean inMicrodump = false;
+        List<String> rawLogcat = new LinkedList<>();
+        String logLn;
+        while ((logLn = reader.readLine()) != null && rawLogcat.size() < maxLines) {
+            if (logLn.contains(BEGIN_MICRODUMP)) {
+                // If the log contains two begin markers without an end marker
+                // in between, we ignore the second begin marker.
+                inMicrodump = true;
+            } else if (logLn.contains(END_MICRODUMP)) {
+                if (!inMicrodump) {
+                    // If we have been extracting microdump the whole time,
+                    // start over with a clean logcat.
+                    rawLogcat.clear();
+                } else {
+                    inMicrodump = false;
+                }
+            } else {
+                if (!inMicrodump) {
+                    rawLogcat.add(logLn);
+                }
+            }
+        }
+        return rawLogcat;
     }
 
     private File writeLogcat(List<String> elidedLogcat) throws IOException {
@@ -280,15 +325,24 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
         }
     }
 
+    private static boolean shouldElideByCmdLine() {
+        return !(CommandLine.isInitialized() &&
+            CommandLine.getInstance().hasSwitch(
+                    ChromeSwitches.DISABLE_CRASH_REPORT_LOGCAT_ELISION));
+    }
+
     @VisibleForTesting
     protected static List<String> processLogcat(List<String> rawLogcat) {
+        android.util.Log.e("TEST", "Elision == " + shouldElideByCmdLine());
         List<String> out = new ArrayList<String>(rawLogcat.size());
         for (String ln : rawLogcat) {
-            ln = elideEmail(ln);
-            ln = elideUrl(ln);
-            ln = elideIp(ln);
-            ln = elideMac(ln);
-            ln = elideConsole(ln);
+            if (shouldElideByCmdLine()) {
+                ln = elideEmail(ln);
+                ln = elideUrl(ln);
+                ln = elideIp(ln);
+                ln = elideMac(ln);
+                ln = elideConsole(ln);
+            }
             out.add(ln);
         }
         return out;
@@ -315,7 +369,7 @@ public class LogcatExtractionCallable implements Callable<Boolean> {
      */
     @VisibleForTesting
     protected static String elideUrl(String original) {
-        StringBuffer buffer = new StringBuffer(original);
+        StringBuilder buffer = new StringBuilder(original);
         Matcher matcher = WEB_URL.matcher(buffer);
         int start = 0;
         while (matcher.find(start)) {

@@ -1,7 +1,8 @@
 set noparent
-tedchoc@chromium.org
-aurimas@chromium.org
-newt@chromium.org
-dtrainor@chromium.org
-yusufo@chromium.org
 dfalcantara@chromium.org
+dtrainor@chromium.org
+tedchoc@chromium.org
+yusufo@chromium.org
+
+# New Tab Page changes only:
+bauerb@chromium.org

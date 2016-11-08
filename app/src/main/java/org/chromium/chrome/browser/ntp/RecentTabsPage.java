@@ -16,12 +16,14 @@ import android.view.ViewGroup;
 import android.widget.ExpandableListView;
 
 import org.chromium.base.ActivityState;
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.NativePage;
 import org.chromium.chrome.browser.UrlConstants;
 import org.chromium.chrome.browser.compositor.layouts.content.InvalidationAwareThumbnailProvider;
+import org.chromium.chrome.browser.metrics.StartupMetrics;
 import org.chromium.chrome.browser.util.ViewUtils;
 
 import java.util.concurrent.TimeUnit;
@@ -51,6 +53,8 @@ public class RecentTabsPage
     private int mSnapshotWidth;
     private int mSnapshotHeight;
 
+    private final int mThemeColor;
+
     /**
      * Whether the page is in the foreground and is visible.
      */
@@ -79,6 +83,8 @@ public class RecentTabsPage
         mRecentTabsManager = recentTabsManager;
 
         mTitle = activity.getResources().getString(R.string.recent_tabs);
+        mThemeColor = ApiCompatibilityUtils.getColor(
+                activity.getResources(), R.color.default_primary_color);
         mRecentTabsManager.setUpdatedCallback(this);
         LayoutInflater inflater = LayoutInflater.from(activity);
         mView = (ViewGroup) inflater.inflate(R.layout.recent_tabs_page, null);
@@ -118,6 +124,7 @@ public class RecentTabsPage
         mInForeground = inForeground;
         if (mInForeground) {
             mForegroundTimeMs = SystemClock.elapsedRealtime();
+            StartupMetrics.getInstance().recordOpenedRecents();
         } else {
             RecordHistogram.recordLongTimesHistogram("NewTabPage.RecentTabsPage.TimeVisibleAndroid",
                     SystemClock.elapsedRealtime() - mForegroundTimeMs, TimeUnit.MILLISECONDS);
@@ -139,6 +146,16 @@ public class RecentTabsPage
     @Override
     public int getBackgroundColor() {
         return Color.WHITE;
+    }
+
+    @Override
+    public int getThemeColor() {
+        return mThemeColor;
+    }
+
+    @Override
+    public boolean needsToolbarShadow() {
+        return true;
     }
 
     @Override
@@ -183,6 +200,11 @@ public class RecentTabsPage
         // another tab.
         mIsAttachedToWindow = true;
         updateForegroundState();
+
+        // Work around a bug on Samsung devices where the recent tabs page does not appear after
+        // toggling the Sync quick setting.  For some reason, the layout is being dropped on the
+        // flow and we need to force a root level layout to get the UI to appear.
+        view.getRootView().requestLayout();
     }
 
     @Override
@@ -264,6 +286,15 @@ public class RecentTabsPage
     @Override
     public void captureThumbnail(Canvas canvas) {
         ViewUtils.captureBitmap(mView, canvas);
+        mSnapshotContentChanged = false;
+        mSnapshotListPosition = mListView.getFirstVisiblePosition();
+        View topItem = mListView.getChildAt(0);
+        mSnapshotListTop = topItem == null ? 0 : topItem.getTop();
+        mSnapshotWidth = mView.getWidth();
+        mSnapshotHeight = mView.getHeight();
+    }
+
+    public void onExternalCapture() {
         mSnapshotContentChanged = false;
         mSnapshotListPosition = mListView.getFirstVisiblePosition();
         View topItem = mListView.getChildAt(0);

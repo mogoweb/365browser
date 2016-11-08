@@ -8,6 +8,10 @@
         <attr name="tint" format="reference|color" />
     </declare-styleable>
 
+    <declare-styleable name="ImagePreference">
+        <attr name="android:src" />
+    </declare-styleable>
+
     <declare-styleable name="HyperlinkPreference">
         <!-- The URL to load when the preference is clicked -->
         <attr name="url" format="string" />
@@ -49,6 +53,7 @@
 
     <declare-styleable name="BoundedView">
         <attr name="maxWidth" format="dimension" />
+        <attr name="maxHeight" format="dimension" />
     </declare-styleable>
 
     <declare-styleable name="ClipDrawableProgressBar">
@@ -56,4 +61,30 @@
         <attr name="backgroundColor" format="reference|color" />
     </declare-styleable>
 
+    <declare-styleable name="SiteTileView">
+        <attr name="android:src" />
+        <attr name="disableBackground" format="boolean|reference" />
+        <attr name="trustLevel" format="integer|reference" />
+        <attr name="blockedObjects" format="integer|reference" />
+    </declare-styleable>
+
+    <declare-styleable name="FolderTileView">
+        <attr name="android:text" />
+        <attr name="android:label" />
+    </declare-styleable>
+
+    <declare-styleable name="RadioButtonWithDescription">
+        <attr name="titleText" format="string" />
+    </declare-styleable>
+
+    <declare-styleable name="TextMessageWithLinkAndIconPreference">
+        <!-- Used on a TextMessageWithLinkAndIconPreference that is followed
+             by another TextMessageWithLinkAndIconPreference to remove the
+             bottom spacing, so that related paragraphs of text are closer
+             to each other. -->
+        <attr name="noBottomSpacing" format="boolean" />
+    </declare-styleable>
+    <declare-styleable name="SearchEnginePreference">
+        <attr name="isIncognito" format="boolean" />
+    </declare-styleable>
 </resources>

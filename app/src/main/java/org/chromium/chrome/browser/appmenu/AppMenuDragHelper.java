@@ -50,6 +50,7 @@ class AppMenuDragHelper {
     private volatile float mLastTouchY;
     private final int mItemRowHeight;
     private boolean mIsSingleTapCanceled;
+    private int mMenuButtonScreenCenterY;
 
     // These are used in a function locally, but defined here to avoid heap allocation on every
     // touch event.
@@ -120,7 +121,12 @@ class AppMenuDragHelper {
      * non-dragging mode.
      */
     void finishDragging() {
-        menuItemAction(0, 0, ITEM_ACTION_CLEAR_HIGHLIGHT_ALL);
+        // If the menu is being dismissed, we cannot access mAppMenu.getPopup().getListView()
+        // needed to by menuItemAction. Only clear highlighting if the menu is still showing.
+        // See crbug.com/589805.
+        if (mAppMenu.getPopup().isShowing()) {
+            menuItemAction(0, 0, ITEM_ACTION_CLEAR_HIGHLIGHT_ALL);
+        }
         mDragScrolling.cancel();
     }
 
@@ -151,6 +157,7 @@ class AppMenuDragHelper {
 
         mLastTouchX = rawX;
         mLastTouchY = rawY;
+        mMenuButtonScreenCenterY = getScreenVisibleRect(button).centerY();
 
         if (eventActionMasked == MotionEvent.ACTION_CANCEL) {
             mAppMenu.dismiss();
@@ -228,6 +235,19 @@ class AppMenuDragHelper {
      */
     private boolean menuItemAction(int screenX, int screenY, int action) {
         ListView listView = mAppMenu.getPopup().getListView();
+
+        // Starting M, we have a popup menu animation that slides down. If we process dragging
+        // events while it's sliding, it will touch many views that are passing by user's finger,
+        // which is not desirable. So we only process when the first item is below the menu button.
+        // Unfortunately, there is no available listener for sliding animation finished. Thus the
+        // following nasty heuristics.
+        final View firstRow = listView.getChildAt(0);
+        if (listView.getFirstVisiblePosition() == 0
+                && firstRow != null
+                && firstRow.getTop() == 0
+                && getScreenVisibleRect(firstRow).bottom <= mMenuButtonScreenCenterY) {
+            return false;
+        }
 
         ArrayList<View> itemViews = new ArrayList<View>();
         for (int i = 0; i < listView.getChildCount(); ++i) {

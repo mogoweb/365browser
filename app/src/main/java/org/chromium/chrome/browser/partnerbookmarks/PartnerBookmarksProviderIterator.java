@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.partnerbookmarks;
 
+import android.content.Context;
 import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
@@ -17,7 +18,7 @@ import java.util.NoSuchElementException;
 public class PartnerBookmarksProviderIterator implements PartnerBookmarksReader.BookmarkIterator {
 
     private static final String TAG = "PartnerBookmarksProviderIterator";
-    private static final String PROVIDER_AUTHORITY = "com.android.partnerbookmarks";
+    private static final String PROVIDER_AUTHORITY = ".partnerbrowsercustomizations";
     private static final Uri CONTENT_URI = new Uri.Builder().scheme("content")
             .authority(PROVIDER_AUTHORITY).build();
 
@@ -59,8 +60,13 @@ public class PartnerBookmarksProviderIterator implements PartnerBookmarksReader.
      * @return                Iterator over bookmarks or null.
      */
     public static PartnerBookmarksProviderIterator createIfAvailable(
-            ContentResolver contentResolver) {
-        Cursor cursor = contentResolver.query(BOOKMARKS_CONTENT_URI,
+            Context context) {
+        String providerAuthority = context.getPackageName() + PROVIDER_AUTHORITY;
+        Uri contentUri = new Uri.Builder().scheme("content")
+                                         .authority(providerAuthority).build();
+        Uri bookmarksContentUri = contentUri.buildUpon()
+                                         .appendPath(BOOKMARKS_PATH).build();
+        Cursor cursor = context.getContentResolver().query(bookmarksContentUri,
                 BOOKMARKS_PROJECTION, null, null, BOOKMARKS_SORT_ORDER);
         if (cursor == null) return null;
         return new PartnerBookmarksProviderIterator(cursor);

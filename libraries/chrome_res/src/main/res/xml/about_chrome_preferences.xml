@@ -3,10 +3,12 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
 
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <Preference
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <org.chromium.chrome.browser.preferences.HyperlinkPreference
         android:key="application_version"
-        android:title="@string/application_version_title" />
+        android:title="@string/application_version_title"
+        app:url="@string/version_url" />
     <Preference
         android:key="os_version"
         android:title="@string/os_version_title" />
@@ -14,4 +16,12 @@
         android:fragment="org.chromium.chrome.browser.preferences.LegalInformationPreferences"
         android:key="legal_information"
         android:title="@string/legal_information_title" />
+    <org.chromium.chrome.browser.preferences.ButtonPreference
+        android:key="feedback"
+        android:title="@string/menu_help" />
+    <org.chromium.chrome.browser.preferences.ButtonPreference
+        android:key="update_notification"
+        android:title="@string/swe_update" />
+    <org.chromium.chrome.browser.preferences.ImagePreference
+        android:src="@drawable/swe_branding_about" />
 </PreferenceScreen>

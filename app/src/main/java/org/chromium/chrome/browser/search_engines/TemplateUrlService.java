@@ -9,6 +9,7 @@ import android.text.TextUtils;
 import org.chromium.base.ObserverList;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
+import org.chromium.chrome.browser.partnercustomizations.PartnerSearchEngineManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,18 +48,16 @@ public class TemplateUrlService {
     public static class TemplateUrl {
         private final int mIndex;
         private final String mShortName;
-        private final String mKeyword;
 
         @CalledByNative("TemplateUrl")
         public static TemplateUrl create(
-                int id, String shortName, String keyword) {
-            return new TemplateUrl(id, shortName, keyword);
+                int id, String shortName) {
+            return new TemplateUrl(id, shortName);
         }
 
-        public TemplateUrl(int index, String shortName, String keyword) {
+        public TemplateUrl(int index, String shortName) {
             mIndex = index;
             mShortName = shortName;
-            mKeyword = keyword;
         }
 
         public int getIndex() {
@@ -69,16 +68,11 @@ public class TemplateUrlService {
             return mShortName;
         }
 
-        public String getKeyword() {
-            return mKeyword;
-        }
-
         @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
             result = prime * result + mIndex;
-            result = prime * result + ((mKeyword == null) ? 0 : mKeyword.hashCode());
             result = prime * result + ((mShortName == null) ? 0 : mShortName.hashCode());
             return result;
         }
@@ -88,30 +82,45 @@ public class TemplateUrlService {
             if (!(other instanceof TemplateUrl)) return false;
             TemplateUrl otherTemplateUrl = (TemplateUrl) other;
             return mIndex == otherTemplateUrl.mIndex
-                    && TextUtils.equals(mShortName, otherTemplateUrl.mShortName)
-                    && TextUtils.equals(mKeyword, otherTemplateUrl.mKeyword);
+                    && TextUtils.equals(mShortName, otherTemplateUrl.mShortName);
         }
     }
 
     private static TemplateUrlService sService;
+    private static TemplateUrlService sServiceIncognito;
 
     public static TemplateUrlService getInstance() {
-        ThreadUtils.assertOnUiThread();
-        if (sService == null) {
-            sService = new TemplateUrlService();
-        }
-        return sService;
+        return  getInstance(false);
     }
 
+    public static TemplateUrlService getInstance(boolean isIncognito) {
+        ThreadUtils.assertOnUiThread();
+        if(!isIncognito) {
+            if (sService == null) {
+                sService = new TemplateUrlService(isIncognito);
+            }
+            return sService;
+        } else {
+            if (sServiceIncognito == null) {
+                sServiceIncognito = new TemplateUrlService(isIncognito);
+            }
+            return sServiceIncognito;
+        }
+
+    }
+
+    private boolean mIsIncognito;
     private final long mNativeTemplateUrlServiceAndroid;
+    private String mDefaultSearchEngineInjected;
     private final ObserverList<LoadListener> mLoadListeners = new ObserverList<LoadListener>();
     private final ObserverList<TemplateUrlServiceObserver> mObservers =
             new ObserverList<TemplateUrlServiceObserver>();
 
-    private TemplateUrlService() {
+    private TemplateUrlService(boolean isIncognito) {
+        mIsIncognito = isIncognito;
         // Note that this technically leaks the native object, however, TemlateUrlService
         // is a singleton that lives forever and there's no clean shutdown of Chrome on Android
-        mNativeTemplateUrlServiceAndroid = nativeInit();
+        mNativeTemplateUrlServiceAndroid = nativeInit(isIncognito);
     }
 
     public boolean isLoaded() {
@@ -136,8 +145,11 @@ public class TemplateUrlService {
         int templateUrlCount = nativeGetTemplateUrlCount(mNativeTemplateUrlServiceAndroid);
         List<TemplateUrl> templateUrls = new ArrayList<TemplateUrl>(templateUrlCount);
         for (int i = 0; i < templateUrlCount; i++) {
-            TemplateUrl templateUrl = nativeGetPrepopulatedTemplateUrlAt(
-                    mNativeTemplateUrlServiceAndroid, i);
+            TemplateUrl templateUrl =
+                    usePartnerSearchEngines() ? nativeGetPartnerTemplateUrlAt(
+                            mNativeTemplateUrlServiceAndroid, i) :
+                    nativeGetPrepopulatedTemplateUrlAt(
+                            mNativeTemplateUrlServiceAndroid, i);
             if (templateUrl != null) {
                 templateUrls.add(templateUrl);
             }
@@ -151,6 +163,10 @@ public class TemplateUrlService {
     @CalledByNative
     private void templateUrlServiceLoaded() {
         ThreadUtils.assertOnUiThread();
+        if (usePartnerSearchEngines() && !mIsIncognito) {
+            PartnerSearchEngineManager pSM = PartnerSearchEngineManager.getInstance();
+            pSM.injectSearchEngines();
+        }
         for (LoadListener listener : mLoadListeners) {
             listener.onTemplateUrlServiceLoaded();
         }
@@ -184,8 +200,34 @@ public class TemplateUrlService {
         assert defaultSearchEngineIndex < nativeGetTemplateUrlCount(
                 mNativeTemplateUrlServiceAndroid);
 
-        return nativeGetPrepopulatedTemplateUrlAt(
-                mNativeTemplateUrlServiceAndroid, defaultSearchEngineIndex);
+        return usePartnerSearchEngines() ? nativeGetPartnerTemplateUrlAt(
+                mNativeTemplateUrlServiceAndroid, defaultSearchEngineIndex) :
+                nativeGetPrepopulatedTemplateUrlAt(
+                        mNativeTemplateUrlServiceAndroid, defaultSearchEngineIndex);
+    }
+
+    public boolean usePartnerSearchEngines() {
+        PartnerSearchEngineManager pSEM = PartnerSearchEngineManager.getInstance();
+        if (pSEM != null && pSEM.shouldUsePreloadSearchEngine())
+            return true;
+        return false;
+    }
+
+    public void addSearchEngine(String title, String keyword, String searchUrl, String faviconUrl) {
+        nativeAddSearchEngine(mNativeTemplateUrlServiceAndroid, title,
+            keyword, searchUrl, faviconUrl);
+    }
+
+    public void setDefaultSearchEngine(String keyword) {
+        nativeMakeDefault(mNativeTemplateUrlServiceAndroid, keyword);
+    }
+
+    public void setDefaultSearchEngineInjected(String keyword) {
+        mDefaultSearchEngineInjected = keyword;
+    }
+
+    public String getDefaultSearchEngineInjected() {
+        return mDefaultSearchEngineInjected;
     }
 
     public void setSearchEngine(int selectedIndex) {
@@ -290,14 +332,15 @@ public class TemplateUrlService {
      * @param query The search term to use as the main query in the returned search url.
      * @param alternateTerm The alternate search term to use as an alternate suggestion.
      * @param shouldPrefetch Whether the returned url should include a prefetch parameter.
+     * @param protocolVersion The version of the Contextual Search API protocol to use.
      * @return      A {@link String} that contains the url of the default search engine with
      *              {@code query} and {@code alternateTerm} inserted as parameters and contextual
      *              search and prefetch parameters conditionally set.
      */
-    public String getUrlForContextualSearchQuery(String query, String alternateTerm,
-            boolean shouldPrefetch) {
-        return nativeGetUrlForContextualSearchQuery(
-            mNativeTemplateUrlServiceAndroid, query, alternateTerm, shouldPrefetch);
+    public String getUrlForContextualSearchQuery(
+            String query, String alternateTerm, boolean shouldPrefetch, String protocolVersion) {
+        return nativeGetUrlForContextualSearchQuery(mNativeTemplateUrlServiceAndroid, query,
+                alternateTerm, shouldPrefetch, protocolVersion);
     }
 
     /**
@@ -309,10 +352,16 @@ public class TemplateUrlService {
         return nativeGetSearchEngineUrlFromTemplateUrl(mNativeTemplateUrlServiceAndroid, index);
     }
 
-    private native long nativeInit();
+    public String getSearchEngineFavicon(int index) {
+        return nativeGetUrlForSearchEngineFavicon(mNativeTemplateUrlServiceAndroid, index);
+    }
+
+    private native long nativeInit(boolean isIncognito);
     private native void nativeLoad(long nativeTemplateUrlServiceAndroid);
     private native boolean nativeIsLoaded(long nativeTemplateUrlServiceAndroid);
     private native int nativeGetTemplateUrlCount(long nativeTemplateUrlServiceAndroid);
+    private native TemplateUrl nativeGetPartnerTemplateUrlAt(
+            long nativeTemplateUrlServiceAndroid, int i);
     private native TemplateUrl nativeGetPrepopulatedTemplateUrlAt(
             long nativeTemplateUrlServiceAndroid, int i);
     private native void nativeSetUserSelectedDefaultSearchProvider(
@@ -328,7 +377,13 @@ public class TemplateUrlService {
     private native String nativeReplaceSearchTermsInUrl(long nativeTemplateUrlServiceAndroid,
             String query, String currentUrl);
     private native String nativeGetUrlForContextualSearchQuery(long nativeTemplateUrlServiceAndroid,
-            String query, String alternateTerm, boolean shouldPrefetch);
+            String query, String alternateTerm, boolean shouldPrefetch, String protocolVersion);
     private native String nativeGetSearchEngineUrlFromTemplateUrl(
             long nativeTemplateUrlServiceAndroid, int index);
+    private native String nativeGetUrlForSearchEngineFavicon(
+            long nativeTemplateUrlServiceAndroid, int index);
+    private native void nativeAddSearchEngine(long nativeTemplateUrlServiceAndroid, String title,
+            String keyword, String searchUrl, String faviconUrl);
+    private native void nativeMakeDefault(
+                long nativeTemplateUrlServiceAndroid, String keyword);
 }

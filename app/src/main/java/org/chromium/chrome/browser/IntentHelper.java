@@ -14,7 +14,7 @@ import android.util.Patterns;
 
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.annotations.CalledByNative;
-import org.chromium.sync.signin.AccountManagerHelper;
+import org.chromium.components.sync.signin.AccountManagerHelper;
 
 import java.io.File;
 
@@ -38,7 +38,7 @@ public abstract class IntentHelper {
      * @param fileToAttach The file name of the attachment.
      */
     @CalledByNative
-    static void sendEmail(Context context, String email, String subject, String body,
+    public static void sendEmail(Context context, String email, String subject, String body,
             String chooserTitle, String fileToAttach) {
         if (TextUtils.isEmpty(email)) {
             Account[] accounts = AccountManagerHelper.get(context).getGoogleAccounts();

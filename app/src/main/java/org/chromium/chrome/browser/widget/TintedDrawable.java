@@ -11,6 +11,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -25,7 +26,7 @@ public class TintedDrawable extends BitmapDrawable {
 
     public TintedDrawable(Resources res, Bitmap bitmap) {
         super(res, bitmap);
-        mTint = res.getColorStateList(R.color.dark_mode_tint);
+        mTint = ApiCompatibilityUtils.getColorStateList(res, R.color.dark_mode_tint);
     }
 
     @Override
@@ -56,6 +57,16 @@ public class TintedDrawable extends BitmapDrawable {
     public static TintedDrawable constructTintedDrawable(Resources res, int drawableId) {
         Bitmap icon = BitmapFactory.decodeResource(res, drawableId);
         return new TintedDrawable(res, icon);
+    }
+
+    /**
+     * Factory method for creating a {@link TintedDrawable} with a resource id and specific tint.
+     */
+    public static TintedDrawable constructTintedDrawable(
+            Resources res, int drawableId, int tintColorId) {
+        TintedDrawable drawable = constructTintedDrawable(res,  drawableId);
+        drawable.setTint(ApiCompatibilityUtils.getColorStateList(res, tintColorId));
+        return drawable;
     }
 
     /**

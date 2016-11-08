@@ -149,7 +149,8 @@ public class AutofillKeyboardAccessoryBridge
     private static void addToAutofillSuggestionArray(AutofillSuggestion[] array, int index,
             String label, String sublabel, int iconId, int suggestionId, boolean deletable) {
         int drawableId = iconId == 0 ? DropdownItem.NO_ICON : ResourceId.mapToDrawableId(iconId);
-        array[index] = new AutofillSuggestion(label, sublabel, drawableId, suggestionId, deletable);
+        array[index] =
+                new AutofillSuggestion(label, sublabel, drawableId, suggestionId, deletable, false);
     }
 
     private native void nativeViewDismissed(long nativeAutofillKeyboardAccessoryView);

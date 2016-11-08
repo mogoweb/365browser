@@ -17,7 +17,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.notifications.GoogleServicesNotificationController;
 import org.chromium.chrome.browser.notifications.NotificationConstants;
 import org.chromium.chrome.browser.preferences.PreferencesLauncher;
-import org.chromium.sync.AndroidSyncSettings;
+import org.chromium.components.sync.AndroidSyncSettings;
 
 /**
  * {@link SyncNotificationController} provides functionality for displaying Android notifications
@@ -37,6 +37,7 @@ public class SyncNotificationController implements ProfileSyncService.SyncStateC
         mApplicationContext = context.getApplicationContext();
         mNotificationController = GoogleServicesNotificationController.get(context);
         mProfileSyncService = ProfileSyncService.get();
+        assert mProfileSyncService != null;
         mPassphraseRequestActivity = passphraseRequestActivity;
         mAccountManagementFragment = accountManagementFragment;
     }
@@ -67,7 +68,7 @@ public class SyncNotificationController implements ProfileSyncService.SyncStateC
         if (shouldSyncAuthErrorBeShown()) {
             message = mProfileSyncService.getAuthError().getMessage();
             intent = createSettingsIntent();
-        } else if (mProfileSyncService.isSyncInitialized()
+        } else if (mProfileSyncService.isBackendInitialized()
                 && mProfileSyncService.isPassphraseRequiredForDecryption()) {
             if (mProfileSyncService.isPassphrasePrompted()) {
                 return;

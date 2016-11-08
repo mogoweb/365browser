@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"I-clear ang kopya"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Magtago ng kopya ng card na ito sa device na ito"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Kung may check, mag-iimbak ang Chromium ng kopya ng iyong card sa device na ito para sa mas mabilis na pagsagot sa form."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Kinukumpirma ang card"</string>
+<string name="autofill_card_unmask_verification_success">"Nakumpirma na ang iyong card"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Bagong card?"</string>
+<string name="http_post_warning">"Ang pahina na hinahanap mo para sa paggamit ng impormasyon na ipinasok mo. Ang pagbalik sa pahinang iyon maaaring magsanhi ng anumang aksyon na akalo mo ay naulit. Nais mo bang ipagpatuloy?"</string>
+<string name="http_post_warning_resend">"Magpatuloy"</string>
+<string name="login_dialog_title">"Kinakailangan na Pagpapatunay"</string>
+<string name="login_dialog_username_field">"User Name:"</string>
+<string name="login_dialog_password_field">"Password:"</string>
+<string name="login_dialog_ok_button_label">"Mag-log In"</string>
+<string name="sad_tab_title">"Ay, Naku!"</string>
+<string name="sad_tab_message">"Nagkaroon ng problema habang ipinapakita ang webpage na ito."</string>
+<string name="sad_tab_oom_message">"Naubusan ng memory ang Chromium habang sinusubukang ipakita ang webpage na ito."</string>
+<string name="sad_tab_reload_label">"I-reload"</string>
+<string name="snippets_disabled_signed_out_instructions">"Upang makakuha ng naka-personalize na content na iminumungkahi ng Google, mag-sign in sa Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Kumuha ng iminumungkahing content"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Tapos na sa ngayon"</string>
+<string name="ntp_status_card_no_bookmarks">"Lalabas dito ang iyong mga kamakailang binisitang bookmark."</string>
+<string name="ntp_status_card_title_no_articles">"Nabasa na Lahat"</string>
+<string name="ntp_status_card_no_articles">"Higit pang artikulo ang lalabas sa tamang panahon."</string>
+</resources>

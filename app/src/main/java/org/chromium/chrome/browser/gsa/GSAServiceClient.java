@@ -87,7 +87,8 @@ public class GSAServiceClient {
     public boolean connect() {
         if (mService != null) Log.e(TAG, "Already connected.");
         Intent intent = new Intent(GSA_SERVICE).setPackage(GSAState.SEARCH_INTENT_PACKAGE);
-        return mContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        return mContext.bindService(
+                intent, mConnection, Context.BIND_AUTO_CREATE | Context.BIND_NOT_FOREGROUND);
     }
 
     /**

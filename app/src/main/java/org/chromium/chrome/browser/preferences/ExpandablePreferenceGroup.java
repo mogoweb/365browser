@@ -17,6 +17,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ImageView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 import java.util.Locale;
@@ -59,15 +60,56 @@ public class ExpandablePreferenceGroup extends PreferenceGroup {
                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
-        int gray = getContext().getResources().getColor(R.color.expandable_group_dark_gray);
+        // Color the first part of the title blue.
+        ForegroundColorSpan blueSpan = new ForegroundColorSpan(
+                ApiCompatibilityUtils.getColor(getContext().getResources(),
+                        R.color.pref_accent_color));
+        spannable.setSpan(blueSpan, 0, spannable.length() - prefCount.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        // Gray out the total count of items.
+        int gray = ApiCompatibilityUtils.getColor(getContext().getResources(),
+                R.color.expandable_group_dark_gray);
         spannable.setSpan(new ForegroundColorSpan(gray),
                    spannable.length() - prefCount.length(),
                    spannable.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         setTitle(spannable);
     }
 
+    /**
+     * Set the title for the preference group without a number.
+     * @param resourceId The resource id of the text to use.
+     */
+    public void setGroupTitle(int resourceId) {
+        SpannableStringBuilder spannable =
+                new SpannableStringBuilder(getContext().getResources().getString(resourceId));
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            spannable.setSpan(new StyleSpan(android.graphics.Typeface.BOLD),
+                    0,
+                    spannable.length(),
+                    spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } else {
+            spannable.setSpan(new TypefaceSpan("sans-serif-medium"),
+                    0,
+                    spannable.length(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+
+        // Color the first part of the title blue.
+        ForegroundColorSpan blueSpan = new ForegroundColorSpan(
+                ApiCompatibilityUtils.getColor(getContext().getResources(),
+                        R.color.pref_accent_color));
+        spannable.setSpan(blueSpan, 0, spannable.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        setTitle(spannable);
+    }
+
     public void setExpanded(boolean expanded) {
         mExpanded = expanded;
+    }
+
+    public boolean getExpanded() {
+        return mExpanded;
     }
 
     @Override

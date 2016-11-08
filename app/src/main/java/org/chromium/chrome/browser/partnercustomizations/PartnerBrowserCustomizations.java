@@ -14,8 +14,11 @@ import android.os.AsyncTask;
 import android.text.TextUtils;
 import android.util.Log;
 
+import org.chromium.base.CommandLine;
+import org.chromium.chrome.R;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.chrome.browser.ChromeSwitches;
 import org.chromium.chrome.browser.partnerbookmarks.PartnerBookmarksReader;
 
 import java.util.ArrayList;
@@ -26,19 +29,22 @@ import java.util.List;
  */
 public class PartnerBrowserCustomizations {
     private static final String TAG = "PartnerBrowserProvider";
-    private static final String PROVIDER_AUTHORITY = "com.android.partnerbrowsercustomizations";
+    // user swe authority to avoid conflict with chrome partner customization
+    private static final String PROVIDER_AUTHORITY = ".partnerbrowsercustomizations";
 
     // Private homepage structure.
     static final String PARTNER_HOMEPAGE_PATH = "homepage";
     static final String PARTNER_DISABLE_BOOKMARKS_EDITING_PATH = "disablebookmarksediting";
     @VisibleForTesting
     public static final String PARTNER_DISABLE_INCOGNITO_MODE_PATH = "disableincognitomode";
+    public static final String PARTNER_ENABLE_EXIT_LAST_TAB = "enableexitonlasttab";
 
     private static String sProviderAuthority = PROVIDER_AUTHORITY;
     private static boolean sIgnoreBrowserProviderSystemPackageCheck = false;
     private static volatile String sHomepage;
     private static volatile boolean sIncognitoModeDisabled;
     private static volatile boolean sBookmarksEditingDisabled;
+    private static volatile boolean sLastTabExitEnabled;
     private static boolean sIsInitialized;
     private static List<Runnable> sInitializeAsyncCallbacks = new ArrayList<Runnable>();
 
@@ -59,6 +65,13 @@ public class PartnerBrowserCustomizations {
     }
 
     /**
+     * @return Whether undo last tab is disabled by the partner.
+     */
+    public static boolean isLastTabExitEnabled() {
+        return sLastTabExitEnabled;
+    }
+
+    /**
      * @return Whether partner bookmarks editing is disabled by the partner.
      */
     @VisibleForTesting
@@ -71,7 +84,7 @@ public class PartnerBrowserCustomizations {
      *         to read provider is also considered initialization.
      */
     @VisibleForTesting
-    static boolean isInitialized() {
+    public static boolean isInitialized() {
         return sIsInitialized;
     }
 
@@ -101,6 +114,14 @@ public class PartnerBrowserCustomizations {
                 .build();
     }
 
+    @VisibleForTesting
+    public static Uri buildQueryUri(String path, final Context context) {
+        return new Uri.Builder()
+                .scheme("content")
+                .authority(context.getPackageName() + sProviderAuthority)
+                .appendPath(path)
+                .build();
+    }
     /**
      * Constructs an async task that reads PartnerBrowserCustomization provider.
      *
@@ -119,7 +140,8 @@ public class PartnerBrowserCustomizations {
                 try {
                     ContentResolver contentResolver = context.getContentResolver();
                     Cursor cursor = contentResolver.query(
-                            buildQueryUri(PARTNER_HOMEPAGE_PATH), null, null, null, null);
+                            buildQueryUri(PARTNER_HOMEPAGE_PATH, context),
+                            null, null, null, null);
                     if (cursor != null && cursor.moveToFirst() && cursor.getColumnCount() == 1
                             && !isCancelled()) {
                         if (TextUtils.isEmpty(sHomepage)
@@ -133,12 +155,27 @@ public class PartnerBrowserCustomizations {
                     Log.w(TAG, "Partner homepage provider URL read failed : ", e);
                 }
             }
+            private void refreshLastTabExitEnabled() {
+                try {
+                    ContentResolver contentResolver = context.getContentResolver();
+                    Cursor cursor = contentResolver.query(
+                            buildQueryUri(PARTNER_ENABLE_EXIT_LAST_TAB, context),
+                            null, null, null, null);
+                    if (cursor != null && cursor.moveToFirst() && cursor.getColumnCount() == 1
+                            && !isCancelled()) {
+                        sLastTabExitEnabled = cursor.getInt(0) == 1;
+                    }
+                    if (cursor != null) cursor.close();
+                } catch (Exception e) {
+                    Log.w(TAG, "Partner last tab undo read failed : ", e);
+                }
+            }
 
             private void refreshIncognitoModeDisabled() {
                 try {
                     ContentResolver contentResolver = context.getContentResolver();
                     Cursor cursor = contentResolver.query(
-                            buildQueryUri(PARTNER_DISABLE_INCOGNITO_MODE_PATH),
+                            buildQueryUri(PARTNER_DISABLE_INCOGNITO_MODE_PATH, context),
                                     null, null, null, null);
                     if (cursor != null && cursor.moveToFirst() && cursor.getColumnCount() == 1
                             && !isCancelled()) {
@@ -173,9 +210,13 @@ public class PartnerBrowserCustomizations {
             @Override
             protected Void doInBackground(Void... params) {
                 try {
+                    String providerAuthority = context.getPackageName() + sProviderAuthority;
                     ProviderInfo providerInfo = context.getPackageManager()
-                            .resolveContentProvider(sProviderAuthority, 0);
+                            .resolveContentProvider(providerAuthority, 0);
                     if (providerInfo == null) return null;
+                    if (context.getResources().getBoolean(
+                            R.bool.swe_force_enable_partner_customization))
+                        sIgnoreBrowserProviderSystemPackageCheck = true;
 
                     if ((providerInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0
                             && !sIgnoreBrowserProviderSystemPackageCheck) {
@@ -185,6 +226,9 @@ public class PartnerBrowserCustomizations {
                                 + "so skip reading the browser content provider.");
                         return null;
                     }
+
+                    if (isCancelled()) return null;
+                    refreshLastTabExitEnabled();
 
                     if (isCancelled()) return null;
                     refreshIncognitoModeDisabled();
@@ -284,6 +328,10 @@ public class PartnerBrowserCustomizations {
      *         provider or provider set it to null to disable homepage.
      */
     public static String getHomePageUrl() {
+        CommandLine commandLine = CommandLine.getInstance();
+        if (commandLine.hasSwitch(ChromeSwitches.PARTNER_HOMEPAGE_FOR_TESTING)) {
+            return commandLine.getSwitchValue(ChromeSwitches.PARTNER_HOMEPAGE_FOR_TESTING);
+        }
         return sHomepage;
     }
 }

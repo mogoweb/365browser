@@ -26,11 +26,13 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.BaseChromiumApplication;
 import org.chromium.base.BaseChromiumApplication.WindowFocusChangedListener;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.fullscreen.FullscreenHtmlApiHandler.FullscreenHtmlApiDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.widget.ControlContainer;
 import org.chromium.content.browser.ContentVideoView;
 import org.chromium.content.browser.ContentViewCore;
 import org.chromium.content_public.common.TopControlsState;
@@ -59,7 +61,7 @@ public class ChromeFullscreenManager
     private final Handler mHandler;
     private final int mControlContainerHeight;
 
-    private final View mControlContainer;
+    private final ControlContainer mControlContainer;
 
     private long mMinShowNotificationMs = MINIMUM_SHOW_DURATION_MS;
     private long mMaxAnimationDurationMs = MAX_ANIMATION_DURATION_MS;
@@ -103,8 +105,9 @@ public class ChromeFullscreenManager
         /**
          * Called whenever the content's visible offset changes.
          * @param offset The new offset of the visible content from the top of the screen.
+         * @param needsAnimate Whether the caller is driving an animation with further updates.
          */
-        public void onVisibleContentOffsetChanged(float offset);
+        public void onVisibleContentOffsetChanged(float offset, boolean needsAnimate);
 
         /**
          * Called when a ContentVideoView is created/destroyed.
@@ -138,13 +141,13 @@ public class ChromeFullscreenManager
         @Override
         public void run() {
             int visibility = shouldShowAndroidControls() ? View.VISIBLE : View.INVISIBLE;
-            if (mControlContainer.getVisibility() == visibility) return;
+            if (mControlContainer.getView().getVisibility() == visibility) return;
             // requestLayout is required to trigger a new gatherTransparentRegion(), which
             // only occurs together with a layout and let's SurfaceFlinger trim overlays.
             // This may be almost equivalent to using View.GONE, but we still use View.INVISIBLE
             // since drawing caches etc. won't be destroyed, and the layout may be less expensive.
-            mControlContainer.setVisibility(visibility);
-            mControlContainer.requestLayout();
+            mControlContainer.getView().setVisibility(visibility);
+            mControlContainer.getView().requestLayout();
         }
     };
 
@@ -183,7 +186,7 @@ public class ChromeFullscreenManager
      * @param supportsBrowserOverride Whether we want to disable the token system used by the
                                       browser.
      */
-    public ChromeFullscreenManager(Activity activity, View controlContainer,
+    public ChromeFullscreenManager(Activity activity, ControlContainer controlContainer,
             TabModelSelector modelSelector, int resControlContainerHeight,
             boolean supportsBrowserOverride) {
         super(activity.getWindow(), modelSelector);
@@ -236,16 +239,6 @@ public class ChromeFullscreenManager
     protected FullscreenHtmlApiDelegate createApiDelegate() {
         return new FullscreenHtmlApiDelegate() {
             @Override
-            public View getNotificationAnchorView() {
-                return mControlContainer;
-            }
-
-            @Override
-            public int getNotificationOffsetY() {
-                return (int) getControlOffset();
-            }
-
-            @Override
             public void onEnterFullscreen() {
                 Tab tab = getActiveTab();
                 if (getControlOffset() == -mControlContainerHeight) {
@@ -273,7 +266,7 @@ public class ChromeFullscreenManager
             }
 
             @Override
-            public boolean shouldShowNotificationBubble() {
+            public boolean shouldShowNotificationToast() {
                 return !isOverlayVideoMode();
             }
         };
@@ -285,6 +278,8 @@ public class ChromeFullscreenManager
      */
     @VisibleForTesting
     public void disableBrowserOverrideForTest() {
+        ThreadUtils.assertOnUiThread();
+
         mDisableBrowserOverride = true;
         mPersistentControlTokens.clear();
         mHandler.removeMessages(MSG_ID_HIDE_CONTROLS);
@@ -379,6 +374,13 @@ public class ChromeFullscreenManager
     public float getControlOffset() {
         if (mTopControlsPermanentlyHidden) return -getTopControlsHeight();
         return mControlOffset;
+    }
+
+    /**
+     * @return The toolbar control container.
+     */
+    public ControlContainer getControlContainer() {
+        return mControlContainer;
     }
 
     @SuppressWarnings("SelfEquality")
@@ -484,9 +486,9 @@ public class ChromeFullscreenManager
      */
     private void scheduleVisibilityUpdate() {
         final int desiredVisibility = shouldShowAndroidControls() ? View.VISIBLE : View.INVISIBLE;
-        if (mControlContainer.getVisibility() == desiredVisibility) return;
-        mControlContainer.removeCallbacks(mUpdateVisibilityRunnable);
-        mControlContainer.postOnAnimation(mUpdateVisibilityRunnable);
+        if (mControlContainer.getView().getVisibility() == desiredVisibility) return;
+        mControlContainer.getView().removeCallbacks(mUpdateVisibilityRunnable);
+        mControlContainer.getView().postOnAnimation(mUpdateVisibilityRunnable);
     }
 
     private void updateVisuals() {
@@ -495,13 +497,18 @@ public class ChromeFullscreenManager
         float offset = getControlOffset();
         if (Float.compare(mPreviousControlOffset, offset) != 0) {
             mPreviousControlOffset = offset;
-            getHtmlApiHandler().updateBubblePosition();
 
             scheduleVisibilityUpdate();
-            if (shouldShowAndroidControls()) mControlContainer.setTranslationY(getControlOffset());
+            if (shouldShowAndroidControls()) {
+                mControlContainer.getView().setTranslationY(getControlOffset());
+            }
 
+            // Whether we need the compositor to draw again to update our animation.
+            // Should be |false| when the top controls are only moved through the page scrolling.
+            boolean needsAnimate = mControlAnimation != null || shouldShowAndroidControls();
             for (int i = 0; i < mListeners.size(); i++) {
-                mListeners.get(i).onVisibleContentOffsetChanged(getVisibleContentOffset());
+                mListeners.get(i).onVisibleContentOffsetChanged(
+                        getVisibleContentOffset(), needsAnimate);
             }
         }
 
@@ -655,7 +662,9 @@ public class ChromeFullscreenManager
         if (eventAction == MotionEvent.ACTION_DOWN
                 || eventAction == MotionEvent.ACTION_POINTER_DOWN) {
             mInGesture = true;
-            getHtmlApiHandler().hideNotificationBubble();
+            // TODO(qinmin): Probably there is no need to hide the toast as it will go away
+            // by itself.
+            getHtmlApiHandler().hideNotificationToast();
         } else if (eventAction == MotionEvent.ACTION_CANCEL
                 || eventAction == MotionEvent.ACTION_UP) {
             mInGesture = false;

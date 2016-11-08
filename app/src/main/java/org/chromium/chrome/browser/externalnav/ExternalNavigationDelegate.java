@@ -4,8 +4,9 @@
 
 package org.chromium.chrome.browser.externalnav;
 
-import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
+import android.app.Activity;
 
 import org.chromium.chrome.browser.externalnav.ExternalNavigationHandler.OverrideUrlLoadingResult;
 import org.chromium.chrome.browser.tab.Tab;
@@ -20,12 +21,12 @@ interface ExternalNavigationDelegate {
     /**
      * Get the list of component name of activities which can resolve |intent|.
      */
-    List<ComponentName> queryIntentActivities(Intent intent);
+    List<ResolveInfo> queryIntentActivities(Intent intent);
 
     /**
-     * Determine if the given intent can be resolved to at least one activity.
+     * Return The activity that this delegate is associated with.
      */
-    boolean canResolveActivity(Intent intent);
+    Activity getActivity();
 
     /**
      * Determine if Chrome is the default or only handler for a given intent. If true, Chrome
@@ -37,7 +38,20 @@ interface ExternalNavigationDelegate {
      * Search for intent handlers that are specific to this URL aka, specialized apps like
      * google maps or youtube
      */
-    boolean isSpecializedHandlerAvailable(Intent intent);
+    boolean isSpecializedHandlerAvailable(List<ResolveInfo> infos);
+
+    /**
+     * Returns the number of specialized intent handlers in {@params infos}. Specialized intent
+     * handlers are intent handlers which handle only a few URLs (e.g. google maps or youtube).
+     */
+    int countSpecializedHandlers(List<ResolveInfo> infos);
+
+    /**
+     * Returns the package name of the first valid WebAPK in {@link infos}.
+     * @param infos ResolveInfos to search.
+     * @return The package name of the first valid WebAPK. Null if no valid WebAPK was found.
+     */
+    String findWebApkPackageName(List<ResolveInfo> infos);
 
     /**
      * Get the name of the package of the currently running activity so that incoming intents
@@ -66,10 +80,11 @@ interface ExternalNavigationDelegate {
             boolean needsToCloseTab);
 
     /**
+     * @param url The requested url.
      * @param tab The current tab.
      * @return Whether we should block the navigation and request file access before proceeding.
      */
-    boolean shouldRequestFileAccess(Tab tab);
+    boolean shouldRequestFileAccess(String url, Tab tab);
 
     /**
      * Trigger a UI affordance that will ask the user to grant file access.  After the access
@@ -94,13 +109,24 @@ interface ExternalNavigationDelegate {
      */
     OverrideUrlLoadingResult clobberCurrentTab(String url, String referrerUrl, Tab tab);
 
+    /** Adds a window id to the intent, if necessary. */
+    void maybeSetWindowId(Intent intent);
+
+    /** Adds the package name of a specialized intent handler. */
+    void maybeRecordAppHandlersInIntent(Intent intent, List<ResolveInfo> info);
+
     /**
      * Determine if the Chrome app is in the foreground.
      */
     boolean isChromeAppInForeground();
 
     /**
-     * Check if Chrome is running in document mode.
+     * @return Default SMS application's package name. Null if there isn't any.
      */
-    boolean isDocumentMode();
+    String getDefaultSmsPackageName();
+
+    /**
+     * @return Whether the URL is a file download.
+     */
+    boolean isPdfDownload(String url);
 }

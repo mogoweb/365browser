@@ -23,6 +23,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -100,7 +101,7 @@ public class FloatLabelLayout extends LinearLayout {
         ViewCompat.setPivotX(mLabel, 0f);
         ViewCompat.setPivotY(mLabel, 0f);
 
-        mLabel.setTextAppearance(context,
+        ApiCompatibilityUtils.setTextAppearance(mLabel,
                 a.getResourceId(R.styleable.FloatLabelLayout_floatLabelTextAppearance,
                         android.R.style.TextAppearance_Small));
         a.recycle();
@@ -170,6 +171,11 @@ public class FloatLabelLayout extends LinearLayout {
         // If we do not have a valid hint, try and retrieve it from the EditText
         if (TextUtils.isEmpty(mHint)) {
             setHint(mEditText.getHint());
+        }
+
+        // If we do not have a valid content description, set it to the hint text.
+        if (TextUtils.isEmpty(mEditText.getContentDescription())) {
+            mEditText.setContentDescription(mHint);
         }
     }
 

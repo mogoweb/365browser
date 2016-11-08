@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.printing;
 
 import android.text.TextUtils;
 
+import org.chromium.base.Log;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.printing.Printable;
 
@@ -19,6 +20,7 @@ import java.lang.ref.WeakReference;
  */
 public class TabPrinter implements Printable {
     private static String sDefaultTitle;
+    private static final String TAG = "printing";
 
     private final WeakReference<Tab> mTab;
 
@@ -33,7 +35,11 @@ public class TabPrinter implements Printable {
     @Override
     public boolean print() {
         Tab tab = mTab.get();
-        return tab != null && tab.isInitialized() && tab.print();
+        if (tab == null || !tab.isInitialized()) {
+            Log.d(TAG, "Tab not ready, unable to start printing.");
+            return false;
+        }
+        return tab.print();
     }
 
     @Override

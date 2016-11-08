@@ -6,11 +6,18 @@ package org.chromium.chrome.browser.crash;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
-import android.util.Log;
+import android.support.annotation.IntDef;
+import android.text.TextUtils;
+import android.content.res.Resources;
 
+import org.chromium.chrome.R;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
+import org.chromium.base.CommandLine;
+import org.chromium.base.PackageUtils;
 import org.chromium.base.StreamUtil;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.chrome.browser.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.privacy.CrashReportingPermissionManager;
 import org.chromium.chrome.browser.preferences.privacy.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.util.HttpURLConnectionFactory;
@@ -26,7 +33,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.zip.GZIPOutputStream;
@@ -37,77 +43,128 @@ import java.util.zip.GZIPOutputStream;
  * It is implemented as a Callable<Boolean> and returns true on successful uploads,
  * and false otherwise.
  */
-public class MinidumpUploadCallable implements Callable<Boolean> {
-    private static final String TAG = "MinidumpUploadCallable";
-    @VisibleForTesting protected static final int LOG_SIZE_LIMIT_BYTES = 1024 * 1024; // 1MB
-    @VisibleForTesting protected static final int LOG_UPLOAD_LIMIT_PER_DAY = 5;
+public class MinidumpUploadCallable implements Callable<Integer> {
+    private static final String TAG = "MDUploadCallable";
 
-    @VisibleForTesting
+    // These preferences are obsolete and are kept only for removing from user preferences.
+    protected static final String PREF_DAY_UPLOAD_COUNT = "crash_day_dump_upload_count";
     protected static final String PREF_LAST_UPLOAD_DAY = "crash_dump_last_upload_day";
-    @VisibleForTesting protected static final String PREF_UPLOAD_COUNT = "crash_dump_upload_count";
+    protected static final String PREF_LAST_UPLOAD_WEEK = "crash_dump_last_upload_week";
+    protected static final String PREF_WEEK_UPLOAD_SIZE = "crash_dump_week_upload_size";
 
     @VisibleForTesting
-    protected static final String CRASH_URL_STRING = "https://clients2.google.com/cr/report";
+    protected static String CRASH_URL_STRING = "https://clients2.google.com/cr/report";
 
     @VisibleForTesting
     protected static final String CONTENT_TYPE_TMPL = "multipart/form-data; boundary=%s";
+
+    @IntDef({
+        UPLOAD_SUCCESS,
+        UPLOAD_FAILURE,
+        UPLOAD_USER_DISABLED,
+        UPLOAD_COMMANDLINE_DISABLED,
+        UPLOAD_DISABLED_BY_SAMPLING,
+        UPLOAD_SERVER_DISABLED
+    })
+    public @interface MinidumpUploadStatus {}
+    public static final int UPLOAD_SUCCESS = 0;
+    public static final int UPLOAD_FAILURE = 1;
+    public static final int UPLOAD_USER_DISABLED = 2;
+    public static final int UPLOAD_COMMANDLINE_DISABLED = 3;
+    public static final int UPLOAD_DISABLED_BY_SAMPLING = 4;
+    public static final int UPLOAD_SERVER_DISABLED = 5;
+
+    private static final String UPLOAD_SERVER_DISABLED_PREF = "crash_server_disable_upload";
+    private static final int INVALID_VERSION_CODE = -1;
 
     private final File mFileToUpload;
     private final File mLogfile;
     private final HttpURLConnectionFactory mHttpURLConnectionFactory;
     private final CrashReportingPermissionManager mPermManager;
-    private final SharedPreferences mSharedPreferences;
+    private final Context mContext;
 
     public MinidumpUploadCallable(File fileToUpload, File logfile, Context context) {
         this(fileToUpload, logfile, new HttpURLConnectionFactoryImpl(),
-                PrivacyPreferencesManager.getInstance(context),
-                PreferenceManager.getDefaultSharedPreferences(context));
+                PrivacyPreferencesManager.getInstance(), context);
+        removeOutdatedPrefs(ContextUtils.getAppSharedPreferences());
     }
 
     public MinidumpUploadCallable(File fileToUpload, File logfile,
             HttpURLConnectionFactory httpURLConnectionFactory,
-            CrashReportingPermissionManager permManager, SharedPreferences sharedPreferences) {
+            CrashReportingPermissionManager permManager, Context context) {
         mFileToUpload = fileToUpload;
         mLogfile = logfile;
         mHttpURLConnectionFactory = httpURLConnectionFactory;
         mPermManager = permManager;
-        mSharedPreferences = sharedPreferences;
+        mContext = context;
     }
 
     @Override
-    public Boolean call() {
-        if (!mPermManager.isUploadPermitted()) {
-            Log.i(TAG, "Minidump upload is not permitted");
-            return false;
+    public Integer call() {
+        // TODO(jchinlee): address proper cleanup procedures for command line flag-disabled uploads.
+        if (mPermManager.isUploadCommandLineDisabled()) {
+            Log.i(TAG, "Minidump upload is disabled by command line flag. Retaining file.");
+            return UPLOAD_COMMANDLINE_DISABLED;
         }
 
-        boolean isLimited = mPermManager.isUploadLimited();
-        if (isLimited && !isUploadSizeAndFrequencyAllowed()) {
-            Log.i(TAG, "Minidump cannot currently be uploaded due to constraints");
-            return false;
-        }
+        if (mPermManager.isUploadEnabledForTests()) {
+            Log.i(TAG, "Minidump upload enabled for tests, skipping other checks.");
+        } else {
+            if (!mPermManager.isUploadUserPermitted()) {
+                Log.i(TAG, "Minidump upload is not permitted by user. Marking file as uploaded for "
+                        + "cleanup to prevent future uploads.");
+                cleanupMinidumpFile();
+                return UPLOAD_USER_DISABLED;
+            }
 
+            if (!mPermManager.isClientInMetricsSample()) {
+                Log.i(TAG, "Minidump upload skipped due to sampling.  Marking file as uploaded for "
+                                + "cleanup to prevent future uploads.");
+                cleanupMinidumpFile();
+                return UPLOAD_DISABLED_BY_SAMPLING;
+            }
+
+            boolean isLimited = mPermManager.isUploadLimited();
+            if (isLimited || !mPermManager.isUploadPermitted()) {
+                Log.i(TAG, "Minidump cannot currently be uploaded due to constraints.");
+                return UPLOAD_FAILURE;
+            }
+
+            if (hasCrashServerDisabledUpload()) {
+                Log.i(TAG, "Minidump upload is not permitted by crash server");
+                cleanupMinidumpFile();
+                return UPLOAD_SERVER_DISABLED;
+            }
+        }
+        if (CommandLine.getInstance().hasSwitch(ChromeSwitches.CRASH_LOG_SERVER_CMD)) {
+            CRASH_URL_STRING = CommandLine.getInstance().
+                    getSwitchValue(ChromeSwitches.CRASH_LOG_SERVER_CMD);
+        } else {
+            Log.i(TAG, "Minidump upload is not permitted on this build. " +
+                    " Marking file as uploaded for cleanup to prevent future uploads.");
+            cleanupMinidumpFile();
+            return UPLOAD_COMMANDLINE_DISABLED;
+        }
         HttpURLConnection connection =
                 mHttpURLConnectionFactory.createHttpURLConnection(CRASH_URL_STRING);
         if (connection == null) {
-            return false;
+            return UPLOAD_FAILURE;
         }
 
         FileInputStream minidumpInputStream = null;
         try {
             if (!configureConnectionForHttpPost(connection)) {
-                return false;
+                return UPLOAD_FAILURE;
             }
             minidumpInputStream = new FileInputStream(mFileToUpload);
             streamCopy(minidumpInputStream, new GZIPOutputStream(connection.getOutputStream()));
-            boolean status = handleExecutionResponse(connection);
+            boolean success = handleExecutionResponse(connection);
 
-            if (isLimited) updateUploadPrefs();
-            return status;
+            return success ? UPLOAD_SUCCESS : UPLOAD_FAILURE;
         } catch (IOException e) {
             // For now just log the stack trace.
             Log.w(TAG, "Error while uploading " + mFileToUpload.getName(), e);
-            return false;
+            return UPLOAD_FAILURE;
         } finally {
             connection.disconnect();
 
@@ -135,12 +192,25 @@ public class MinidumpUploadCallable implements Callable<Boolean> {
         }
 
         connection.setDoOutput(true);
+        connection.setRequestMethod("PUT");
         connection.setRequestProperty("Connection", "Keep-Alive");
         connection.setRequestProperty("Content-Encoding", "gzip");
-        connection.setRequestProperty("Content-Type", String.format(CONTENT_TYPE_TMPL, boundary));
+        String key = getKey();
+        if (key != null)
+            connection.setRequestProperty("x-api-key", key);
+        connection.setRequestProperty("Content-Type",
+                String.format(CONTENT_TYPE_TMPL, boundary));
+
         return true;
     }
 
+    private String getKey() {
+        if (mContext == null)
+            return null;
+        Resources resources = mContext.getResources();
+        String value = resources.getString(R.string.swe_api_key);
+        return TextUtils.isEmpty(value) ? null : value;
+    }
     /**
      * Reads the HTTP response and cleans up successful uploads.
      *
@@ -175,10 +245,39 @@ public class MinidumpUploadCallable implements Callable<Boolean> {
                     mFileToUpload.getName(), responseCode, connection.getResponseMessage());
             Log.i(TAG, msg);
 
+            if (responseCode == HttpURLConnection.HTTP_GONE)
+                crashServerDisableUpload();
+
             // TODO(acleung): The return status informs us about why an upload might be
             // rejected. The next logical step is to put the reasons in an UMA histogram.
             return false;
         }
+    }
+
+    private void crashServerDisableUpload() {
+        int versionCode = PackageUtils.getPackageVersion(
+                mContext, mContext.getPackageName());
+        if (versionCode != INVALID_VERSION_CODE) {
+            SharedPreferences.Editor editor =
+                ContextUtils.getAppSharedPreferences().edit();
+            editor.putInt(UPLOAD_SERVER_DISABLED_PREF, versionCode);
+            editor.apply();
+        }
+    }
+
+    private boolean hasCrashServerDisabledUpload() {
+        boolean disabled = false;
+        int versionCodeInPref = ContextUtils.getAppSharedPreferences().getInt(
+                UPLOAD_SERVER_DISABLED_PREF, INVALID_VERSION_CODE);
+        if (versionCodeInPref != INVALID_VERSION_CODE) {
+            int versionCode = PackageUtils.getPackageVersion(mContext,
+                    mContext.getPackageName());
+            if (versionCode == versionCodeInPref) {
+                disabled = true;
+            }
+        }
+
+        return disabled;
     }
 
     /**
@@ -245,44 +344,6 @@ public class MinidumpUploadCallable implements Callable<Boolean> {
     }
 
     /**
-     * Checks whether crash upload satisfies the size and frequency constraints.
-     *
-     * @return whether crash upload satisfies the size and frequency constraints.
-     */
-    private boolean isUploadSizeAndFrequencyAllowed() {
-        // Check upload size constraint.
-        if (mFileToUpload.length() > LOG_SIZE_LIMIT_BYTES) return false;
-
-        // Check upload frequency constraint.
-        // If pref doesn't exist then in both cases default value 0 will be returned and comparison
-        // always would be true.
-        if (mSharedPreferences.getInt(PREF_LAST_UPLOAD_DAY, 0) != getCurrentDay()) return true;
-        return mSharedPreferences.getInt(PREF_UPLOAD_COUNT, 0) < LOG_UPLOAD_LIMIT_PER_DAY;
-    }
-
-    /**
-     * Updates preferences used for determining crash upload constraints.
-     */
-    private void updateUploadPrefs() {
-        SharedPreferences.Editor editor = mSharedPreferences.edit();
-
-        int day = getCurrentDay();
-        int prevCount = mSharedPreferences.getInt(PREF_UPLOAD_COUNT, 0);
-        if (mSharedPreferences.getInt(PREF_LAST_UPLOAD_DAY, 0) != day) {
-            prevCount = 0;
-        }
-        editor.putInt(PREF_LAST_UPLOAD_DAY, day).putInt(PREF_UPLOAD_COUNT, prevCount + 1).apply();
-    }
-
-    /**
-     * Returns number of current day in a year starting from 1. Overridden in tests.
-     */
-    protected int getCurrentDay() {
-        return Calendar.getInstance().get(Calendar.YEAR) * 365
-                + Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
-    }
-
-    /**
      * Returns whether the response code indicates a successful HTTP request.
      *
      * @param responseCode the response code
@@ -328,5 +389,15 @@ public class MinidumpUploadCallable implements Callable<Boolean> {
         }
         inStream.close();
         outStream.close();
+    }
+
+    // TODO(gayane): Remove this function and unused prefs in M51. crbug.com/555022
+    private void removeOutdatedPrefs(SharedPreferences sharedPreferences) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.remove(PREF_DAY_UPLOAD_COUNT)
+              .remove(PREF_LAST_UPLOAD_DAY)
+              .remove(PREF_LAST_UPLOAD_WEEK)
+              .remove(PREF_WEEK_UPLOAD_SIZE)
+              .apply();
     }
 }

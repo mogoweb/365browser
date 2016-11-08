@@ -46,11 +46,6 @@ public interface ChromeActivityNativeDelegate {
     boolean isActivityDestroyed();
 
     /**
-     * @return Whether the activity linked to the delegate has done its first draw.
-     */
-    boolean hasDoneFirstDraw();
-
-    /**
      * Called when the first draw for the UI specific to the linked activity is complete.
      */
     void onFirstDrawComplete();

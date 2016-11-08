@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tabmodel;
 
 import android.app.Activity;
+import android.util.SparseArray;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
@@ -12,6 +13,7 @@ import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.ChromeActivity;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.ArrayList;
@@ -29,7 +31,6 @@ public class TabWindowManager implements ActivityStateListener {
     public static final int INVALID_WINDOW_INDEX = -1;
 
     /** The maximum number of simultaneous TabModelSelector instances in this Application. */
-    @VisibleForTesting
     public static final int MAX_SIMULTANEOUS_SELECTORS = 3;
 
     /**
@@ -141,7 +142,35 @@ public class TabWindowManager implements ActivityStateListener {
                 count += mSelectors.get(i).getModel(true).getCount();
             }
         }
+
+        // Count tabs that are moving between activities (e.g. a tab that was recently reparented
+        // and hasn't been attached to its new activity yet).
+        SparseArray<AsyncTabParams> asyncTabParams = AsyncTabParamsManager.getAsyncTabParams();
+        for (int i = 0; i < asyncTabParams.size(); i++) {
+            Tab tab = asyncTabParams.valueAt(i).getTabToReparent();
+            if (tab != null && tab.isIncognito()) count++;
+        }
         return count;
+    }
+
+    /**
+     * @param tabId The ID of the tab in question.
+     * @return Whether the given tab exists in any currently loaded selector.
+     */
+    public boolean tabExistsInAnySelector(int tabId) {
+        for (int i = 0; i < mSelectors.size(); i++) {
+            TabModelSelector selector = mSelectors.get(i);
+            if (selector != null) {
+                if (TabModelUtils.getTabById(selector.getModel(false), tabId) != null
+                        || TabModelUtils.getTabById(selector.getModel(true), tabId) != null) {
+                    return true;
+                }
+            }
+        }
+
+        // Account for tabs that were recently reparented and haven't been attached to new
+        // activities yet.
+        return AsyncTabParamsManager.hasParamsForTabId(tabId);
     }
 
     @Override
@@ -174,7 +203,9 @@ public class TabWindowManager implements ActivityStateListener {
         public TabModelSelector buildSelector(ChromeActivity activity, WindowAndroid windowAndroid,
                 int selectorIndex) {
             assert activity == windowAndroid.getActivity().get();
-            return new TabModelSelectorImpl(activity, selectorIndex, windowAndroid);
+            TabPersistencePolicy persistencePolicy = new TabbedModeTabPersistencePolicy(
+                    selectorIndex);
+            return new TabModelSelectorImpl(activity, persistencePolicy, windowAndroid, true);
         }
     }
 }

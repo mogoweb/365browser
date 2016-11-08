@@ -14,6 +14,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.variations.VariationsAssociatedData;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -143,10 +144,10 @@ public class FeedbackCollector
      * {@link ScreenshotTask.ScreenshotTaskCallback} implementation.
      */
     @Override
-    public void onGotBitmap(@Nullable Bitmap bitmap, boolean success) {
+    public void onGotBitmap(@Nullable Bitmap bitmap) {
         ThreadUtils.assertOnUiThread();
         mScreenshotTaskFinished = true;
-        if (success) mScreenshot = bitmap;
+        mScreenshot = bitmap;
         maybePostResult();
     }
 
@@ -238,6 +239,7 @@ public class FeedbackCollector
         addUrl();
         addConnectivityData();
         addDataReductionProxyData();
+        addVariationsData();
         return asBundle();
     }
 
@@ -258,6 +260,11 @@ public class FeedbackCollector
         Map<String, String> dataReductionProxyMap =
                 DataReductionProxySettings.getInstance().toFeedbackMap();
         mData.putAll(dataReductionProxyMap);
+    }
+
+    private void addVariationsData() {
+        if (mProfile.isOffTheRecord()) return;
+        mData.putAll(VariationsAssociatedData.getFeedbackMap());
     }
 
     private Bundle asBundle() {

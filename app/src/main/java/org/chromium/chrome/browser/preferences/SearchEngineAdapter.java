@@ -10,7 +10,6 @@ import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
@@ -24,7 +23,11 @@ import android.widget.BaseAdapter;
 import android.widget.RadioButton;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.base.ContextUtils;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
+import org.chromium.chrome.browser.preferences.website.BrowserSingleWebsitePreferences;
 import org.chromium.chrome.browser.preferences.website.ContentSetting;
 import org.chromium.chrome.browser.preferences.website.GeolocationInfo;
 import org.chromium.chrome.browser.preferences.website.SingleWebsitePreferences;
@@ -32,6 +35,7 @@ import org.chromium.chrome.browser.preferences.website.WebsitePreferenceBridge;
 import org.chromium.chrome.browser.search_engines.TemplateUrlService;
 import org.chromium.chrome.browser.search_engines.TemplateUrlService.LoadListener;
 import org.chromium.chrome.browser.search_engines.TemplateUrlService.TemplateUrl;
+import org.chromium.components.location.LocationUtils;
 import org.chromium.ui.text.SpanApplier;
 import org.chromium.ui.text.SpanApplier.SpanInfo;
 
@@ -67,6 +71,8 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
     // The callback to use for notifying caller of progress.
     private SelectSearchEngineCallback mCallback;
 
+    private boolean mIsIncognito;
+
     // The list of available search engines.
     private List<TemplateUrl> mSearchEngines;
     // The position (index into mSearchEngines) of the currently selected search engine. Can be -1
@@ -77,14 +83,26 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
      * Construct a SearchEngineAdapter.
      * @param context The current context.
      * @param callback The callback to use to communicate back.
+     * @param isIncognito Adapter for listing search engines for regular or incognito tabs
      */
-    public SearchEngineAdapter(Context context, SelectSearchEngineCallback callback) {
+    public SearchEngineAdapter(Context context, SelectSearchEngineCallback callback,
+                               boolean isIncognito) {
         mContext = context;
         mLayoutInflater = (LayoutInflater) mContext.getSystemService(
                 Context.LAYOUT_INFLATER_SERVICE);
         mCallback = callback;
+        mIsIncognito = isIncognito;
 
         initEntries();
+    }
+
+    /**
+     * Construct a SearchEngineAdapter.
+     * @param context The current context.
+     * @param callback The callback to use to communicate back.
+     */
+    public SearchEngineAdapter(Context context, SelectSearchEngineCallback callback) {
+        new SearchEngineAdapter(context, callback, false);
     }
 
     // Used for testing.
@@ -101,7 +119,7 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
      * Initialize the search engine list.
      */
     private void initEntries() {
-        TemplateUrlService templateUrlService = TemplateUrlService.getInstance();
+        TemplateUrlService templateUrlService = TemplateUrlService.getInstance(mIsIncognito);
         if (!templateUrlService.isLoaded()) {
             templateUrlService.registerLoadListener(this);
             templateUrlService.load();
@@ -122,26 +140,13 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
         // Report back what is selected.
         String name = "";
         if (mSelectedSearchEnginePosition > -1) {
-            TemplateUrl templateUrl = mSearchEngines.get(mSelectedSearchEnginePosition);
-            name = getSearchEngineNameAndDomain(mContext.getResources(), templateUrl);
+            name = mSearchEngines.get(mSelectedSearchEnginePosition).getShortName();
         }
         mCallback.currentSearchEngineDetermined(name);
     }
 
     private int toIndex(int position) {
         return mSearchEngines.get(position).getIndex();
-    }
-
-    /**
-     * @return The name of the search engine followed by the domain, e.g. "Google (google.co.uk)".
-     */
-    private static String getSearchEngineNameAndDomain(Resources res, TemplateUrl searchEngine) {
-        String title = searchEngine.getShortName();
-        if (!searchEngine.getKeyword().isEmpty()) {
-            title = res.getString(R.string.search_engine_name_and_domain, title,
-                    searchEngine.getKeyword());
-        }
-        return title;
     }
 
     // BaseAdapter:
@@ -154,7 +159,7 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
     @Override
     public Object getItem(int pos) {
         TemplateUrl templateUrl = mSearchEngines.get(pos);
-        return getSearchEngineNameAndDomain(mContext.getResources(), templateUrl);
+        return templateUrl.getShortName();
     }
 
     @Override
@@ -189,7 +194,7 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
         TextView description = (TextView) view.findViewById(R.id.description);
         TemplateUrl templateUrl = mSearchEngines.get(position);
         Resources resources = mContext.getResources();
-        description.setText(getSearchEngineNameAndDomain(resources, templateUrl));
+        description.setText(templateUrl.getShortName());
 
         // To improve the explore-by-touch experience, the radio button is hidden from accessibility
         // and instead, "checked" or "not checked" is read along with the search engine's name, e.g.
@@ -214,8 +219,8 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
         link.setVisibility(selected ? View.VISIBLE : View.GONE);
         if (selected) {
             ForegroundColorSpan linkSpan = new ForegroundColorSpan(
-                    resources.getColor(R.color.pref_accent_color));
-            if (LocationSettings.getInstance().isSystemLocationSettingEnabled()) {
+                    ApiCompatibilityUtils.getColor(resources, R.color.pref_accent_color));
+            if (LocationUtils.getInstance().isSystemLocationSettingEnabled()) {
                 String message = mContext.getString(
                         locationEnabled(position, true)
                         ? R.string.search_engine_location_allowed
@@ -239,7 +244,14 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
 
     @Override
     public void onTemplateUrlServiceLoaded() {
-        TemplateUrlService.getInstance().unregisterLoadListener(this);
+        TemplateUrlService templateUrlService = TemplateUrlService.getInstance(mIsIncognito);
+        templateUrlService.unregisterLoadListener(this);
+
+        // Set the injected default search engine, if using partner search engines
+        String keyword = templateUrlService.getDefaultSearchEngineInjected();
+        if (keyword != null) {
+            templateUrlService.setDefaultSearchEngine(keyword);
+        }
         initEntries();
     }
 
@@ -258,11 +270,11 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
         // First clean up any automatically added permissions (if any) for the previously selected
         // search engine.
         SharedPreferences sharedPreferences =
-                PreferenceManager.getDefaultSharedPreferences(mContext);
+                ContextUtils.getAppSharedPreferences();
         if (sharedPreferences.getBoolean(PrefServiceBridge.LOCATION_AUTO_ALLOWED, false)) {
             if (locationEnabled(mSelectedSearchEnginePosition, false)) {
-                String url = TemplateUrlService.getInstance().getSearchEngineUrlFromTemplateUrl(
-                        toIndex(mSelectedSearchEnginePosition));
+                String url = TemplateUrlService.getInstance(mIsIncognito)
+                        .getSearchEngineUrlFromTemplateUrl(toIndex(mSelectedSearchEnginePosition));
                 WebsitePreferenceBridge.nativeSetGeolocationSettingForOrigin(
                         url, url, ContentSetting.DEFAULT.toInt(), false);
             }
@@ -271,25 +283,24 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
 
         // Record the change in search engine.
         mSelectedSearchEnginePosition = position;
-        TemplateUrlService.getInstance().setSearchEngine(toIndex(mSelectedSearchEnginePosition));
+        TemplateUrlService.getInstance(mIsIncognito)
+                .setSearchEngine(toIndex(mSelectedSearchEnginePosition));
 
         // Report the change back.
         TemplateUrl templateUrl = mSearchEngines.get(mSelectedSearchEnginePosition);
-        mCallback.currentSearchEngineDetermined(getSearchEngineNameAndDomain(
-                mContext.getResources(), templateUrl));
+        mCallback.currentSearchEngineDetermined(templateUrl.getShortName());
 
         notifyDataSetChanged();
     }
 
     private void onLocationLinkClicked() {
-        if (!LocationSettings.getInstance().isSystemLocationSettingEnabled()) {
-            mContext.startActivity(
-                    LocationSettings.getInstance().getSystemLocationSettingsIntent());
+        if (!LocationUtils.getInstance().isSystemLocationSettingEnabled()) {
+            mContext.startActivity(LocationUtils.getInstance().getSystemLocationSettingsIntent());
         } else {
             Intent settingsIntent = PreferencesLauncher.createIntentForSettingsPage(
-                    mContext, SingleWebsitePreferences.class.getName());
-            String url = TemplateUrlService.getInstance().getSearchEngineUrlFromTemplateUrl(
-                    toIndex(mSelectedSearchEnginePosition));
+                    mContext, BrowserSingleWebsitePreferences.class.getName());
+            String url = TemplateUrlService.getInstance(mIsIncognito)
+                    .getSearchEngineUrlFromTemplateUrl(toIndex(mSelectedSearchEnginePosition));
             Bundle fragmentArgs = SingleWebsitePreferences.createFragmentArgsForSite(url);
             fragmentArgs.putBoolean(SingleWebsitePreferences.EXTRA_LOCATION,
                     locationEnabled(mSelectedSearchEnginePosition, true));
@@ -302,13 +313,13 @@ public class SearchEngineAdapter extends BaseAdapter implements LoadListener, On
     private boolean locationEnabled(int position, boolean checkGeoHeader) {
         if (position == -1) return false;
 
-        String url = TemplateUrlService.getInstance().getSearchEngineUrlFromTemplateUrl(
-                toIndex(position));
+        String url = TemplateUrlService.getInstance(mIsIncognito)
+                .getSearchEngineUrlFromTemplateUrl(toIndex(position));
         GeolocationInfo locationSettings = new GeolocationInfo(url, null, false);
         ContentSetting locationPermission = locationSettings.getContentSetting();
         // Handle the case where the geoHeader being sent when no permission has been specified.
         if (locationPermission == ContentSetting.ASK && checkGeoHeader) {
-            return PrefServiceBridge.isGeoHeaderEnabledForUrl(mContext, url, false);
+            return GeolocationHeader.isGeoHeaderEnabledForUrl(mContext, url, false);
         }
         return locationPermission == ContentSetting.ALLOW;
     }

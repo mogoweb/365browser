@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.profiles;
 
 import android.content.Context;
 
-import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.browser.cookies.CookiesFetcher;
@@ -21,10 +21,16 @@ public class Profile {
 
     /** Pointer to the Native-side ProfileAndroid. */
     private long mNativeProfileAndroid;
+// SWE-feature-password-encryption
+    private EncryptionHelper mEncryptionHelper;
+// SWE-feature-password-encryption
 
     private Profile(long nativeProfileAndroid) {
         mNativeProfileAndroid = nativeProfileAndroid;
         mIsOffTheRecord = nativeIsOffTheRecord(mNativeProfileAndroid);
+// SWE-feature-password-encryption
+        mEncryptionHelper = new EncryptionHelper(ContextUtils.getApplicationContext());
+// SWE-feature-password-encryption
     }
 
     public static Profile getLastUsedProfile() {
@@ -74,7 +80,7 @@ public class Profile {
         mNativeProfileAndroid = 0;
 
         if (mIsOffTheRecord) {
-            Context context = ApplicationStatus.getApplicationContext();
+            Context context = ContextUtils.getApplicationContext();
             CookiesFetcher.deleteCookiesIfNecessary(context);
         }
     }
@@ -83,6 +89,18 @@ public class Profile {
     private long getNativePointer() {
         return mNativeProfileAndroid;
     }
+
+// SWE-feature-password-encryption
+    @CalledByNative
+    public byte[] encrypt(byte[] data) {
+        return mEncryptionHelper.encrypt(data);
+    }
+
+    @CalledByNative
+    public byte[] decrypt(byte[] data) {
+        return mEncryptionHelper.decrypt(data);
+    }
+// SWE-feature-password-encryption
 
     private static native Object nativeGetLastUsedProfile();
     private native void nativeDestroyWhenAppropriate(long nativeProfileAndroid);

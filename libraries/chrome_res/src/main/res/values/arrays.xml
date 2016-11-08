@@ -12,16 +12,6 @@
   </string-array>
 
   <!-- Privacy preferences -->
-  <string-array name="bandwidth_entries">
-    <item>@string/always_prefetch_bandwidth_entry</item>
-    <item>@string/wifi_prefetch_bandwidth_entry</item>
-    <item>@string/never_prefetch_bandwidth_entry</item>
-  </string-array>
-  <string-array name="bandwidth_entry_values">
-    <item>@string/network_prediction_always_value</item>
-    <item>@string/network_prediction_wifi_only_value</item>
-    <item>@string/network_prediction_never_value</item>
-  </string-array>
   <string-array name="crash_upload_entries">
     <item>@string/crash_dump_always_upload</item>
     <item>@string/crash_dump_only_with_wifi</item>
@@ -31,6 +21,12 @@
     <item>@string/crash_dump_always_upload_value</item>
     <item>@string/crash_dump_only_with_wifi_value</item>
     <item>@string/crash_dump_never_upload_value</item>
+  </string-array>
+  <string-array name="webdefender_vector_action">
+    <item>@string/website_settings_webdefender_vector_allow</item>
+    <item>@string/website_settings_webdefender_vector_strip</item>
+    <item>@string/website_settings_webdefender_vector_not_connect</item>
+    <item>@string/website_settings_webdefender_vector_system_default</item>
   </string-array>
 
 </resources>

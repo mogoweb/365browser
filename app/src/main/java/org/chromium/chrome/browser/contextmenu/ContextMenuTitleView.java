@@ -9,6 +9,7 @@ import android.text.TextUtils;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -40,7 +41,8 @@ public class ContextMenuTitleView extends ScrollView {
             title = sb.toString();
         }
         titleView.setText(title);
-        titleView.setTextColor(getResources().getColor(R.color.default_text_color));
+        titleView.setTextColor(ApiCompatibilityUtils.getColor(getResources(),
+                R.color.default_text_color));
         titleView.setPadding(0, 0, 0, padding);
         addView(titleView);
     }

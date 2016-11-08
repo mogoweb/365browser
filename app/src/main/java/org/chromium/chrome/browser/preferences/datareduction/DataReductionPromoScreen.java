@@ -8,14 +8,17 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 
+import org.chromium.base.CommandLine;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ChromeSwitches;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
 import org.chromium.ui.widget.Toast;
@@ -25,8 +28,6 @@ import org.chromium.ui.widget.Toast;
  */
 public class DataReductionPromoScreen extends Dialog implements View.OnClickListener,
         DialogInterface.OnDismissListener {
-    private static final String SHARED_PREF_DISPLAYED_PROMO = "displayed_data_reduction_promo";
-
     private int mState;
 
     private static View getContentView(Context context) {
@@ -39,18 +40,18 @@ public class DataReductionPromoScreen extends Dialog implements View.OnClickList
      * Launch the data reduction promo, if it needs to be displayed.
      */
     public static void launchDataReductionPromo(Activity parentActivity) {
+        if (!CommandLine.getInstance().
+                hasSwitch(ChromeSwitches.ENABLE_SUPPRESSED_CHROMIUM_FEATURES)) {
+            return;
+        }
         // The promo is displayed if Chrome is launched directly (i.e., not with the intent to
         // navigate to and view a URL on startup), the instance is part of the field trial,
         // and the promo has not been displayed before.
-        if (!DataReductionProxySettings.getInstance().isDataReductionProxyPromoAllowed()) {
-            return;
-        }
-        if (DataReductionProxySettings.getInstance().isDataReductionProxyManaged()) return;
-        if (DataReductionProxySettings.getInstance().isDataReductionProxyEnabled()) return;
-        if (getDisplayedDataReductionPromo(parentActivity)) return;
+        if (!DataReductionPromoUtils.canShowPromos()) return;
+        if (DataReductionPromoUtils.getDisplayedFreOrSecondRunPromo()) return;
         // Showing the promo dialog in multiwindow mode is broken on Galaxy Note devices:
         // http://crbug.com/354696. If we're in multiwindow mode, save the dialog for later.
-        if (MultiWindowUtils.getInstance().isMultiWindow(parentActivity)) return;
+        if (MultiWindowUtils.getInstance().isLegacyMultiWindow(parentActivity)) return;
 
         DataReductionPromoScreen promoScreen = new DataReductionPromoScreen(parentActivity);
         promoScreen.setOnDismissListener(promoScreen);
@@ -66,6 +67,12 @@ public class DataReductionPromoScreen extends Dialog implements View.OnClickList
         super(context, R.style.DataReductionPromoScreenDialog);
         setContentView(getContentView(context), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+        // Remove the shadow from the enable button.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Button enableButton = (Button) findViewById(R.id.enable_button);
+            enableButton.setStateListAnimator(null);
+        }
     }
 
     @Override
@@ -111,7 +118,7 @@ public class DataReductionPromoScreen extends Dialog implements View.OnClickList
 
     @Override
     public void onDismiss(DialogInterface dialog) {
-        setDisplayedDataReductionPromo(getContext(), true);
+        DataReductionPromoUtils.saveFreOrSecondRunPromoDisplayed();
     }
 
     private void handleEnableButtonPressed() {
@@ -133,16 +140,5 @@ public class DataReductionPromoScreen extends Dialog implements View.OnClickList
             mState = DataReductionProxyUma.ACTION_INDEX_BOUNDARY;
         }
         super.dismiss();
-    }
-
-    private static boolean getDisplayedDataReductionPromo(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
-                SHARED_PREF_DISPLAYED_PROMO, false);
-    }
-
-    private static void setDisplayedDataReductionPromo(Context context, boolean displayed) {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
-                .putBoolean(SHARED_PREF_DISPLAYED_PROMO, displayed)
-                .apply();
     }
 }

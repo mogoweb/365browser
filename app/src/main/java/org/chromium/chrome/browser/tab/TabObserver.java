@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tab;
 
+import android.graphics.Bitmap;
 import android.view.ContextMenu;
 
 import org.chromium.chrome.browser.TabLoadStatus;
@@ -108,8 +109,9 @@ public interface TabObserver {
     /**
      * Called when the favicon of a {@link Tab} has been updated.
      * @param tab The notifying {@link Tab}.
+     * @param icon The favicon that was received.
      */
-    void onFaviconUpdated(Tab tab);
+    void onFaviconUpdated(Tab tab, Bitmap icon);
 
     /**
      * Called when the title of a {@link Tab} changes.
@@ -173,14 +175,16 @@ public interface TabObserver {
      * staying in the same html document, {@link #onLoadStarted(Tab)} will be called, while
      * {@link #onPageLoadStarted(Tab, String)} will not.
      * @param tab The notifying {@link Tab}.
+     * @param toDifferentDocument Whether this navigation will transition between
+     * documents (i.e., not a fragment navigation or JS History API call).
      */
-    void onLoadStarted(Tab tab);
+    void onLoadStarted(Tab tab, boolean toDifferentDocument);
 
     /**
      * Called when the contents loading stops.
      * @param tab The notifying {@link Tab}.
      */
-    void onLoadStopped(Tab tab);
+    void onLoadStopped(Tab tab, boolean toDifferentDocument);
 
     /**
      * Called when the load progress of a {@link Tab} changes.
@@ -312,4 +316,10 @@ public interface TabObserver {
      */
     public void webContentsCreated(Tab tab, WebContents sourceWebContents, long openerRenderFrameId,
             String frameName, String targetUrl, WebContents newWebContents);
+
+    /**
+     * Called when the tab reparenting process has finished.
+     * @param tab The notifying {@link Tab}.
+     */
+    public void onReparentingFinished(Tab tab);
 }

@@ -9,13 +9,15 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Process;
 import android.util.Base64;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.UrlUtilities;
 import org.chromium.chrome.browser.preferences.website.ContentSetting;
 import org.chromium.chrome.browser.preferences.website.GeolocationInfo;
+import org.chromium.chrome.browser.util.UrlUtilities;
 
 import java.util.Locale;
 
@@ -57,6 +59,43 @@ public class GeolocationHeader {
     }
 
     /**
+     * Returns whether the X-Geo header is allowed to be sent for the current URL.
+     *
+     * @param context The Context used to get the device location.
+     * @param url The URL of the request with which this header will be sent.
+     * @param isIncognito Whether the request will happen in an incognito tab.
+     */
+    public static boolean isGeoHeaderEnabledForUrl(Context context, String url,
+            boolean isIncognito) {
+        return isGeoHeaderEnabledForUrl(context, url, isIncognito, false);
+    }
+
+    private static boolean isGeoHeaderEnabledForUrl(Context context, String url,
+            boolean isIncognito, boolean recordUma) {
+        // Only send X-Geo in normal mode.
+        if (isIncognito) return false;
+
+        // Only send X-Geo header to Google domains.
+        if (!UrlUtilities.nativeIsGoogleSearchUrl(url)) return false;
+
+        Uri uri = Uri.parse(url);
+        if (!HTTPS_SCHEME.equals(uri.getScheme())) return false;
+
+        if (!hasGeolocationPermission(context)) {
+            if (recordUma) recordHistogram(UMA_LOCATION_DISABLED_FOR_CHROME_APP);
+            return false;
+        }
+
+        // Only send X-Geo header if the user hasn't disabled geolocation for url.
+        if (isLocationDisabledForUrl(uri, isIncognito)) {
+            if (recordUma) recordHistogram(UMA_LOCATION_DISABLED_FOR_GOOGLE_DOMAIN);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Returns an X-Geo HTTP header string if:
      *  1. The current mode is not incognito.
      *  2. The url is a google search URL (e.g. www.google.co.uk/search?q=cars), and
@@ -71,23 +110,7 @@ public class GeolocationHeader {
      * @return The X-Geo header string or null.
      */
     public static String getGeoHeader(Context context, String url, boolean isIncognito) {
-        // Only send X-Geo in normal mode.
-        if (isIncognito) return null;
-
-        // Only send X-Geo header to Google domains.
-        if (!UrlUtilities.nativeIsGoogleSearchUrl(url)) return null;
-
-        Uri uri = Uri.parse(url);
-        if (!HTTPS_SCHEME.equals(uri.getScheme())) return null;
-
-        if (!hasGeolocationPermission(context)) {
-            recordHistogram(UMA_LOCATION_DISABLED_FOR_CHROME_APP);
-            return null;
-        }
-
-        // Only send X-Geo header if the user hasn't disabled geolocation for url.
-        if (isLocationDisabledForUrl(uri)) {
-            recordHistogram(UMA_LOCATION_DISABLED_FOR_GOOGLE_DOMAIN);
+        if (!isGeoHeaderEnabledForUrl(context, url, isIncognito, true)) {
             return null;
         }
 
@@ -124,9 +147,25 @@ public class GeolocationHeader {
     }
 
     static boolean hasGeolocationPermission(Context context) {
-        return context.checkPermission(
-                Manifest.permission.ACCESS_COARSE_LOCATION, Process.myPid(), Process.myUid())
-                        == PackageManager.PERMISSION_GRANTED;
+        int pid = Process.myPid();
+        int uid = Process.myUid();
+        if (ApiCompatibilityUtils.checkPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION, pid, uid)
+                != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+
+        // Work around a bug in OnePlus2 devices running Lollipop, where the NETWORK_PROVIDER
+        // incorrectly requires FINE_LOCATION permission (it should only require COARSE_LOCATION
+        // permission). http://crbug.com/580733
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                && ApiCompatibilityUtils.checkPermission(
+                        context, Manifest.permission.ACCESS_FINE_LOCATION, pid, uid)
+                        != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -134,8 +173,8 @@ public class GeolocationHeader {
      * geolocation infobar). If the user has not chosen a preference for url and url uses the https
      * scheme, this considers the user's preference for url with the http scheme instead.
      */
-    static boolean isLocationDisabledForUrl(Uri uri) {
-        GeolocationInfo locationSettings = new GeolocationInfo(uri.toString(), null, false);
+    static boolean isLocationDisabledForUrl(Uri uri, boolean isIncognito) {
+        GeolocationInfo locationSettings = new GeolocationInfo(uri.toString(), null, isIncognito);
         ContentSetting locationPermission = locationSettings.getContentSetting();
 
         // If no preference has been chosen and the scheme is https, fall back to the preference for
@@ -145,7 +184,7 @@ public class GeolocationHeader {
             if (scheme != null && scheme.toLowerCase(Locale.US).equals("https")
                     && uri.getAuthority() != null && uri.getUserInfo() == null) {
                 String urlWithHttp = "http://" + uri.getHost();
-                locationSettings = new GeolocationInfo(urlWithHttp, null, false);
+                locationSettings = new GeolocationInfo(urlWithHttp, null, isIncognito);
                 locationPermission = locationSettings.getContentSetting();
             }
         }

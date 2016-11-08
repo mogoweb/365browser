@@ -6,6 +6,7 @@
 <org.chromium.chrome.browser.widget.TintedImageView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:chrome="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/clear_site_data"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:contentDescription="@string/webstorage_clear_data_dialog_title"

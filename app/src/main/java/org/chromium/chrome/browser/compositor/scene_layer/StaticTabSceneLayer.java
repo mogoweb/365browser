@@ -51,21 +51,11 @@ public class StaticTabSceneLayer extends SceneLayer {
         nativeUpdateTabLayer(mNativePtr, contentViewport.left, contentViewport.top,
                 contentViewport.width(), contentViewport.height(), tabContentManager,
                 layoutTab.getId(), mResToolbarControlContainer, layoutTab.canUseLiveTexture(),
-                false, layoutTab.getBackgroundColor(), layoutTab.getRenderX() * dpToPx,
+                layoutTab.getBackgroundColor(), layoutTab.getRenderX() * dpToPx,
                 layoutTab.getRenderY() * dpToPx, layoutTab.getScaledContentWidth() * dpToPx,
                 layoutTab.getScaledContentHeight() * dpToPx, contentOffset,
                 layoutTab.getStaticToViewBlend(), layoutTab.getSaturation(),
                 layoutTab.getBrightness());
-    }
-
-    /**
-     * Set the given sceneLayer as content along with {@link StaticTabSceneLayer}'s own.
-     *
-     * @param sceneLayer
-     */
-    // TODO(pedrosimonetti): Remove this once contextual search is moved into an overlay.
-    public void setContentSceneLayer(SceneLayer sceneLayer) {
-        nativeSetContentSceneLayer(mNativePtr, sceneLayer);
     }
 
     @Override
@@ -86,9 +76,7 @@ public class StaticTabSceneLayer extends SceneLayer {
     private native void nativeUpdateTabLayer(long nativeStaticTabSceneLayer, float contentViewportX,
             float contentViewportY, float contentViewportWidth, float contentViewportHeight,
             TabContentManager tabContentManager, int id, int toolbarResourceId,
-            boolean canUseLiveLayer, boolean canUseNtpFallback, int backgroundColor, float x,
-            float y, float width, float height, float contentOffsetY, float staticToViewBlend,
-            float saturation, float brightness);
-    private native void nativeSetContentSceneLayer(
-            long nativeStaticTabSceneLayer, SceneLayer sceneLayer);
+            boolean canUseLiveLayer, int backgroundColor, float x, float y, float width,
+            float height, float contentOffsetY, float staticToViewBlend, float saturation,
+            float brightness);
 }

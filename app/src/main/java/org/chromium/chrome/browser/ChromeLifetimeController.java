@@ -7,54 +7,37 @@ package org.chromium.chrome.browser;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.Log;
+import org.chromium.base.ContextUtils;
 
 import java.lang.ref.WeakReference;
 
 /**
- * Handles killing and potentially restarting Chrome's main Browser process.  Note that this class
- * relies on main Chrome activities to properly call {@link Activity#finish()} on themselves so that
- * it will be notified that all {@link Activity}s under this {@link Application} have been
- * destroyed.
+ * Answers requests to kill and (potentially) restart Chrome's main browser process.
+ *
+ * This class fires an Intent to start the {@link BrowserRestartActivity}, which will utltimately
+ * kill the main browser process from its own process.
+ *
+ * https://crbug.com/515919 details why another Activity is used instead of using the AlarmManager.
+ * https://crbug.com/545453 details why the BrowserRestartActivity handles the process killing.
  */
 class ChromeLifetimeController implements ApplicationLifetime.Observer,
         ApplicationStatus.ActivityStateListener {
-    private static final String TAG = "cr.LifetimeController";
+    private static final String TAG = "LifetimeController";
 
-    // The amount of time to wait for Chrome to destroy all the activities.
-    private static final long WATCHDOG_DELAY = 1000;
-
-    private final Context mContext;
     private boolean mRestartChromeOnDestroy;
     private int mRemainingActivitiesCount = 0;
-    private final Handler mHandler;
 
-    /**
-     * Creates a {@link ChromeLifetimeController} instance.
-     * @param context A {@link Context} instance.  The application context will be saved from this
-     *                one.
-     */
-    public ChromeLifetimeController(Context context) {
-        mContext = context.getApplicationContext();
+    public ChromeLifetimeController() {
         ApplicationLifetime.addObserver(this);
-        mHandler = new Handler(Looper.getMainLooper());
     }
 
     @Override
     public void onTerminate(boolean restart) {
         mRestartChromeOnDestroy = restart;
-
-        // We've called terminate twice, just wait for the first call to take effect.
-        if (mRemainingActivitiesCount > 0) {
-            Log.w(TAG, "onTerminate called twice");
-            return;
-        }
 
         for (WeakReference<Activity> weakActivity : ApplicationStatus.getRunningActivities()) {
             Activity activity = weakActivity.get();
@@ -65,17 +48,9 @@ class ChromeLifetimeController implements ApplicationLifetime.Observer,
             }
         }
 
-        // Post a watchdog -- if Android is taking a long time to call onDestroy, kill the process.
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (mRemainingActivitiesCount > 0) {
-                    destroyProcess();
-                }
-            }
-        }, WATCHDOG_DELAY);
+        // Start the Activity that will ultimately kill this process.
+        fireBrowserRestartActivityIntent(BrowserRestartActivity.ACTION_START_WATCHDOG);
     }
-
 
     @Override
     public void onActivityStateChange(Activity activity, int newState) {
@@ -83,31 +58,20 @@ class ChromeLifetimeController implements ApplicationLifetime.Observer,
         if (newState == ActivityState.DESTROYED) {
             mRemainingActivitiesCount--;
             if (mRemainingActivitiesCount == 0) {
-                destroyProcess();
+                fireBrowserRestartActivityIntent(BrowserRestartActivity.ACTION_KILL_PROCESS);
             }
         }
-
     }
 
-    private void destroyProcess() {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mRestartChromeOnDestroy) {
-                    Log.w(TAG, "Launching BrowserRestartActivity to restart Chrome.");
-                    Context context = ApplicationStatus.getApplicationContext();
-                    Intent intent = new Intent();
-                    intent.setClassName(
-                            context.getPackageName(), BrowserRestartActivity.class.getName());
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.putExtra(BrowserRestartActivity.EXTRA_PID, Process.myPid());
-                    context.startActivity(intent);
-                } else {
-                    Log.w(TAG, "Killing process directly.");
-                    Process.killProcess(Process.myPid());
-                }
-                mRestartChromeOnDestroy = false;
-            }
-        });
+    private void fireBrowserRestartActivityIntent(String action) {
+        Context context = ContextUtils.getApplicationContext();
+        Intent intent = new Intent();
+        intent.setAction(action);
+        intent.setClassName(
+                context.getPackageName(), BrowserRestartActivity.class.getName());
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(BrowserRestartActivity.EXTRA_MAIN_PID, Process.myPid());
+        intent.putExtra(BrowserRestartActivity.EXTRA_RESTART, mRestartChromeOnDestroy);
+        context.startActivity(intent);
     }
 }

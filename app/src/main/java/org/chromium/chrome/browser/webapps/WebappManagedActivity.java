@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.webapps;
 
-import java.io.File;
-
 /**
  * Type of WebappActivity that has the ability to swap out the webapp it is currently showing for a
  * new one. This is necessary on Android versions older than L because the framework had no way of
@@ -29,15 +27,16 @@ public abstract class WebappManagedActivity extends WebappActivity {
     }
 
     @Override
-    protected File getActivityDirectory() {
-        return WebappDirectoryManager.getWebappDirectory(String.valueOf(mActivityIndex));
+    protected String getId() {
+        return String.valueOf(mActivityIndex);
     }
 
     /**
      * Marks that this WebappActivity is recently used to prevent other webapps from using it.
      */
     private void markActivityUsed() {
-        ActivityAssigner.instance(this).markActivityUsed(mActivityIndex, getWebappInfo().id());
+        ActivityAssigner.instance(ActivityAssigner.WEBAPP_NAMESPACE)
+                .markActivityUsed(mActivityIndex, getWebappInfo().id());
     }
 
     /**

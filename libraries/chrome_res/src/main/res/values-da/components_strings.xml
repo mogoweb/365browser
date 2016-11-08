@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="autofill_clear_local_copy_button">"Slet kopi"</string>
+<string name="autofill_cc_amex">"American Express"</string>
+<string name="autofill_cc_diners">"Diners Club"</string>
+<string name="autofill_cc_discover">"Discover"</string>
+<string name="autofill_cc_jcb">"JCB"</string>
+<string name="autofill_cc_mastercard">"MasterCard"</string>
+<string name="autofill_cc_union_pay">"China UnionPay"</string>
+<string name="autofill_cc_visa">"Visa"</string>
+<string name="autofill_card_unmask_prompt_storage_checkbox">"Gem en kopi af dette kort på denne enhed"</string>
+<string name="autofill_card_unmask_prompt_storage_tooltip">"Hvis dette felt er markeret, gemmer Chromium en kopi af dit kort på denne enhed for at gøre det hurtigere at udfylde formularer."</string>
+<string name="autofill_card_unmask_verification_in_progress">"Bekræfter kort"</string>
+<string name="autofill_card_unmask_verification_success">"Dit kort er bekræftet"</string>
+<string name="autofill_card_unmask_expiration_date_separator">"/"</string>
+<string name="autofill_card_unmask_new_card_link">"Har du fået nyt kort?"</string>
+<string name="http_post_warning">"Siden, du søger, benyttede oplysninger, du har indtastet. Vender du tilbage til denne side kan det betyde, at enhver handling, du har foretaget, skal gentages. Vil du fortsætte?"</string>
+<string name="http_post_warning_resend">"Fortsæt"</string>
+<string name="login_dialog_title">"Godkendelse påkrævet"</string>
+<string name="login_dialog_username_field">"Brugernavn:"</string>
+<string name="login_dialog_password_field">"Adgangskode:"</string>
+<string name="login_dialog_ok_button_label">"Log ind"</string>
+<string name="sad_tab_title">"Øv, surt!"</string>
+<string name="sad_tab_message">"Der opstod en fejl ved visningen af denne webside."</string>
+<string name="sad_tab_oom_message">"Chromium løb tør for hukommelse, da websiden skulle vises."</string>
+<string name="sad_tab_reload_label">"Genindlæs"</string>
+<string name="snippets_disabled_signed_out_instructions">"Log ind på Chrome for at hente brugertilpasset indhold, som er foreslået af Chrome."</string>
+<string name="snippets_disabled_generic_prompt">"Hent foreslået indhold"</string>
+<string name="ntp_status_card_title_no_bookmarks">"Færdig indtil videre"</string>
+<string name="ntp_status_card_no_bookmarks">"De bogmærker, du har besøgt for nylig, vises her."</string>
+<string name="ntp_status_card_title_no_articles">"Intet ulæst"</string>
+<string name="ntp_status_card_no_articles">"Der vises flere artikler, når det er relevant."</string>
+</resources>

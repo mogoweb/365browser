@@ -12,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.os.Looper;
 
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -72,7 +73,7 @@ public class AppBannerInfoBarDelegateAndroid {
 
     @CalledByNative
     private boolean installOrOpenNativeApp(Tab tab, AppData appData, String referrer) {
-        Context context = ApplicationStatus.getApplicationContext();
+        Context context = ContextUtils.getApplicationContext();
         String packageName = appData.packageName();
         PackageManager packageManager = getPackageManager(context);
 
@@ -104,7 +105,7 @@ public class AppBannerInfoBarDelegateAndroid {
                 if (isInstalling) {
                     // Start monitoring the install.
                     PackageManager pm =
-                            getPackageManager(ApplicationStatus.getApplicationContext());
+                            getPackageManager(ContextUtils.getApplicationContext());
                     mInstallTask = new InstallerDelegate(
                             Looper.getMainLooper(), pm, createInstallerDelegateObserver(),
                             appData.packageName());
@@ -136,7 +137,7 @@ public class AppBannerInfoBarDelegateAndroid {
     private int determineInstallState(AppData data) {
         if (mInstallTask != null) return AppBannerInfoBarAndroid.INSTALL_STATE_INSTALLING;
 
-        PackageManager pm = getPackageManager(ApplicationStatus.getApplicationContext());
+        PackageManager pm = getPackageManager(ContextUtils.getApplicationContext());
         boolean isInstalled = InstallerDelegate.isInstalled(pm, data.packageName());
         return isInstalled ? AppBannerInfoBarAndroid.INSTALL_STATE_INSTALLED
                 : AppBannerInfoBarAndroid.INSTALL_STATE_NOT_INSTALLED;

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2015, The Linux Foundation. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+        * Neither the name of The Linux Foundation nor the names of its
+          contributors may be used to endorse or promote products derived
+          from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+    ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+    BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+    BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+    WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+    OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+    IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/webdefender_vectorchart_layout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingEnd="?android:attr/scrollbarSize"
+    android:minHeight="?android:attr/listPreferredItemHeightSmall"
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground"
+    android:layout_gravity="fill_horizontal"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+        android:textAppearance="?android:attr/textAppearanceListItem"
+        android:text="@string/website_settings_webdefender_tracking_vectors"/>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/permission_cookie"
+            android:drawablePadding="12dp"
+            android:minHeight="?android:attr/listPreferredItemHeightSmall"
+            android:layout_marginStart="25dip"
+            android:text="@string/website_settings_webdefender_cookie"
+            android:gravity="center_vertical"
+            android:layout_weight="5"
+            />
+
+        <TextView
+            android:id="@+id/cookie_storage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:gravity="start|center_vertical"
+            android:text="@string/website_settings_add_site_add_button"
+            android:drawablePadding="6dp"
+            android:layout_weight="2"
+            android:layout_marginEnd="15dip"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_sp_fingerprint"
+            android:drawablePadding="12dp"
+            android:minHeight="?android:attr/listPreferredItemHeightSmall"
+            android:layout_marginStart="25dip"
+            android:text="@string/website_settings_webdefender_fingerprint"
+            android:gravity="center_vertical"
+            android:layout_weight="5"
+            />
+
+        <TextView
+            android:id="@+id/fingerprinting"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:gravity="start|center_vertical"
+            android:text="@string/website_settings_add_site_add_button"
+            android:drawablePadding="6dp"
+            android:layout_weight="2"
+            android:layout_marginEnd="15dip"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/settings_storage"
+            android:drawablePadding="12dp"
+            android:minHeight="?android:attr/listPreferredItemHeightSmall"
+            android:layout_marginStart="25dip"
+            android:text="@string/website_settings_webdefender_html5"
+            android:gravity="center_vertical"
+            android:layout_weight="5"
+            />
+
+        <TextView
+            android:id="@+id/html5_storage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:gravity="start|center_vertical"
+            android:text="@string/website_settings_add_site_add_button"
+            android:drawablePadding="6dp"
+            android:layout_weight="2"
+            android:layout_marginEnd="15dip"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_sp_fontenum"
+            android:drawablePadding="12dp"
+            android:minHeight="?android:attr/listPreferredItemHeightSmall"
+            android:layout_marginStart="25dip"
+            android:text="@string/website_settings_webdefender_font_enum"
+            android:gravity="center_vertical"
+            android:layout_weight="5"
+            />
+
+        <TextView
+            android:id="@+id/font_enumeration"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:gravity="start|center_vertical"
+            android:text="@string/website_settings_add_site_add_button"
+            android:drawablePadding="6dp"
+            android:layout_weight="2"
+            android:layout_marginEnd="15dip"
+            />
+    </LinearLayout>
+
+</LinearLayout>

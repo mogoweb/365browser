@@ -14,13 +14,14 @@ import android.graphics.PorterDuff;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Process;
 import android.preference.Preference;
 import android.provider.Settings;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 
 import org.chromium.base.ApiCompatibilityUtils;
-import org.chromium.base.BuildInfo;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ContentSettingsType;
 import org.chromium.chrome.browser.preferences.PrefServiceBridge;
@@ -33,16 +34,22 @@ import org.chromium.ui.text.SpanApplier.SpanInfo;
 public class SiteSettingsCategory {
     // Valid values for passing to fromString() in this class.
     public static final String CATEGORY_ALL_SITES = "all_sites";
+    public static final String CATEGORY_AUTOPLAY = "autoplay";
+    public static final String CATEGORY_BACKGROUND_SYNC = "background_sync";
     public static final String CATEGORY_CAMERA = "camera";
     public static final String CATEGORY_COOKIES = "cookies";
     public static final String CATEGORY_DEVICE_LOCATION = "device_location";
     public static final String CATEGORY_FULLSCREEN = "fullscreen";
     public static final String CATEGORY_JAVASCRIPT = "javascript";
     public static final String CATEGORY_MICROPHONE = "microphone";
+    public static final String CATEGORY_NOTIFICATIONS = "notifications";
     public static final String CATEGORY_POPUPS = "popups";
     public static final String CATEGORY_PROTECTED_MEDIA = "protected_content";
-    public static final String CATEGORY_NOTIFICATIONS = "notifications";
     public static final String CATEGORY_USE_STORAGE = "use_storage";
+    public static final String CATEGORY_WEBREFINER = "webrefiner";
+    public static final String CATEGORY_WEBDEFENDER = "webdefender";
+    public static final String CATEGORY_SECURE_CONNECT = "secure_connect_sites";
+    public static final String CATEGORY_USB = "usb";
 
     // The id of this category.
     private String mCategory;
@@ -79,6 +86,14 @@ public class SiteSettingsCategory {
         if (CATEGORY_ALL_SITES.equals(category)) {
             return new SiteSettingsCategory(CATEGORY_ALL_SITES, "", -1);
         }
+        if (CATEGORY_AUTOPLAY.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_AUTOPLAY, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_AUTOPLAY);
+        }
+        if (CATEGORY_BACKGROUND_SYNC.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_BACKGROUND_SYNC, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_BACKGROUND_SYNC);
+        }
         if (CATEGORY_CAMERA.equals(category)) {
             return new SiteSettingsCategory(
                     SiteSettingsCategory.CATEGORY_CAMERA,
@@ -106,6 +121,10 @@ public class SiteSettingsCategory {
                     android.Manifest.permission.RECORD_AUDIO,
                     ContentSettingsType.CONTENT_SETTINGS_TYPE_MEDIASTREAM_MIC);
         }
+        if (CATEGORY_NOTIFICATIONS.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_NOTIFICATIONS, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_NOTIFICATIONS);
+        }
         if (CATEGORY_POPUPS.equals(category)) {
             return new SiteSettingsCategory(CATEGORY_POPUPS, "",
                     ContentSettingsType.CONTENT_SETTINGS_TYPE_POPUPS);
@@ -114,12 +133,24 @@ public class SiteSettingsCategory {
             return new SiteSettingsCategory(CATEGORY_PROTECTED_MEDIA, "",
                     ContentSettingsType.CONTENT_SETTINGS_TYPE_PROTECTED_MEDIA_IDENTIFIER);
         }
-        if (CATEGORY_NOTIFICATIONS.equals(category)) {
-            return new SiteSettingsCategory(CATEGORY_NOTIFICATIONS, "",
-                    ContentSettingsType.CONTENT_SETTINGS_TYPE_NOTIFICATIONS);
-        }
         if (CATEGORY_USE_STORAGE.equals(category)) {
             return new SiteSettingsCategory(CATEGORY_USE_STORAGE, "", -1);
+        }
+        if (CATEGORY_WEBREFINER.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_WEBREFINER, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBREFINER);
+        }
+        if (CATEGORY_WEBDEFENDER.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_WEBDEFENDER, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBDEFENDER);
+        }
+        if (CATEGORY_SECURE_CONNECT.equals(category)) {
+            return new SiteSettingsCategory(CATEGORY_SECURE_CONNECT, "",
+                    ContentSettingsType.CONTENT_SETTINGS_TYPE_SECURE_CONNECT);
+        }
+        if (CATEGORY_USB.equals(category)) {
+            return new SiteSettingsCategory(
+                    CATEGORY_USB, "", ContentSettingsType.CONTENT_SETTINGS_TYPE_USB_CHOOSER_DATA);
         }
 
         return null;
@@ -131,6 +162,12 @@ public class SiteSettingsCategory {
      * fromString().
      */
     public static SiteSettingsCategory fromContentSettingsType(int contentSettingsType) {
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_AUTOPLAY) {
+            return fromString(CATEGORY_AUTOPLAY);
+        }
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_BACKGROUND_SYNC) {
+            return fromString(CATEGORY_BACKGROUND_SYNC);
+        }
         if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_MEDIASTREAM_CAMERA) {
             return fromString(CATEGORY_CAMERA);
         }
@@ -149,6 +186,9 @@ public class SiteSettingsCategory {
         if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_MEDIASTREAM_MIC) {
             return fromString(CATEGORY_MICROPHONE);
         }
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_NOTIFICATIONS) {
+            return fromString(CATEGORY_NOTIFICATIONS);
+        }
         if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_POPUPS) {
             return fromString(CATEGORY_POPUPS);
         }
@@ -156,8 +196,17 @@ public class SiteSettingsCategory {
                 == ContentSettingsType.CONTENT_SETTINGS_TYPE_PROTECTED_MEDIA_IDENTIFIER) {
             return fromString(CATEGORY_PROTECTED_MEDIA);
         }
-        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_NOTIFICATIONS) {
-            return fromString(CATEGORY_NOTIFICATIONS);
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBREFINER) {
+            return fromString(CATEGORY_WEBREFINER);
+        }
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBDEFENDER) {
+            return fromString(CATEGORY_WEBDEFENDER);
+        }
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_SECURE_CONNECT) {
+            return fromString(CATEGORY_SECURE_CONNECT);
+        }
+        if (contentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_USB_CHOOSER_DATA) {
+            return fromString(CATEGORY_USB);
         }
 
         return null;
@@ -175,6 +224,20 @@ public class SiteSettingsCategory {
      */
     public boolean showAllSites() {
         return CATEGORY_ALL_SITES.equals(mCategory);
+    }
+
+    /**
+     * Returns whether this category is the Autoplay category.
+     */
+    public boolean showAutoplaySites() {
+        return mContentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_AUTOPLAY;
+    }
+
+    /**
+     * Returns whether this category is the Background Sync category.
+     */
+    public boolean showBackgroundSyncSites() {
+        return mContentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_BACKGROUND_SYNC;
     }
 
     /**
@@ -221,18 +284,18 @@ public class SiteSettingsCategory {
     }
 
     /**
-     * Returns whether this category is the Popup category.
-     */
-    public boolean showPopupSites() {
-        return mContentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_POPUPS;
-    }
-
-    /**
      * Returns whether this category is the Notifications category.
      */
     public boolean showNotificationsSites() {
         return mContentSettingsType
                 == ContentSettingsType.CONTENT_SETTINGS_TYPE_NOTIFICATIONS;
+    }
+
+    /**
+     * Returns whether this category is the Popup category.
+     */
+    public boolean showPopupSites() {
+        return mContentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_POPUPS;
     }
 
     /**
@@ -251,11 +314,42 @@ public class SiteSettingsCategory {
     }
 
     /**
+     * Returns whether this category is the WebRefiner category.
+     */
+    public boolean showWebRefinerSites() {
+        return mContentSettingsType ==
+                ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBREFINER;
+    }
+    /**
+     * Returns whether this category is the WebDefender category.
+     */
+    public boolean showWebDefenderSites() {
+        return mContentSettingsType ==
+                ContentSettingsType.CONTENT_SETTINGS_TYPE_WEBDEFENDER;
+    }
+
+    /**
+     * @return whether this category is the Secure Connect category.
+     */
+    public boolean showSecureConnectSites() {
+        return mContentSettingsType ==
+                ContentSettingsType.CONTENT_SETTINGS_TYPE_SECURE_CONNECT;
+    }
+
+    /**
+     * Returns whether this category is the USB category.
+     */
+    public boolean showUsbDevices() {
+        return mContentSettingsType == ContentSettingsType.CONTENT_SETTINGS_TYPE_USB_CHOOSER_DATA;
+    }
+
+    /**
      * Returns whether the current category is managed either by enterprise policy or by the
      * custodian of a supervised account.
      */
     public boolean isManaged() {
         PrefServiceBridge prefs = PrefServiceBridge.getInstance();
+        if (showBackgroundSyncSites()) return prefs.isBackgroundSyncManaged();
         if (showCameraSites()) return !prefs.isCameraUserModifiable();
         if (showCookiesSites()) return prefs.isAcceptCookiesManaged();
         if (showFullscreenSites()) return prefs.isFullscreenManaged();
@@ -308,7 +402,7 @@ public class SiteSettingsCategory {
         String globalMessage = getMessageForEnablingOsGlobalPermission(activity);
 
         Resources resources = activity.getResources();
-        int color = resources.getColor(R.color.pref_accent_color);
+        int color = ApiCompatibilityUtils.getColor(resources, R.color.pref_accent_color);
         ForegroundColorSpan linkSpan = new ForegroundColorSpan(color);
 
         if (perAppIntent != null) {
@@ -346,7 +440,8 @@ public class SiteSettingsCategory {
         Drawable icon = ApiCompatibilityUtils.getDrawable(activity.getResources(),
                 R.drawable.exclamation_triangle);
         icon.mutate();
-        int disabledColor = activity.getResources().getColor(R.color.pref_accent_color);
+        int disabledColor = ApiCompatibilityUtils.getColor(activity.getResources(),
+                R.color.pref_accent_color);
         icon.setColorFilter(disabledColor, PorterDuff.Mode.SRC_IN);
         return icon;
     }
@@ -436,9 +531,9 @@ public class SiteSettingsCategory {
      * @param permission The string of the permission to check.
      */
     private boolean permissionOnInAndroid(String permission, Context context) {
-        if (!BuildInfo.isMncOrLater()) return true;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
 
-        return PackageManager.PERMISSION_GRANTED == context.getPackageManager().checkPermission(
-                permission, context.getPackageName());
+        return PackageManager.PERMISSION_GRANTED == ApiCompatibilityUtils.checkPermission(
+                context, permission, Process.myPid(), Process.myUid());
     }
 }
