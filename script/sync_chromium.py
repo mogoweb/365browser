@@ -171,6 +171,12 @@ def sync_chromium_res_files(options):
     args = {'exclude': ['values-\S+'], 'include': ['values-zh-rCN']}
     sync(chrome_grd_res_dir, library_res_dir, "sync", **args)
 
+    # sync locale_paks
+    zip_ref = zipfile.ZipFile(os.path.join(options.chromium_root, "out", options.buildtype,
+                                           "gen", "chrome/android/chrome_locale_paks.resources.zip"), 'r')
+    zip_ref.extractall(library_res_dir)
+    zip_ref.close()
+
     # remove duplicate strings in android_chrome_strings.xml and generated_resources.xml
     #resource_util.remove_duplicated_strings(library_res_dir + '/values/android_chrome_strings.xml',
     #                                        library_res_dir + '/values/generated_resources.xml')

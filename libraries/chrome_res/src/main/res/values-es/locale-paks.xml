@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <array name="locale_paks">
+    <item>@raw/es</item>
+    <item>@raw/es_419</item>
+    <item>@raw/en_us</item>
+  </array>
+</resources>
