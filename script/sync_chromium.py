@@ -97,10 +97,11 @@ def sync_java_files(options):
         zip_ref.close()
 
 def sync_so_files(options):
-    app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "jniLibs")
-    chrome_so_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype,
-                                       "chrome_public_apk", "libs", "armeabi-v7a")
-    args = {'only':['\\.so$']}
+    app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "jniLibs", "armeabi-v7a")
+    chrome_so_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype)
+    args = {'only':['libicuuc\\.cr\\.so$', 'libc\\+\\+_shared\\.so$', 'libicui18n\\.cr\\.so$',
+                    'libswe\\.so$', 'libswecore\\.so$', 'libswev8\\.so$'],
+            'ignore': []}
     sync(chrome_so_lib_dir, app_lib_dir, "sync", **args)
 
 def sync_jar_files(options):
@@ -258,6 +259,7 @@ def main(argv):
     sync_androidmedia_res_files(options)
     sync_manifest_files(options)
     sync_data_files(options)
+    sync_so_files(options)
 
 if __name__ == '__main__':
     main(sys.argv)
