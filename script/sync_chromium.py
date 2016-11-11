@@ -6,6 +6,7 @@
 
 import optparse
 import os
+import shutil
 import sys
 
 import constants
@@ -100,23 +101,25 @@ def sync_so_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "src", "main", "jniLibs", "armeabi-v7a")
     chrome_so_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype)
     args = {'only':['libicuuc\\.cr\\.so$', 'libc\\+\\+_shared\\.so$', 'libicui18n\\.cr\\.so$',
-                    'libswe\\.so$', 'libswecore\\.so$', 'libswev8\\.so$'],
+                    'libswe\\.so$', 'libswecore\\.so$', 'libswewebrefiner\\.so$', 'libswev8\\.so$'],
             'ignore': []}
     sync(chrome_so_lib_dir, app_lib_dir, "sync", **args)
 
 def sync_jar_files(options):
     app_lib_dir = os.path.join(constants.DIR_APP_ROOT, "libs")
-    java_modules = ["base", "blimp/client/public",
+    java_modules = ["base", "blimp/client/public", "blimp/client/core",
                     "components/bookmarks/common/android", "components/dom_distiller/android",
-                    "components/gcm_driver/android",
+                    "components/gcm_driver/android", "components/gcm_driver/instance_id/android",
                     "components/invalidation/impl",
                     "components/location/android",
                     "components/navigation_interception/android", "components/policy/android",
                     'components/precache/android',
                     "components/safe_json/android", "components/sync/android",
                     "components/url_formatter/android", "components/variations/android", "components/web_contents_delegate_android",
-                    "components/web_restrictions",
-                    "content/public/android", "mojo/android", "mojo/public/java",
+                    "components/web_refiner", "components/web_restrictions",
+                    "content/public/android", "device/battery/android", "device/geolocation", "device/vibration/android",
+                    "media/base/android", "media/capture/content/android", "media/capture/video/android", "media/midi",
+                    "mojo/android", "mojo/public/java",
                     "net/android", "printing",
                     "third_party/android_data_chart",
                     "third_party/android_media",
@@ -131,6 +134,20 @@ def sync_jar_files(options):
     for mod in java_modules:
         chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java", mod)
         sync(chrome_java_lib_dir, app_lib_dir, "sync", **args)
+
+    # sync device jar
+    device_modules = ["bluetooth", "gamepad", "power_save_blocker", "usb"]
+    for mod in device_modules:
+        shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/device", mod, "java.jar"),
+                    os.path.join(app_lib_dir, mod + "_java.jar"))
+    shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/device/nfc/android/java.jar"),
+                os.path.join(app_lib_dir, "nfc_java.jar"))
+
+    # sync other java.jar files
+    shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/components/signin/core/browser/android/java.jar"),
+                os.path.join(app_lib_dir, "signin_java.jar"))
+    shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/components/spellcheck/browser/android/java.jar"),
+                os.path.join(app_lib_dir, "spellcheck_java.jar"))
 
     # sync generated jars
     #java_modules = ["base"]
