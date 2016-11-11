@@ -129,7 +129,8 @@ def sync_jar_files(options):
                     "ui/android"]
     args = {'only': ['\w+_java\\.jar$', '\w+_\w+_java\\.jar$', '\w+_\w+_\w+_java\\.jar$', 'bindings\\.jar$', 'system\\.jar$',
                     'cacheinvalidation_javalib\\.jar$', 'jsr_305_javalib\\.jar$', 'java\\.jar$',
-                    'protobuf_nano_javalib\\.jar$', 'web_contents_delegate_android_java\\.jar$'],
+                    'protobuf_nano_javalib\\.jar$', 'web_contents_delegate_android_java\\.jar$',
+                    'vibration_manager_android\\.jar$'],
             'ignore': ['chrome_java\\.jar$']}
     for mod in java_modules:
         chrome_java_lib_dir = os.path.join(options.chromium_root, "out", options.buildtype, "lib.java", mod)
@@ -148,6 +149,10 @@ def sync_jar_files(options):
                 os.path.join(app_lib_dir, "signin_java.jar"))
     shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/components/spellcheck/browser/android/java.jar"),
                 os.path.join(app_lib_dir, "spellcheck_java.jar"))
+    shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/device/vibration/mojo_bindings_java.jar"),
+                os.path.join(app_lib_dir, "vibration_mojo_bindings_java.jar"))
+    shutil.copy(os.path.join(options.chromium_root, "out", options.buildtype, "lib.java/device/nfc/mojo_bindings_java.jar"),
+                os.path.join(app_lib_dir, "nfc_mojo_bindings_java.jar"))
 
     # sync generated jars
     #java_modules = ["base"]
