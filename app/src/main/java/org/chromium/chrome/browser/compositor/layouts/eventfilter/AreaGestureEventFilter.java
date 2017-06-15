@@ -22,9 +22,8 @@ public class AreaGestureEventFilter extends GestureEventFilter {
      * @param handler       The handler to be notified of gesture events.
      * @param triggerRect   The area that events should be stolen from in dp.
      */
-    public AreaGestureEventFilter(Context context, EventFilterHost host, GestureHandler handler,
-            RectF triggerRect) {
-        this(context, host, handler, triggerRect, true);
+    public AreaGestureEventFilter(Context context, GestureHandler handler, RectF triggerRect) {
+        this(context, handler, triggerRect, true);
     }
 
     /**
@@ -35,9 +34,9 @@ public class AreaGestureEventFilter extends GestureEventFilter {
      * @param triggerRect   The area that events should be stolen from in dp.
      * @param autoOffset    Whether or not to offset touch events.
      */
-    public AreaGestureEventFilter(Context context, EventFilterHost host, GestureHandler handler,
-            RectF triggerRect, boolean autoOffset) {
-        super(context, host, handler, autoOffset);
+    public AreaGestureEventFilter(
+            Context context, GestureHandler handler, RectF triggerRect, boolean autoOffset) {
+        super(context, handler, autoOffset);
         setEventArea(triggerRect);
     }
 
@@ -50,9 +49,9 @@ public class AreaGestureEventFilter extends GestureEventFilter {
      * @param autoOffset            Whether or not to offset touch events.
      * @param useDefaultLongPress   Whether or not to use the default long press behavior.
      */
-    public AreaGestureEventFilter(Context context, EventFilterHost host, GestureHandler handler,
-            RectF triggerRect, boolean autoOffset, boolean useDefaultLongPress) {
-        super(context, host, handler, autoOffset, useDefaultLongPress);
+    public AreaGestureEventFilter(Context context, GestureHandler handler, RectF triggerRect,
+            boolean autoOffset, boolean useDefaultLongPress) {
+        super(context, handler, autoOffset, useDefaultLongPress);
         setEventArea(triggerRect);
     }
 

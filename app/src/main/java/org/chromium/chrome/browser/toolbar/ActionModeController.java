@@ -24,8 +24,8 @@ public class ActionModeController {
     private static final int SLIDE_DURATION_MS = 200;
 
     private ToolbarActionModeCallback mToolbarActionModeCallback;
-    private ObjectAnimator mCurrentAnimation = null;
-    private boolean mShowingActionMode = false;
+    private ObjectAnimator mCurrentAnimation;
+    private boolean mShowingActionMode;
     private float mTabStripHeight;
     private final Context mContext;
     private final ActionBarDelegate mActionBarDelegate;

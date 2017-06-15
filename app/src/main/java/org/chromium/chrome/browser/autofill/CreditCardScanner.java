@@ -4,56 +4,62 @@
 
 package org.chromium.chrome.browser.autofill;
 
-import android.content.Context;
-
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.ui.base.WindowAndroid;
+import org.chromium.base.annotations.SuppressFBWarnings;
+import org.chromium.content_public.browser.WebContents;
 
 /**
  * Helper for detecting whether the device supports scanning credit cards and for scanning credit
  * cards. The default implementation cannot scan cards. An implementing subclass must provide a
  * factory that builds its instances.
  */
-@JNINamespace("autofill")
 public class CreditCardScanner {
     /**
      * Can be used to build subclasses of the scanner without the user of the class knowing about
      * the subclass name.
      */
-    static Factory sFactory;
+    private static Factory sFactory;
 
-    /**
-     * Pointer to the native object that receives scanning callbacks.
-     */
-    protected long mNativeScanner;
+    /** The delegate to notify of scanning result. */
+    protected final Delegate mDelegate;
 
-    /**
-     * Application context.
-     */
-    protected Context mContext;
+    /** The web contents that's requesting a scan. Used in subclass. */
+    @SuppressFBWarnings({"URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
+    protected final WebContents mWebContents;
 
-    /**
-     * The window that's requesting a scan.
-     */
-    protected WindowAndroid mWindow;
-
-    /**
-     * Builds instances of credit card scanners.
-     */
+    /** Builds instances of credit card scanners. */
     public interface Factory {
         /**
          * Builds an instance of credit card scanner.
-         * @param nativeScanner Pointer to the native object that receives scanning callbacks.
-         * @param context Application context.
-         * @param window The window that's requesting a scan.
+         *
+         * @param webContents The web contents that are requesting a scan.
+         * @param delegate    The delegate to notify of scanning result.
          * @return An object that can scan a credit card.
          */
-        CreditCardScanner create(long nativeScanner, Context context, WindowAndroid window);
+        CreditCardScanner create(WebContents webContents, Delegate delegate);
+    }
+
+    /** The delegate for credit card scanning. */
+    public interface Delegate {
+        /**
+         * Notifies the delegate that scanning was cancelled.
+         */
+        void onScanCancelled();
+
+        /**
+         * Notifies the delegate that scanning was successful.
+         *
+         * @param cardHolderName  The card holder name.
+         * @param cardNumber      Credit card number.
+         * @param expirationMonth Expiration month in the range [1, 12].
+         * @param expirationYear  Expiration year, e.g. 2000.
+         */
+        void onScanCompleted(
+                String cardHolderName, String cardNumber, int expirationMonth, int expirationYear);
     }
 
     /**
      * Sets the factory that can build instances of credit card scanners.
+     *
      * @param factory Can build instances of credit card scanners.
      */
     public static void setFactory(Factory factory) {
@@ -61,61 +67,40 @@ public class CreditCardScanner {
     }
 
     /**
-     * Called by the native object to create an instance of a credit card scanner.
-     * @param nativeScanner Pointer to the native object that receives scanning callbacks.
-     * @param context Application context.
-     * @param window The window that's requesting a scan.
+     * Creates an instance of a credit card scanner.
+     *
+     * @param webContents The web contents that are requesting a scan.
+     * @param delegate    The delegate to notify of scanning result.
      * @return An object that can scan a credit card.
      */
-    @CalledByNative
-    private static CreditCardScanner create(long nativeScanner, Context context,
-            WindowAndroid window) {
-        return sFactory != null ? sFactory.create(nativeScanner, context, window)
-                                : new CreditCardScanner(nativeScanner, context, window);
+    public static CreditCardScanner create(WebContents webContents, Delegate delegate) {
+        return sFactory != null ? sFactory.create(webContents, delegate)
+                                : new CreditCardScanner(webContents, delegate);
     }
 
     /**
      * Constructor for the credit card scanner.
-     * @param nativeScanner Pointer to the native object that receives scanning callbacks.
-     * @param context Application context.
-     * @param window The window that's requesting a scan.
+     *  @param webContents The web contents that are requesting a scan.
+     * @param delegate    The delegate to notify of scanning result.
      */
-    protected CreditCardScanner(long nativeScanner, Context context, WindowAndroid window) {
-        mNativeScanner = nativeScanner;
-        mContext = context;
-        mWindow = window;
+    protected CreditCardScanner(WebContents webContents, Delegate delegate) {
+        mWebContents = webContents;
+        mDelegate = delegate;
     }
 
     /**
      * Returns true if this instance has the ability to scan credit cards.
+     *
      * @return True if has ability to scan credit cards.
      */
-    @CalledByNative
-    protected boolean canScan() {
+    public boolean canScan() {
         return false;
     }
 
     /**
-     * Scans a credit card. Will invoke a native callback with the result.
+     * Scans a credit card. Will invoke a delegate callback with the result.
      */
-    @CalledByNative
-    protected void scan() {
-        nativeScanCancelled(mNativeScanner);
+    public void scan() {
+        mDelegate.onScanCancelled();
     }
-
-    /**
-     * Notifies the native object that scanning was cancelled.
-     * @param nativeCreditCardScannerViewAndroid Pointer to the native object.
-     */
-    protected native void nativeScanCancelled(long nativeCreditCardScannerViewAndroid);
-
-    /**
-     * Notifies the native object that scanning was successful.
-     * @param nativeCreditCardScannerViewAndroid Pointer to the native object.
-     * @param cardNumber Credit card number.
-     * @param expirationMonth Expiration month in the range [1, 12].
-     * @param expirationYear Expiration year, e.g. 2000.
-     */
-    protected native void nativeScanCompleted(long nativeCreditCardScannerViewAndroid,
-            String cardNumber, int expirationMonth, int expirationYear);
 }

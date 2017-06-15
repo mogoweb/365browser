@@ -7,10 +7,11 @@ package org.chromium.chrome.browser.infobar;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.view.View;
+import android.widget.TextView;
 
-import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.snackbar.SnackbarManager;
 
 /**
  * The base class for all InfoBar classes.
@@ -24,39 +25,26 @@ public abstract class InfoBar implements InfoBarView {
     private final Bitmap mIconBitmap;
     private final CharSequence mMessage;
 
-    private InfoBarListeners.Dismiss mListener;
-    private ContentWrapperView mContentView;
     private InfoBarContainer mContainer;
+    private View mView;
     private Context mContext;
 
-    private boolean mExpireOnNavigation;
     private boolean mIsDismissed;
-    private boolean mControlsEnabled;
-    private boolean mIsJavaOnlyInfoBar = true;
+    private boolean mControlsEnabled = true;
 
     // This points to the InfoBarAndroid class not any of its subclasses.
     private long mNativeInfoBarPtr;
 
-    // Used by tests to reference infobars.
-    private final int mId;
-    private static int sIdCounter = 0;
-    private static int generateId() {
-        return sIdCounter++;
-    }
-
     /**
-     * @param listener Listens to when buttons have been clicked on the InfoBar.
+     * Constructor for regular infobars.
      * @param iconDrawableId ID of the resource to use for the Icon.  If 0, no icon will be shown.
+     * @param iconBitmap Icon to draw, in bitmap form.  Used mainly for generated icons.
      * @param message The message to show in the infobar.
      */
-    public InfoBar(InfoBarListeners.Dismiss listener, int iconDrawableId, Bitmap iconBitmap,
-            CharSequence message) {
-        mListener = listener;
-        mId = generateId();
+    public InfoBar(int iconDrawableId, Bitmap iconBitmap, CharSequence message) {
         mIconDrawableId = iconDrawableId;
         mIconBitmap = iconBitmap;
         mMessage = message;
-        mExpireOnNavigation = true;
     }
 
     /**
@@ -64,13 +52,8 @@ public abstract class InfoBar implements InfoBarView {
      * @param nativeInfoBarPtr Pointer to the native InfoBarAndroid, not to its subclass.
      */
     @CalledByNative
-    private void setNativeInfoBar(long nativeInfoBarPtr) {
-        if (nativeInfoBarPtr != 0) {
-            // The native code takes care of expiring infobars on navigations.
-            mExpireOnNavigation = false;
-            mNativeInfoBarPtr = nativeInfoBarPtr;
-            mIsJavaOnlyInfoBar = false;
-        }
+    private final void setNativeInfoBar(long nativeInfoBarPtr) {
+        mNativeInfoBarPtr = nativeInfoBarPtr;
     }
 
     @CalledByNative
@@ -78,20 +61,8 @@ public abstract class InfoBar implements InfoBarView {
         mNativeInfoBarPtr = 0;
     }
 
-    /**
-     * Determine if the infobar should be dismissed when a new page starts loading. Calling
-     * setExpireOnNavigation(true/false) causes this method always to return true/false.
-     * This only applies to java-only infobars. C++ infobars will use the same logic
-     * as other platforms so they are not attempted to be dismissed twice.
-     * It should really be removed once all infobars have a C++ counterpart.
-     */
-    public final boolean shouldExpire() {
-        return mExpireOnNavigation && mIsJavaOnlyInfoBar;
-    }
-
-    // Sets whether the bar should be dismissed when a navigation occurs.
-    public void setExpireOnNavigation(boolean expireOnNavigation) {
-        mExpireOnNavigation = expireOnNavigation;
+    public SnackbarManager getSnackbarManager() {
+        return mContainer != null ? mContainer.getSnackbarManager() : null;
     }
 
     /**
@@ -116,32 +87,81 @@ public abstract class InfoBar implements InfoBarView {
     protected final View createView() {
         assert mContext != null;
 
-        InfoBarLayout layout =
-                new InfoBarLayout(mContext, this, mIconDrawableId, mIconBitmap, mMessage);
-        createContent(layout);
-        layout.onContentCreated();
-        return layout;
+        if (usesCompactLayout()) {
+            InfoBarCompactLayout layout =
+                    new InfoBarCompactLayout(mContext, this, mIconDrawableId, mIconBitmap);
+            createCompactLayoutContent(layout);
+            mView = layout;
+        } else {
+            InfoBarLayout layout =
+                    new InfoBarLayout(mContext, this, mIconDrawableId, mIconBitmap, mMessage);
+            createContent(layout);
+            layout.onContentCreated();
+            mView = layout;
+        }
+
+        return mView;
+    }
+
+    /** If this returns true, the infobar contents will be replaced with a one-line layout. */
+    protected boolean usesCompactLayout() {
+        return false;
     }
 
     /**
-     * Used to close a java only infobar.
+     * Prepares and inserts views into an {@link InfoBarCompactLayout}.
+     * {@link #usesCompactLayout} must return 'true' for this function to be called.
+     * @param layout Layout to plug views into.
      */
-    public void dismissJavaOnlyInfoBar() {
-        assert mNativeInfoBarPtr == 0;
-        if (closeInfoBar() && mListener != null) {
-            mListener.onInfoBarDismissed(this);
-        }
+    protected void createCompactLayoutContent(InfoBarCompactLayout layout) {}
+
+    /**
+     * Replaces the View currently shown in the infobar with the given View. Triggers the swap
+     * animation via the InfoBarContainer.
+     */
+    protected void replaceView(View newView) {
+        mView = newView;
+        mContainer.notifyInfoBarViewChanged();
+    }
+
+    /**
+     * Returns the View shown in this infobar. Only valid after createView() has been called.
+     */
+    @Override
+    public View getView() {
+        return mView;
+    }
+
+    @Override
+    public CharSequence getAccessibilityText() {
+        if (mView == null) return "";
+        TextView messageView = (TextView) mView.findViewById(R.id.infobar_message);
+        if (messageView == null) return "";
+        return messageView.getText() + mContext.getString(R.string.bottom_bar_screen_position);
+    }
+
+    @Override
+    public boolean isLegalDisclosure() {
+        return false;
+    }
+
+    @Override
+    @InfoBarIdentifier
+    public int getInfoBarIdentifier() {
+        if (mNativeInfoBarPtr == 0) return InfoBarIdentifier.INVALID;
+        return nativeGetInfoBarIdentifier(mNativeInfoBarPtr);
     }
 
     /**
      * @return whether the infobar actually needed closing.
      */
     @CalledByNative
-    public boolean closeInfoBar() {
+    private boolean closeInfoBar() {
         if (!mIsDismissed) {
             mIsDismissed = true;
             if (!mContainer.hasBeenDestroyed()) {
                 // If the container was destroyed, it's already been emptied of all its infobars.
+                onStartedHiding();
                 mContainer.removeInfoBar(this);
             }
             return true;
@@ -149,30 +169,21 @@ public abstract class InfoBar implements InfoBarView {
         return false;
     }
 
-    protected ContentWrapperView getContentWrapper(boolean createIfNotFound) {
-        if (mContentView == null && createIfNotFound) {
-            mContentView = new ContentWrapperView(getContext(), this, createView());
-            mContentView.setFocusable(false);
-        }
-        return mContentView;
-    }
-
-    protected InfoBarContainer getInfoBarContainer() {
-        return mContainer;
-    }
-
     /**
-     * @return The content view for the info bar.
+     * Called just before the Java infobar has begun hiding.  Give the chance to clean up any child
+     * UI that may remain open.
      */
-    @VisibleForTesting
-    public ContentWrapperView getContentWrapper() {
-        return getContentWrapper(true);
+    protected void onStartedHiding() {}
+
+    long getNativeInfoBarPtr() {
+        return mNativeInfoBarPtr;
     }
 
     void setInfoBarContainer(InfoBarContainer container) {
         mContainer = container;
     }
 
+    @Override
     public boolean areControlsEnabled() {
         return mControlsEnabled;
     }
@@ -180,18 +191,6 @@ public abstract class InfoBar implements InfoBarView {
     @Override
     public void setControlsEnabled(boolean state) {
         mControlsEnabled = state;
-
-        // Disable all buttons on the infobar.
-        if (mContentView != null) {
-            View closeButton = mContentView.findViewById(R.id.infobar_close_button);
-            View primaryButton = mContentView.findViewById(R.id.button_primary);
-            View secondaryButton = mContentView.findViewById(R.id.button_secondary);
-            View tertiaryButton = mContentView.findViewById(R.id.button_tertiary);
-            if (closeButton != null) closeButton.setEnabled(state);
-            if (primaryButton != null) primaryButton.setEnabled(state);
-            if (secondaryButton != null) secondaryButton.setEnabled(state);
-            if (tertiaryButton != null) tertiaryButton.setEnabled(state);
-        }
     }
 
     @Override
@@ -205,46 +204,24 @@ public abstract class InfoBar implements InfoBarView {
 
     /**
      * Performs some action related to the button being clicked.
-     *
      * @param action The type of action defined as ACTION_* in this class.
-     * @param actionValue An additional string associated with the action if any. "" if none.
      */
-    protected void onButtonClicked(int action, String actionValue) {
-        if (mNativeInfoBarPtr != 0) nativeOnButtonClicked(mNativeInfoBarPtr, action, actionValue);
+    protected void onButtonClicked(int action) {
+        if (mNativeInfoBarPtr != 0) nativeOnButtonClicked(mNativeInfoBarPtr, action);
     }
 
     @Override
     public void onCloseButtonClicked() {
-        if (mIsJavaOnlyInfoBar) {
-            dismissJavaOnlyInfoBar();
-        } else {
-            if (mNativeInfoBarPtr != 0) nativeOnCloseButtonClicked(mNativeInfoBarPtr);
-        }
+        if (mNativeInfoBarPtr != 0) nativeOnCloseButtonClicked(mNativeInfoBarPtr);
     }
 
     @Override
     public void createContent(InfoBarLayout layout) {
     }
 
-    /**
-     * Returns the id of the tab this infobar is showing into.
-     */
-    public int getTabId() {
-        return mContainer.getTabId();
-    }
-
-    @VisibleForTesting
-    public int getId() {
-        return mId;
-    }
-
-    @VisibleForTesting
-    public void setDismissedListener(InfoBarListeners.Dismiss listener) {
-        mListener = listener;
-    }
-
+    @InfoBarIdentifier
+    private native int nativeGetInfoBarIdentifier(long nativeInfoBarAndroid);
     private native void nativeOnLinkClicked(long nativeInfoBarAndroid);
-    private native void nativeOnButtonClicked(
-            long nativeInfoBarAndroid, int action, String actionValue);
+    private native void nativeOnButtonClicked(long nativeInfoBarAndroid, int action);
     private native void nativeOnCloseButtonClicked(long nativeInfoBarAndroid);
 }

@@ -47,18 +47,18 @@ public class StackTab implements ChromeAnimation.Animatable<StackTab.Property> {
     private float mYInStackInfluence = 1.0f;
 
     // In stack positioner
-    private float mScrollOffset = 0.0f;
-    private float mXInStackOffset = 0.0f;
-    private float mYInStackOffset = 0.0f;
+    private float mScrollOffset;
+    private float mXInStackOffset;
+    private float mYInStackOffset;
 
     // Out of stack positioner
-    private float mXOutOfStack = 0.0f;
-    private float mYOutOfStack = 0.0f;
+    private float mXOutOfStack;
+    private float mYOutOfStack;
 
     // Values that get animated
     private float mAlpha = 1.0f;
     private float mScale = 1.0f;
-    private float mDiscardAmount = 0.0f; // This might alter position, rotation and alpha
+    private float mDiscardAmount; // This might alter position, rotation and alpha
 
     // Discard states
     private float mDiscardOriginX;
@@ -69,17 +69,17 @@ public class StackTab implements ChromeAnimation.Animatable<StackTab.Property> {
     private int mIndex;
 
     // True if the tab is currently being removed (while animating).
-    protected boolean mDying = false;
+    protected boolean mDying;
 
     // The visibility sorting value is used to determine the importance of the tab for
     // texture allocation. It is computed from the area and its position in the stack.
     // Larger values will have more priority for acquiring texture. Negative values "often"
     // means that the tab is not visible at all (but there are no guaranty and it's fine).
-    private float mCachedVisibleArea = 0; // Intermediate value
-    private float mCachedIndexDistance = 0; // Intermediate value
+    private float mCachedVisibleArea; // Intermediate value
+    private float mCachedIndexDistance; // Intermediate value
     private float mCacheStackVisibility = 1.0f; // Intermediate value
-    private long mVisiblitySortingValue = 0; // Sorting value based on visible area.
-    private int mOrderSortingValue = 0; // Sorting value based on distance to selection.
+    private long mVisiblitySortingValue; // Sorting value based on visible area.
+    private int mOrderSortingValue; // Sorting value based on distance to selection.
 
     private LayoutTab mLayoutTab;
 
@@ -518,4 +518,7 @@ public class StackTab implements ChromeAnimation.Animatable<StackTab.Property> {
                 break;
         }
     }
+
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {}
 }

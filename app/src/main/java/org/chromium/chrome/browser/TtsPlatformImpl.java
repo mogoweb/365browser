@@ -4,11 +4,11 @@
 
 package org.chromium.chrome.browser;
 
-import android.content.Context;
 import android.os.Build;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.annotations.CalledByNative;
@@ -68,39 +68,38 @@ class TtsPlatformImpl {
     private String mCurrentLanguage;
     private PendingUtterance mPendingUtterance;
 
-    protected TtsPlatformImpl(long nativeTtsPlatformImplAndroid, Context context) {
+    protected TtsPlatformImpl(long nativeTtsPlatformImplAndroid) {
         mInitialized = false;
         mNativeTtsPlatformImplAndroid = nativeTtsPlatformImplAndroid;
-        mTextToSpeech = new TextToSpeech(context, new TextToSpeech.OnInitListener() {
-                @Override
-                public void onInit(int status) {
-                    if (status == TextToSpeech.SUCCESS) {
-                        ThreadUtils.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                initialize();
-                            }
-                        });
+        mTextToSpeech = new TextToSpeech(
+                ContextUtils.getApplicationContext(), new TextToSpeech.OnInitListener() {
+                    @Override
+                    public void onInit(int status) {
+                        if (status == TextToSpeech.SUCCESS) {
+                            ThreadUtils.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    initialize();
+                                }
+                            });
+                        }
                     }
-                }
-            });
+                });
         addOnUtteranceProgressListener();
     }
 
     /**
      * Create a TtsPlatformImpl object, which is owned by TtsPlatformImplAndroid
      * on the C++ side.
+     *  @param nativeTtsPlatformImplAndroid The C++ object that owns us.
      *
-     * @param nativeTtsPlatformImplAndroid The C++ object that owns us.
-     * @param context The app context.
      */
     @CalledByNative
-    private static TtsPlatformImpl create(long nativeTtsPlatformImplAndroid,
-                                          Context context) {
+    private static TtsPlatformImpl create(long nativeTtsPlatformImplAndroid) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            return new LollipopTtsPlatformImpl(nativeTtsPlatformImplAndroid, context);
+            return new LollipopTtsPlatformImpl(nativeTtsPlatformImplAndroid);
         } else {
-            return new TtsPlatformImpl(nativeTtsPlatformImplAndroid, context);
+            return new TtsPlatformImpl(nativeTtsPlatformImplAndroid);
         }
     }
 

@@ -4,27 +4,32 @@
 
 package org.chromium.chrome.browser.sync;
 
-import android.accounts.Account;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.util.Log;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.chrome.browser.AppHooks;
+import org.chromium.chrome.browser.identity.UniqueIdentificationGenerator;
 import org.chromium.chrome.browser.identity.UniqueIdentificationGeneratorFactory;
 import org.chromium.chrome.browser.invalidation.InvalidationController;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.AccountManagementFragment;
 import org.chromium.chrome.browser.signin.SigninManager;
-import org.chromium.chrome.browser.signin.SigninManager.SignInFlowObserver;
 import org.chromium.chrome.browser.sync.ui.PassphraseActivity;
-import org.chromium.sync.AndroidSyncSettings;
-import org.chromium.sync.ModelType;
-import org.chromium.sync.PassphraseType;
-import org.chromium.sync.signin.AccountManagerHelper;
-import org.chromium.sync.signin.ChromeSigninController;
+import org.chromium.components.signin.ChromeSigninController;
+import org.chromium.components.sync.AndroidSyncSettings;
+import org.chromium.components.sync.ModelType;
+import org.chromium.components.sync.PassphraseType;
+import org.chromium.components.sync.StopSource;
+
+import javax.annotation.Nullable;
 
 /**
  * SyncController handles the coordination of sync state between the invalidation controller,
@@ -54,7 +59,12 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
      */
     public static final String GENERATOR_ID = "SYNC";
 
+    @VisibleForTesting
+    public static final String SESSION_TAG_PREFIX = "session_sync";
+
+    @SuppressLint("StaticFieldLeak")
     private static SyncController sInstance;
+    private static boolean sInitialized;
 
     private final Context mContext;
     private final ChromeSigninController mChromeSigninController;
@@ -63,14 +73,19 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
 
     private SyncController(Context context) {
         mContext = context;
-        mChromeSigninController = ChromeSigninController.get(mContext);
+        mChromeSigninController = ChromeSigninController.get();
         AndroidSyncSettings.registerObserver(context, this);
         mProfileSyncService = ProfileSyncService.get();
         mProfileSyncService.addSyncStateChangedListener(this);
+        mProfileSyncService.setMasterSyncEnabledProvider(
+                new ProfileSyncService.MasterSyncEnabledProvider() {
+                    @Override
+                    public boolean isMasterSyncEnabled() {
+                        return AndroidSyncSettings.isMasterSyncEnabled(mContext);
+                    }
+                });
 
-        // Set the sessions ID using the generator that was registered for GENERATOR_ID.
-        mProfileSyncService.setSessionsId(
-                UniqueIdentificationGeneratorFactory.getInstance(GENERATOR_ID));
+        setSessionsId();
 
         // Create the SyncNotificationController.
         mSyncNotificationController = new SyncNotificationController(
@@ -88,6 +103,21 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
                 }
             }
         });
+
+        GmsCoreSyncListener gmsCoreSyncListener = AppHooks.get().createGmsCoreSyncListener();
+        if (gmsCoreSyncListener != null) {
+            mProfileSyncService.addSyncStateChangedListener(gmsCoreSyncListener);
+        }
+
+        SigninManager.get(mContext).addSignInStateObserver(new SigninManager.SignInStateObserver() {
+            @Override
+            public void onSignedIn() {
+                mProfileSyncService.requestStart();
+            }
+
+            @Override
+            public void onSignedOut() {}
+        });
     }
 
     /**
@@ -96,88 +126,42 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
      * @param context the current context.
      * @return the singleton instance.
      */
+    @Nullable
     public static SyncController get(Context context) {
         ThreadUtils.assertOnUiThread();
-        if (sInstance == null) {
-            sInstance = new SyncController(context.getApplicationContext());
+        if (!sInitialized) {
+            if (ProfileSyncService.get() != null) {
+                sInstance = new SyncController(context.getApplicationContext());
+            }
+            sInitialized = true;
         }
         return sInstance;
     }
 
     /**
-     * Trigger Chromium sign in of the given account.
-     *
-     * This also ensure that sync setup is not in progress anymore, so sync will start after
-     * sync initialization has happened.
-     *
-     * @param activity the current activity.
-     * @param accountName the full account name.
-     */
-    @VisibleForTesting
-    public void signIn(Activity activity, String accountName) {
-        final Account account = AccountManagerHelper.createAccountFromName(accountName);
-
-        // The SigninManager handles most of the sign-in flow, and doFinishSignIn handles the
-        // ChromeShell specific details.
-        SigninManager signinManager = SigninManager.get(mContext);
-        signinManager.onFirstRunCheckDone();
-        final boolean passive = false;
-        signinManager.startSignIn(activity, account, passive, new SignInFlowObserver() {
-            @Override
-            public void onSigninComplete() {
-                SigninManager.get(mContext).logInSignedInUser();
-                mProfileSyncService.setSetupInProgress(false);
-                start();
-            }
-
-            @Override
-            public void onSigninCancelled() {
-                stop();
-            }
-        });
-    }
-
-    /**
      * Updates sync to reflect the state of the Android sync settings.
      */
-    public void updateSyncStateFromAndroid() {
-        if (AndroidSyncSettings.isSyncEnabled(mContext)) {
-            start();
-        } else {
-            stop();
-        }
-    }
-
-    /**
-     * Starts sync if the master sync flag is enabled.
-     *
-     * Affects native sync, the invalidation controller, and the Android sync settings.
-     */
-    public void start() {
-        ThreadUtils.assertOnUiThread();
-        if (AndroidSyncSettings.isMasterSyncEnabled(mContext)) {
-            Log.d(TAG, "Enabling sync");
-            InvalidationController.get(mContext).ensureStartedAndUpdateRegisteredTypes();
+    private void updateSyncStateFromAndroid() {
+        boolean isSyncEnabled = AndroidSyncSettings.isSyncEnabled(mContext);
+        if (isSyncEnabled == mProfileSyncService.isSyncRequested()) return;
+        if (isSyncEnabled) {
             mProfileSyncService.requestStart();
-            AndroidSyncSettings.enableChromeSync(mContext);
-        }
-    }
-
-    /**
-     * Stops Sync if a user is currently signed in.
-     *
-     * Affects native sync, the invalidation controller, and the Android sync settings.
-     */
-    public void stop() {
-        ThreadUtils.assertOnUiThread();
-        Log.d(TAG, "Disabling sync");
-        InvalidationController.get(mContext).stop();
-        mProfileSyncService.requestStop();
-        if (AndroidSyncSettings.isMasterSyncEnabled(mContext)) {
-            // Only disable Android's Chrome sync setting if we weren't disabled
-            // by the master sync setting. This way, when master sync is enabled
-            // they will both be on and sync will start again.
-            AndroidSyncSettings.disableChromeSync(mContext);
+        } else {
+            if (Profile.getLastUsedProfile().isChild()) {
+                // For child accounts, Sync needs to stay enabled, so we reenable it in settings.
+                // TODO(bauerb): Remove the dependency on child account code and instead go through
+                // prefs (here and in the Sync customization UI).
+                AndroidSyncSettings.enableChromeSync(mContext);
+            } else {
+                if (AndroidSyncSettings.isMasterSyncEnabled(mContext)) {
+                    RecordHistogram.recordEnumeratedHistogram("Sync.StopSource",
+                            StopSource.ANDROID_CHROME_SYNC, StopSource.STOP_SOURCE_LIMIT);
+                } else {
+                    RecordHistogram.recordEnumeratedHistogram("Sync.StopSource",
+                            StopSource.ANDROID_MASTER_SYNC, StopSource.STOP_SOURCE_LIMIT);
+                }
+                mProfileSyncService.requestStop();
+            }
         }
     }
 
@@ -190,12 +174,24 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
     @Override
     public void syncStateChanged() {
         ThreadUtils.assertOnUiThread();
-        // Make the Java state match the native state.
+        InvalidationController invalidationController = InvalidationController.get(mContext);
         if (mProfileSyncService.isSyncRequested()) {
-            AndroidSyncSettings.enableChromeSync(mContext);
+            if (!invalidationController.isStarted()) {
+                invalidationController.ensureStartedAndUpdateRegisteredTypes();
+            }
+            if (!AndroidSyncSettings.isSyncEnabled(mContext)) {
+                assert AndroidSyncSettings.isMasterSyncEnabled(mContext);
+                AndroidSyncSettings.enableChromeSync(mContext);
+            }
         } else {
-            if (AndroidSyncSettings.isMasterSyncEnabled(mContext)) {
-                // See comment in stop().
+            if (invalidationController.isStarted()) {
+                invalidationController.stop();
+            }
+            if (AndroidSyncSettings.isSyncEnabled(mContext)) {
+                // Both Android's master and Chrome sync setting are enabled, so we want to disable
+                // the Chrome sync setting to match isSyncRequested. We have to be careful not to
+                // disable it when isSyncRequested becomes false due to master sync being disabled
+                // so that sync will turn back on if master sync is re-enabled.
                 AndroidSyncSettings.disableChromeSync(mContext);
             }
         }
@@ -218,9 +214,10 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
      * @return Whether sync is enabled to sync urls or open tabs with a non custom passphrase.
      */
     public boolean isSyncingUrlsWithKeystorePassphrase() {
-        return mProfileSyncService.isSyncInitialized()
-            && mProfileSyncService.getPreferredDataTypes().contains(ModelType.TYPED_URLS)
-            && mProfileSyncService.getPassphraseType().equals(PassphraseType.KEYSTORE_PASSPHRASE);
+        return mProfileSyncService.isEngineInitialized()
+                && mProfileSyncService.getPreferredDataTypes().contains(ModelType.TYPED_URLS)
+                && mProfileSyncService.getPassphraseType().equals(
+                           PassphraseType.KEYSTORE_PASSPHRASE);
     }
 
     /**
@@ -228,5 +225,20 @@ public class SyncController implements ProfileSyncService.SyncStateChangedListen
      */
     public SyncNotificationController getSyncNotificationController() {
         return mSyncNotificationController;
+    }
+
+    /**
+     * Set the sessions ID using the generator that was registered for GENERATOR_ID.
+     */
+    private void setSessionsId() {
+        UniqueIdentificationGenerator generator =
+                UniqueIdentificationGeneratorFactory.getInstance(GENERATOR_ID);
+        String uniqueTag = generator.getUniqueId(null);
+        if (uniqueTag.isEmpty()) {
+            Log.e(TAG, "Unable to get unique tag for sync. "
+                    + "This may lead to unexpected tab sync behavior.");
+            return;
+        }
+        mProfileSyncService.setSessionsId(SESSION_TAG_PREFIX + uniqueTag);
     }
 }

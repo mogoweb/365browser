@@ -4,65 +4,48 @@
 
 package org.chromium.chrome.browser.preferences.datareduction;
 
-import static org.chromium.third_party.android.datausagechart.ChartDataUsageView.DAYS_IN_CHART;
-
-import android.content.Context;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceManager;
-import android.text.format.DateUtils;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 
 import org.chromium.base.CommandLine;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.firstrun.FirstRunStatus;
-import org.chromium.chrome.browser.infobar.DataReductionProxyInfoBar;
+import org.chromium.chrome.browser.help.HelpAndFeedback;
 import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
 import org.chromium.chrome.browser.preferences.ChromeSwitchPreference;
 import org.chromium.chrome.browser.preferences.ManagedPreferenceDelegate;
-import org.chromium.content_public.browser.WebContents;
-import org.chromium.third_party.android.datausagechart.NetworkStats;
-import org.chromium.third_party.android.datausagechart.NetworkStatsHistory;
+import org.chromium.chrome.browser.preferences.PreferenceUtils;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.snackbar.DataReductionPromoSnackbarController;
+import org.chromium.chrome.browser.util.IntentUtils;
 
 /**
  * Settings fragment that allows the user to configure Data Saver.
  */
 public class DataReductionPreferences extends PreferenceFragment {
+    public static final String FROM_MAIN_MENU = "FromMainMenu";
 
     public static final String PREF_DATA_REDUCTION_SWITCH = "data_reduction_switch";
-    private static final String PREF_DATA_REDUCTION_STATS = "data_reduction_stats";
-
-    private static final String SHARED_PREF_DISPLAYED_INFOBAR = "displayed_data_reduction_infobar";
 
     // This is the same as Chromium data_reduction_proxy::switches::kEnableDataReductionProxy.
     private static final String ENABLE_DATA_REDUCTION_PROXY = "enable-spdy-proxy-auth";
 
     private boolean mIsEnabled;
     private boolean mWasEnabledAtCreation;
-
-    public static void launchDataReductionSSLInfoBar(Context context, WebContents webContents) {
-        // The infobar is displayed if the Chrome instance is part of the SSL experiment field
-        // trial, the FRE has completed, the proxy is enabled, and the infobar has not been
-        // displayed before.
-        if (!DataReductionProxySettings.getInstance().isIncludedInAltFieldTrial()) return;
-        if (!DataReductionProxySettings.getInstance().isDataReductionProxyEnabled()) return;
-        if (DataReductionProxySettings.getInstance().isDataReductionProxyManaged()) return;
-        if (!FirstRunStatus.getFirstRunFlowComplete(context)) return;
-        if (getDisplayedDataReductionInfoBar(context)) return;
-        DataReductionProxyInfoBar.launch(webContents,
-                context.getString(R.string.data_reduction_infobar_text),
-                context.getString(R.string.learn_more),
-                context.getString(R.string.data_reduction_experiment_link_url));
-        setDisplayedDataReductionInfoBar(context, true);
-    }
+    /** Whether the current Activity is started from the snackbar promo. */
+    private boolean mFromPromo;
+    private boolean mFromMainMenu;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        addPreferencesFromResource(R.xml.data_reduction_preferences);
+        PreferenceUtils.addPreferencesFromResource(this, R.xml.data_reduction_preferences);
         getActivity().setTitle(R.string.data_reduction_title);
         boolean isEnabled =
                 DataReductionProxySettings.getInstance().isDataReductionProxyEnabled();
@@ -71,14 +54,38 @@ public class DataReductionPreferences extends PreferenceFragment {
         updatePreferences(isEnabled);
 
         setHasOptionsMenu(true);
+
+        if (getActivity() != null) {
+            mFromPromo = IntentUtils.safeGetBooleanExtra(getActivity().getIntent(),
+                    DataReductionPromoSnackbarController.FROM_PROMO, false);
+            mFromMainMenu = IntentUtils.safeGetBooleanExtra(
+                    getActivity().getIntent(), FROM_MAIN_MENU, false);
+        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
 
+        if (mWasEnabledAtCreation && !mIsEnabled) {
+            // If the user manually disables Data Saver, don't show the infobar promo.
+            DataReductionPromoUtils.saveInfoBarPromoDisplayed();
+        }
+
         int statusChange;
-        if (mWasEnabledAtCreation) {
+        if (mFromPromo) {
+            statusChange = mIsEnabled
+                    ? DataReductionProxyUma.ACTION_SNACKBAR_LINK_CLICKED
+                    : DataReductionProxyUma.ACTION_SNACKBAR_LINK_CLICKED_DISABLED;
+        } else if (mFromMainMenu) {
+            if (mWasEnabledAtCreation) {
+                statusChange = mIsEnabled ? DataReductionProxyUma.ACTION_MAIN_MENU_ON_TO_ON
+                                          : DataReductionProxyUma.ACTION_MAIN_MENU_ON_TO_OFF;
+            } else {
+                statusChange = mIsEnabled ? DataReductionProxyUma.ACTION_MAIN_MENU_OFF_TO_ON
+                                          : DataReductionProxyUma.ACTION_MAIN_MENU_OFF_TO_OFF;
+            }
+        } else if (mWasEnabledAtCreation) {
             statusChange = mIsEnabled
                     ? DataReductionProxyUma.ACTION_ON_TO_ON
                     : DataReductionProxyUma.ACTION_ON_TO_OFF;
@@ -88,6 +95,25 @@ public class DataReductionPreferences extends PreferenceFragment {
                     : DataReductionProxyUma.ACTION_OFF_TO_OFF;
         }
         DataReductionProxyUma.dataReductionProxyUIAction(statusChange);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        menu.clear();
+        MenuItem help = menu.add(
+                Menu.NONE, R.id.menu_id_targeted_help, Menu.NONE, R.string.menu_help);
+        help.setIcon(R.drawable.ic_help_and_feedback);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_id_targeted_help) {
+            HelpAndFeedback.getInstance(getActivity())
+                    .show(getActivity(), getString(R.string.help_context_data_reduction),
+                            Profile.getLastUsedProfile(), null);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -100,33 +126,10 @@ public class DataReductionPreferences extends PreferenceFragment {
         createDataReductionSwitch(isEnabled);
         if (isEnabled) {
             addPreferencesFromResource(R.xml.data_reduction_preferences);
-            updateReductionStatistics();
         } else {
             addPreferencesFromResource(R.xml.data_reduction_preferences_off);
-            if (!DataReductionProxySettings.getInstance().isIncludedInAltFieldTrial()) {
-                getPreferenceScreen().removePreference(
-                        findPreference("data_reduction_experiment_text"));
-                getPreferenceScreen().removePreference(
-                        findPreference("data_reduction_experiment_link"));
-            }
         }
         mIsEnabled = isEnabled;
-    }
-
-    /**
-     * Updates the preference screen to convey current statistics on data reduction.
-     */
-    public void updateReductionStatistics() {
-        DataReductionProxySettings config = DataReductionProxySettings.getInstance();
-
-        DataReductionStatsPreference statsPref = (DataReductionStatsPreference)
-                getPreferenceScreen().findPreference(PREF_DATA_REDUCTION_STATS);
-        long original[] = config.getOriginalNetworkStatsHistory();
-        long received[] = config.getReceivedNetworkStatsHistory();
-        statsPref.setReductionStats(
-                config.getDataReductionLastUpdateTime(),
-                getNetworkStatsHistory(original, DAYS_IN_CHART),
-                getNetworkStatsHistory(received, DAYS_IN_CHART));
     }
 
     /**
@@ -141,25 +144,6 @@ public class DataReductionPreferences extends PreferenceFragment {
         } else {
             return (String) resources.getText(R.string.text_off);
         }
-    }
-
-    private static NetworkStatsHistory getNetworkStatsHistory(long[] history, int days) {
-        if (days > history.length) days = history.length;
-        NetworkStatsHistory networkStatsHistory =
-                new NetworkStatsHistory(
-                        DateUtils.DAY_IN_MILLIS, days, NetworkStatsHistory.FIELD_RX_BYTES);
-
-        DataReductionProxySettings config = DataReductionProxySettings.getInstance();
-        long time = config.getDataReductionLastUpdateTime() - days * DateUtils.DAY_IN_MILLIS;
-        for (int i = history.length - days, bucket = 0; i < history.length; i++, bucket++) {
-            NetworkStats.Entry entry = new NetworkStats.Entry();
-            entry.rxBytes = history[i];
-            long startTime = time + (DateUtils.DAY_IN_MILLIS * bucket);
-            // Spread each day's record over the first hour of the day.
-            networkStatsHistory.recordData(
-                    startTime, startTime + DateUtils.HOUR_IN_MILLIS, entry);
-        }
-        return networkStatsHistory;
     }
 
     private void createDataReductionSwitch(boolean isEnabled) {
@@ -193,16 +177,5 @@ public class DataReductionPreferences extends PreferenceFragment {
         // (e.g. the switch will say "On" when data reduction is really turned off), so
         // .setChecked() should be called after .addPreference()
         dataReductionSwitch.setChecked(isEnabled);
-    }
-
-    private static boolean getDisplayedDataReductionInfoBar(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
-                SHARED_PREF_DISPLAYED_INFOBAR, false);
-    }
-
-    private static void setDisplayedDataReductionInfoBar(Context context, boolean displayed) {
-        PreferenceManager.getDefaultSharedPreferences(context).edit()
-                .putBoolean(SHARED_PREF_DISPLAYED_INFOBAR, displayed)
-                .apply();
     }
 }

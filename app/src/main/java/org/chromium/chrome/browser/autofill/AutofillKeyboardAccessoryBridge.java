@@ -12,10 +12,10 @@ import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ResourceId;
+import org.chromium.components.autofill.AutofillDelegate;
+import org.chromium.components.autofill.AutofillKeyboardAccessory;
+import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.ui.DropdownItem;
-import org.chromium.ui.autofill.AutofillDelegate;
-import org.chromium.ui.autofill.AutofillKeyboardAccessory;
-import org.chromium.ui.autofill.AutofillSuggestion;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -57,6 +57,9 @@ public class AutofillKeyboardAccessoryBridge
     }
 
     @Override
+    public void accessibilityFocusCleared() {}
+
+    @Override
     public void onClick(DialogInterface dialog, int which) {
         assert which == DialogInterface.BUTTON_POSITIVE;
         if (mNativeAutofillKeyboardAccessory == 0) return;
@@ -68,9 +71,15 @@ public class AutofillKeyboardAccessoryBridge
      * This function should be called at most one time.
      * @param nativeAutofillKeyboardAccessory Handle to the native counterpart.
      * @param windowAndroid The window on which to show the suggestions.
+     * @param animationDurationMillis If 0, do not animate. Otherwise, animation duration in each
+     *                                direction. We reverse animation to scroll the first suggestion
+     *                                (which is a hint to call attention to the accessory) out of
+     *                                the viewport at the end of the reversed animation.
+     * @param shouldLimitLabelWidth If true, limit suggestion label width to 1/2 device's width.
      */
     @CalledByNative
-    private void init(long nativeAutofillKeyboardAccessory, WindowAndroid windowAndroid) {
+    private void init(long nativeAutofillKeyboardAccessory, WindowAndroid windowAndroid,
+            int animationDurationMillis, boolean shouldLimitLabelWidth) {
         if (windowAndroid == null || windowAndroid.getActivity().get() == null) {
             nativeViewDismissed(nativeAutofillKeyboardAccessory);
             dismissed();
@@ -78,7 +87,8 @@ public class AutofillKeyboardAccessoryBridge
         }
 
         mNativeAutofillKeyboardAccessory = nativeAutofillKeyboardAccessory;
-        mAccessoryView = new AutofillKeyboardAccessory(windowAndroid, this);
+        mAccessoryView = new AutofillKeyboardAccessory(
+                windowAndroid, this, animationDurationMillis, shouldLimitLabelWidth);
         mContext = windowAndroid.getActivity().get();
     }
 
@@ -144,12 +154,15 @@ public class AutofillKeyboardAccessoryBridge
      *                 empty too.
      * @param iconId The resource ID for the icon associated with the suggestion, or 0 for no icon.
      * @param suggestionId Identifier for the suggestion type.
+     * @param isDeletable Whether the item can be deleted by the user.
      */
     @CalledByNative
     private static void addToAutofillSuggestionArray(AutofillSuggestion[] array, int index,
-            String label, String sublabel, int iconId, int suggestionId, boolean deletable) {
+            String label, String sublabel, int iconId, int suggestionId, boolean isDeletable) {
         int drawableId = iconId == 0 ? DropdownItem.NO_ICON : ResourceId.mapToDrawableId(iconId);
-        array[index] = new AutofillSuggestion(label, sublabel, drawableId, suggestionId, deletable);
+        array[index] = new AutofillSuggestion(label, sublabel, drawableId,
+                false /* isIconAtStart */, suggestionId, isDeletable, false /* isMultilineLabel */,
+                false /* isBoldLabel */);
     }
 
     private native void nativeViewDismissed(long nativeAutofillKeyboardAccessoryView);

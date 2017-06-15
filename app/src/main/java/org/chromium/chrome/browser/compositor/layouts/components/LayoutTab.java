@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.compositor.layouts.components;
 
+import static org.chromium.chrome.browser.compositor.layouts.ChromeAnimation.AnimatableAnimation.createAnimation;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Color;
@@ -12,7 +14,10 @@ import android.graphics.RectF;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.toolbar.ToolbarPhone;
+import org.chromium.chrome.browser.util.ColorUtils;
 import org.chromium.chrome.browser.util.MathUtils;
+import org.chromium.ui.interpolators.BakedBezierInterpolator;
 
 /**
  * {@link LayoutTab} is used to keep track of a thumbnail's bitmap and position and to
@@ -40,6 +45,7 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
         DECORATION_ALPHA,
         TOOLBAR_Y_OFFSET,
         SIDE_BORDER_SCALE,
+        TOOLBAR_COLOR,
     }
 
     public static final float ALPHA_THRESHOLD = 1.0f / 255.0f;
@@ -97,6 +103,7 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     private boolean mInsetBorderVertical;
     private float mToolbarYOffset;
     private float mSideBorderScale;
+    private boolean mForceDefaultThemeColor;
 
     private final RectF mBounds = new RectF(); // Pre-allocated to avoid in-frame allocations.
     private final RectF mClosePlacement = new RectF();
@@ -108,12 +115,17 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
      * Whether this tab need to have its title texture generated. As this is not a free operation
      * knowing that we won't show it might save a few cycles and memory.
      */
-    private boolean mIsTitleNeeded = false;
+    private boolean mIsTitleNeeded;
 
     /**
      * Whether initFromHost() has been called since the last call to init().
      */
-    private boolean mInitFromHostCalled = false;
+    private boolean mInitFromHostCalled;
+
+    /** The animation set specific to this LayoutTab. */
+    private ChromeAnimation<ChromeAnimation.Animatable<?>> mCurrentAnimations;
+    private int mInitialThemeColor;
+    private int mFinalThemeColor;
 
     // All the members bellow are initialized from the delayed initialization.
     //
@@ -122,9 +134,11 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     /** The color of the background of the tab. Used as the best approximation to fill in. */
     private int mBackgroundColor = Color.WHITE;
 
+    private int mToolbarBackgroundColor = 0xfff2f2f2;
+
     private int mTextBoxBackgroundColor = Color.WHITE;
 
-    private int mFallbackThumbnailId = Tab.INVALID_TAB_ID;
+    private float mTextBoxAlpha = 1.0f;
 
     // End section --------------
 
@@ -133,15 +147,15 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
      *
      * @param tabId                   The id of the source {@link Tab}.
      * @param isIncognito             Whether the tab in the in the incognito stack.
-     * @param maxContentTextureWidth  The maximum width for drawing the content.
-     * @param maxContentTextureHeight The maximum height for drawing the content.
+     * @param maxContentTextureWidth  The maximum width for drawing the content in px.
+     * @param maxContentTextureHeight The maximum height for drawing the content in px.
      * @param showCloseButton         Whether a close button should be displayed in the corner.
      * @param isTitleNeeded           Whether that tab need a title texture. This is an
      *                                optimization to save cycles and memory. This is
      *                                ignored if the title texture is already set.
      */
-    public LayoutTab(int tabId, boolean isIncognito, float maxContentTextureWidth,
-            float maxContentTextureHeight, boolean showCloseButton, boolean isTitleNeeded) {
+    public LayoutTab(int tabId, boolean isIncognito, int maxContentTextureWidth,
+            int maxContentTextureHeight, boolean showCloseButton, boolean isTitleNeeded) {
         mId = tabId;
         mIsIncognito = isIncognito;
         init(maxContentTextureWidth, maxContentTextureHeight, showCloseButton, isTitleNeeded);
@@ -150,14 +164,14 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     /**
      * Initializes a {@link LayoutTab} to its default value so it can be reused.
      *
-     * @param maxContentTextureWidth  The maximum width of the page content in dp.
-     * @param maxContentTextureHeight The maximum height of the page content in dp.
+     * @param maxContentTextureWidth  The maximum width of the page content in px.
+     * @param maxContentTextureHeight The maximum height of the page content in px.
      * @param showCloseButton         Whether to show the close button on the tab border.
      * @param isTitleNeeded           Whether that tab need a title texture. This is an
      *                                optimization to save cycles and memory. This is
      *                                ignored if the title texture is already set.
      */
-    public void init(float maxContentTextureWidth, float maxContentTextureHeight,
+    public void init(int maxContentTextureWidth, int maxContentTextureHeight,
             boolean showCloseButton, boolean isTitleNeeded) {
         mAlpha = 1.0f;
         mSaturation = 1.0f;
@@ -187,10 +201,10 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
         mInsetBorderVertical = false;
         mToolbarYOffset = 0.f;
         mSideBorderScale = 1.f;
-        mOriginalContentWidth = maxContentTextureWidth;
-        mOriginalContentHeight = maxContentTextureHeight;
-        mMaxContentWidth = maxContentTextureWidth;
-        mMaxContentHeight = maxContentTextureHeight;
+        mOriginalContentWidth = maxContentTextureWidth * sPxToDp;
+        mOriginalContentHeight = maxContentTextureHeight * sPxToDp;
+        mMaxContentWidth = maxContentTextureWidth * sPxToDp;
+        mMaxContentHeight = maxContentTextureHeight * sPxToDp;
 
         mInitFromHostCalled = false;
     }
@@ -206,15 +220,54 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
      * @param shouldStall           Whether the tab should display a desaturated thumbnail and
      *                              wait for the content layer to load.
      * @param canUseLiveTexture     Whether the tab can use a live texture when being displayed.
+     * @return True if the init requires the compositor to update.
      */
-    public void initFromHost(int backgroundColor, int fallbackThumbnailId, boolean shouldStall,
-            boolean canUseLiveTexture, int textBoxBackgroundColor) {
+    public boolean initFromHost(int backgroundColor, boolean shouldStall, boolean canUseLiveTexture,
+            int toolbarBackgroundColor, int textBoxBackgroundColor, float textBoxAlpha) {
         mBackgroundColor = backgroundColor;
+
+        boolean needsUpdate = false;
+
+        // If the toolbar color changed, animate between the old and new colors.
+        if (mToolbarBackgroundColor != toolbarBackgroundColor && isVisible()
+                && mInitFromHostCalled) {
+            ChromeAnimation.Animation<ChromeAnimation.Animatable<?>>  themeColorAnimation =
+                    createAnimation(this, Property.TOOLBAR_COLOR, 0.0f, 1.0f,
+                    ToolbarPhone.THEME_COLOR_TRANSITION_DURATION, 0, false,
+                    BakedBezierInterpolator.TRANSFORM_CURVE);
+
+            mInitialThemeColor = mToolbarBackgroundColor;
+            mFinalThemeColor = toolbarBackgroundColor;
+
+            if (mCurrentAnimations != null) {
+                mCurrentAnimations.updateAndFinish();
+            }
+
+            mCurrentAnimations = new ChromeAnimation<ChromeAnimation.Animatable<?>>();
+            mCurrentAnimations.add(themeColorAnimation);
+            mCurrentAnimations.start();
+            needsUpdate = true;
+        } else {
+            // If the layout tab isn't visible, just set the toolbar color without animating.
+            mToolbarBackgroundColor = toolbarBackgroundColor;
+        }
+
         mTextBoxBackgroundColor = textBoxBackgroundColor;
-        mFallbackThumbnailId = fallbackThumbnailId;
+        mTextBoxAlpha = textBoxAlpha;
         mShouldStall = shouldStall;
         mCanUseLiveTexture = canUseLiveTexture;
         mInitFromHostCalled = true;
+
+        return needsUpdate;
+    }
+
+    /**
+     * Update any animation controlled by this object.
+     * @param time The current app time in ms.
+     * @return Whether the animations controlled by this LayoutTab are finished.
+     */
+    public boolean onUpdateAnimation(long time) {
+        return mCurrentAnimations == null ? true : mCurrentAnimations.update(time);
     }
 
     /**
@@ -222,6 +275,21 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
      */
     public boolean isInitFromHostNeeded() {
         return !mInitFromHostCalled;
+    }
+
+    /**
+     * @return Whether or not the object rendering this LayoutTab should force default theme colors.
+     */
+    public boolean getForceDefaultThemeColor() {
+        return mForceDefaultThemeColor;
+    }
+
+    /**
+     * @param force Whether or not the object rendering this LayoutTab should force default theme
+     *              colors.
+     */
+    public void setForceDefaultThemeColor(boolean force) {
+        mForceDefaultThemeColor = force;
     }
 
     /**
@@ -542,6 +610,13 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     }
 
     /**
+     * @return The current alpha value at which the tab border inner shadow is drawn.
+     */
+    public float getBorderInnerShadowAlpha() {
+        return mBorderAlpha * (1.0f - mToolbarAlpha);
+    }
+
+    /**
      * @param alpha The maximum alpha value of the close button on the border.
      */
     public void setBorderCloseButtonAlpha(float alpha) {
@@ -745,12 +820,12 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     }
 
     /**
-     * @param originalContentWidth  The maximum content width for the given orientation.
-     * @param originalContentHeight The maximum content height for the given orientation.
+     * @param originalContentWidth  The maximum content width for the given orientation in px.
+     * @param originalContentHeight The maximum content height for the given orientation in px.
      */
-    public void setContentSize(float originalContentWidth, float originalContentHeight) {
-        mOriginalContentWidth = originalContentWidth;
-        mOriginalContentHeight = originalContentHeight;
+    public void setContentSize(int originalContentWidth, int originalContentHeight) {
+        mOriginalContentWidth = originalContentWidth * sPxToDp;
+        mOriginalContentHeight = originalContentHeight * sPxToDp;
     }
 
     /**
@@ -764,6 +839,7 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
      * @param visible True if the {@link LayoutTab} is visible and need to be drawn.
      */
     public void setVisible(boolean visible) {
+        if (!visible && mCurrentAnimations != null) mCurrentAnimations.updateAndFinish();
         mVisible = visible;
     }
 
@@ -871,6 +947,13 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     }
 
     /**
+     * @return The color of the background of the toolbar.
+     */
+    public int getToolbarBackgroundColor() {
+        return mToolbarBackgroundColor;
+    }
+
+    /**
      * @return The color of the textbox in the toolbar. Used as the color for the anonymize rect.
      */
     public int getTextBoxBackgroundColor() {
@@ -878,11 +961,10 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
     }
 
     /**
-     * @return The id of a snapshot that would be acceptable to use if the snapshot for this tab
-     *         is unavailable.
+     * @return The alpha value of the textbox in the toolbar.
      */
-    public int getFallbackThumbnailId() {
-        return mFallbackThumbnailId;
+    public float getTextBoxAlpha() {
+        return mTextBoxAlpha;
     }
 
     /**
@@ -943,6 +1025,21 @@ public class LayoutTab implements ChromeAnimation.Animatable<LayoutTab.Property>
             case SIDE_BORDER_SCALE:
                 setSideBorderScale(val);
                 break;
+            case TOOLBAR_COLOR:
+                if (!isVisible()) {
+                    mCurrentAnimations.updateAndFinish();
+                } else {
+                    mToolbarBackgroundColor = ColorUtils.getColorWithOverlay(mInitialThemeColor,
+                            mFinalThemeColor, val);
+                }
+                break;
+        }
+    }
+
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {
+        if (mCurrentAnimations != null && mCurrentAnimations.finished()) {
+            mCurrentAnimations = null;
         }
     }
 }

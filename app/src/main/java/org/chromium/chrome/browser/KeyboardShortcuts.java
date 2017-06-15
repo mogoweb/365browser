@@ -4,18 +4,22 @@
 
 package org.chromium.chrome.browser;
 
+import android.annotation.TargetApi;
+import android.content.Context;
+import android.os.Build;
 import android.view.KeyEvent;
+import android.view.KeyboardShortcutGroup;
+import android.view.KeyboardShortcutInfo;
 
 import org.chromium.base.annotations.SuppressFBWarnings;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabCreatorManager.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tabmodel.TabModel.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.content.browser.ContentViewCore;
-import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.ui.base.PageTransition;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Implements app-level keyboard shortcuts for ChromeTabbedActivity and DocumentActivity.
@@ -74,6 +78,11 @@ public class KeyboardShortcuts {
                     activity.onMenuOrKeyboardAction(R.id.show_menu, false);
                 }
                 return true;
+            case KeyEvent.KEYCODE_ESCAPE:
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    if (activity.exitFullscreenIfShowing()) return true;
+                }
+                break;
             case KeyEvent.KEYCODE_TV:
             case KeyEvent.KEYCODE_GUIDE:
             case KeyEvent.KEYCODE_DVR:
@@ -90,6 +99,85 @@ public class KeyboardShortcuts {
         }
 
         return null;
+    }
+
+    /**
+     * This method should be called when overriding from
+     * {@link android.app.Activity#onProvideKeyboardShortcuts(List, android.view.Menu, int)}
+     * in an activity. It will return a list of the possible shortcuts. If
+     * someone adds a shortcut they also need to add an explanation in the
+     * appropriate group in this method so the user can see it when this method
+     * is called.
+     *
+     * @param context We need an activity so we can call the strings from our
+     *            resource.
+     * @return a list of shortcuts organized into groups.
+     */
+    @TargetApi(Build.VERSION_CODES.N)
+    public static List<KeyboardShortcutGroup> createShortcutGroup(Context context) {
+
+        final int ctrlShift = KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON;
+
+        List<KeyboardShortcutGroup> shortcutGroups = new ArrayList<>();
+
+        KeyboardShortcutGroup tabShortcutGroup = new KeyboardShortcutGroup(
+                context.getString(R.string.keyboard_shortcut_tab_group_header));
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_open_new_tab,
+                KeyEvent.KEYCODE_N, KeyEvent.META_CTRL_ON);
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_reopen_new_tab,
+                KeyEvent.KEYCODE_T, ctrlShift);
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_new_incognito_tab,
+                KeyEvent.KEYCODE_N, ctrlShift);
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_next_tab,
+                KeyEvent.KEYCODE_TAB, KeyEvent.META_CTRL_ON);
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_prev_tab,
+                KeyEvent.KEYCODE_TAB, ctrlShift);
+        addShortcut(context, tabShortcutGroup, R.string.keyboard_shortcut_close_tab,
+                KeyEvent.KEYCODE_W, KeyEvent.META_CTRL_ON);
+        shortcutGroups.add(tabShortcutGroup);
+
+        KeyboardShortcutGroup chromeFeatureShortcutGroup = new KeyboardShortcutGroup(
+                context.getString(R.string.keyboard_shortcut_chrome_feature_group_header));
+        addShortcut(context, chromeFeatureShortcutGroup, R.string.keyboard_shortcut_open_menu,
+                KeyEvent.KEYCODE_E, KeyEvent.META_ALT_ON);
+        addShortcut(context, chromeFeatureShortcutGroup,
+                R.string.keyboard_shortcut_bookmark_manager, KeyEvent.KEYCODE_B, ctrlShift);
+        addShortcut(context, chromeFeatureShortcutGroup, R.string.keyboard_shortcut_history_manager,
+                KeyEvent.KEYCODE_H, KeyEvent.META_CTRL_ON);
+        addShortcut(context, chromeFeatureShortcutGroup, R.string.keyboard_shortcut_find_bar,
+                KeyEvent.KEYCODE_F, KeyEvent.META_CTRL_ON);
+        addShortcut(context, chromeFeatureShortcutGroup, R.string.keyboard_shortcut_address_bar,
+                KeyEvent.KEYCODE_L, KeyEvent.META_CTRL_ON);
+        shortcutGroups.add(chromeFeatureShortcutGroup);
+
+        KeyboardShortcutGroup webpageShortcutGroup = new KeyboardShortcutGroup(
+                context.getString(R.string.keyboard_shortcut_webpage_group_header));
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_print_page,
+                KeyEvent.KEYCODE_P, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_reload_page,
+                KeyEvent.KEYCODE_R, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_reload_no_cache,
+                KeyEvent.KEYCODE_R, ctrlShift);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_bookmark_page,
+                KeyEvent.KEYCODE_D, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_zoom_in,
+                KeyEvent.KEYCODE_EQUALS, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_zoom_out,
+                KeyEvent.KEYCODE_MINUS, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_reset_zoom,
+                KeyEvent.KEYCODE_0, KeyEvent.META_CTRL_ON);
+        addShortcut(context, webpageShortcutGroup, R.string.keyboard_shortcut_help_center,
+                KeyEvent.KEYCODE_SLASH, ctrlShift);
+        shortcutGroups.add(webpageShortcutGroup);
+
+        return shortcutGroups;
+    }
+
+    @TargetApi(Build.VERSION_CODES.N)
+    private static void addShortcut(Context context,
+            KeyboardShortcutGroup shortcutGroup, int resId, int keyCode, int keyModifier) {
+        shortcutGroup.addItem(new KeyboardShortcutInfo(context.getString(resId), keyCode,
+                keyModifier));
     }
 
     /**
@@ -115,6 +203,7 @@ public class KeyboardShortcuts {
         } else if (!event.isCtrlPressed() && !event.isAltPressed()
                 && keyCode != KeyEvent.KEYCODE_F3
                 && keyCode != KeyEvent.KEYCODE_F5
+                && keyCode != KeyEvent.KEYCODE_F10
                 && keyCode != KeyEvent.KEYCODE_FORWARD) {
             return false;
         }
@@ -126,6 +215,9 @@ public class KeyboardShortcuts {
         int keyCodeAndMeta = keyCode | metaState;
 
         switch (keyCodeAndMeta) {
+            case CTRL | SHIFT | KeyEvent.KEYCODE_T:
+                activity.onMenuOrKeyboardAction(R.id.open_recently_closed_tab, false);
+                return true;
             case CTRL | KeyEvent.KEYCODE_T:
                 activity.onMenuOrKeyboardAction(curModel.isIncognito()
                         ? R.id.new_incognito_tab_menu_id
@@ -137,22 +229,12 @@ public class KeyboardShortcuts {
             case CTRL | SHIFT | KeyEvent.KEYCODE_N:
                 activity.onMenuOrKeyboardAction(R.id.new_incognito_tab_menu_id, false);
                 return true;
-            case CTRL | SHIFT | KeyEvent.KEYCODE_B:
-            case CTRL | KeyEvent.KEYCODE_H:
-                String url = keyCode == KeyEvent.KEYCODE_B
-                        ? UrlConstants.BOOKMARKS_URL
-                        : UrlConstants.HISTORY_URL;
-                Tab currentTab = TabModelUtils.getCurrentTab(curModel);
-                if (currentTab != null && isCurrentTabVisible) {
-                    currentTab.loadUrl(new LoadUrlParams(url, PageTransition.AUTO_BOOKMARK));
-                } else {
-                    TabCreator tabCreator = activity.getCurrentTabCreator();
-                    if (tabCreator != null) {
-                        tabCreator.launchUrl(url, TabLaunchType.FROM_KEYBOARD);
-                    }
-                }
-                return true;
+            // Alt+E represents a special character ´ (latin code: &#180) in Android.
+            // If an EditText or ContentView has focus, Alt+E will be swallowed by
+            // the default dispatchKeyEvent and cannot open the menu.
+            case ALT | KeyEvent.KEYCODE_E:
             case ALT | KeyEvent.KEYCODE_F:
+            case KeyEvent.KEYCODE_F10:
             case KeyEvent.KEYCODE_BUTTON_Y:
                 activity.onMenuOrKeyboardAction(R.id.show_menu, false);
                 return true;
@@ -204,9 +286,15 @@ public class KeyboardShortcuts {
                 case KeyEvent.KEYCODE_BUTTON_X:
                     activity.onMenuOrKeyboardAction(R.id.focus_url_bar, false);
                     return true;
+                case CTRL | SHIFT | KeyEvent.KEYCODE_B:
+                    activity.onMenuOrKeyboardAction(R.id.all_bookmarks_menu_id, false);
+                    return true;
                 case KeyEvent.KEYCODE_BOOKMARK:
                 case CTRL | KeyEvent.KEYCODE_D:
                     activity.onMenuOrKeyboardAction(R.id.bookmark_this_page_id, false);
+                    return true;
+                case CTRL | KeyEvent.KEYCODE_H:
+                    activity.onMenuOrKeyboardAction(R.id.open_history_menu_id, false);
                     return true;
                 case CTRL | KeyEvent.KEYCODE_P:
                     activity.onMenuOrKeyboardAction(R.id.print_id, false);
@@ -228,10 +316,26 @@ public class KeyboardShortcuts {
                     cvc = activity.getCurrentContentViewCore();
                     if (cvc != null) cvc.zoomReset();
                     return true;
+                case SHIFT | CTRL | KeyEvent.KEYCODE_R:
                 case CTRL | KeyEvent.KEYCODE_R:
+                case SHIFT | KeyEvent.KEYCODE_F5:
                 case KeyEvent.KEYCODE_F5:
                     Tab tab = activity.getActivityTab();
-                    if (tab != null) tab.reload();
+                    if (tab != null) {
+                        if ((keyCodeAndMeta & SHIFT) == SHIFT) {
+                            tab.reloadIgnoringCache();
+                        } else {
+                            tab.reload();
+                        }
+
+                        if (activity.getToolbarManager() != null
+                                && tab.getWebContents() != null
+                                && tab.getWebContents().focusLocationBarByDefault()) {
+                            activity.getToolbarManager().revertLocationBarChanges();
+                        } else {
+                            tab.requestFocus();
+                        }
+                    }
                     return true;
                 case ALT | KeyEvent.KEYCODE_DPAD_LEFT:
                     tab = activity.getActivityTab();

@@ -17,7 +17,7 @@ import android.util.Log;
 
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.UrlConstants;
-import org.chromium.chrome.browser.UrlUtilities;
+import org.chromium.chrome.browser.util.UrlUtilities;
 
 import java.net.URI;
 import java.util.Locale;
@@ -172,9 +172,9 @@ public class RoundedIconGenerator {
         if (!TextUtils.isEmpty(domain)) return domain;
 
         // Special-case chrome:// and chrome-native:// URLs.
-        if (url.startsWith(UrlConstants.CHROME_SCHEME)
-                || url.startsWith(UrlConstants.CHROME_NATIVE_SCHEME)) {
-            return "chrome";
+        if (url.startsWith(UrlConstants.CHROME_URL_PREFIX)
+                || url.startsWith(UrlConstants.CHROME_NATIVE_URL_PREFIX)) {
+            return UrlConstants.CHROME_SCHEME;
         }
 
         // Use the host component of |url| when it can be parsed as a URI.

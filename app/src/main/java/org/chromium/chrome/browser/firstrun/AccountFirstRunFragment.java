@@ -6,30 +6,32 @@ package org.chromium.chrome.browser.firstrun;
 
 import android.app.Fragment;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.signin.AccountSigninView;
+import org.chromium.chrome.browser.signin.SigninAccessPoint;
+import org.chromium.chrome.browser.signin.SigninManager;
 
 /**
  * A {@link Fragment} meant to handle sync setup for the first run experience.
  */
-public class AccountFirstRunFragment extends FirstRunPage {
+public class AccountFirstRunFragment extends FirstRunPage implements AccountSigninView.Delegate {
     // Per-page parameters:
     public static final String FORCE_SIGNIN_ACCOUNT_TO = "ForceSigninAccountTo";
     public static final String PRESELECT_BUT_ALLOW_TO_CHANGE = "PreselectButAllowToChange";
-    public static final String FORCE_SIGNIN_AND_DISABLE_NO_THANKS = "ForceSigninAndDisableNoThanks";
     public static final String IS_CHILD_ACCOUNT = "IsChildAccount";
 
-    private AccountFirstRunView mView;
+    private AccountSigninView mView;
 
     @Override
     public View onCreateView(
             LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        mView = (AccountFirstRunView) inflater.inflate(
-                R.layout.fre_choose_account, container, false);
+        mView = (AccountSigninView) inflater.inflate(
+                R.layout.account_signin_view, container, false);
         return mView;
     }
 
@@ -37,64 +39,42 @@ public class AccountFirstRunFragment extends FirstRunPage {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        mView.setListener(new AccountFirstRunView.Listener() {
-            @Override
-            public void onAccountSelectionConfirmed(String accountName) {
-                mView.switchToSignedMode();
-            }
+        mView.init(getPageDelegate().getProfileDataCache(),
+                getProperties().getBoolean(IS_CHILD_ACCOUNT),
+                getProperties().getString(FORCE_SIGNIN_ACCOUNT_TO), this,
+                new AccountSigninView.Listener() {
+                    @Override
+                    public void onAccountSelectionCanceled() {
+                        getPageDelegate().refuseSignIn();
+                        advanceToNextPage();
+                    }
 
-            @Override
-            public void onAccountSelectionCanceled() {
-                getPageDelegate().refuseSignIn();
-                advanceToNextPage();
-            }
+                    @Override
+                    public void onNewAccount() {
+                        getPageDelegate().openAccountAdder(AccountFirstRunFragment.this);
+                    }
 
-            @Override
-            public void onNewAccount() {
-                getPageDelegate().openAccountAdder(AccountFirstRunFragment.this);
-            }
+                    @Override
+                    public void onAccountSelected(
+                            String accountName, boolean isDefaultAccount, boolean settingsClicked) {
+                        getPageDelegate().acceptSignIn(accountName, isDefaultAccount);
+                        if (settingsClicked) {
+                            getPageDelegate().askToOpenSignInSettings();
+                        }
+                        advanceToNextPage();
+                    }
 
-            @Override
-            public void onSigningInCompleted(String accountName) {
-                getPageDelegate().acceptSignIn(accountName);
-                advanceToNextPage();
-            }
+                    @Override
+                    public void onFailedToSetForcedAccount(String forcedAccountName) {
+                        // Somehow the forced account disappeared while we were in the FRE.
+                        // The user would have to go through the FRE again.
+                        getPageDelegate().abortFirstRunExperience();
+                    }
+                });
 
-            @Override
-            public void onSettingsButtonClicked(String accountName) {
-                getPageDelegate().acceptSignIn(accountName);
-                getPageDelegate().askToOpenSyncSettings();
-                advanceToNextPage();
-            }
-
-            @Override
-            public void onFailedToSetForcedAccount(String forcedAccountName) {
-                // Somehow the forced account disappeared while we were in the FRE.
-                // The user would have to go through the FRE again.
-                getPageDelegate().abortFirstRunExperience();
-            }
-        });
-
-        mView.init(getPageDelegate().getProfileDataCache());
-
-        if (getProperties().getBoolean(FORCE_SIGNIN_AND_DISABLE_NO_THANKS)) {
-            mView.setCanCancel(false);
-        }
-        mView.setIsChildAccount(getProperties().getBoolean(IS_CHILD_ACCOUNT));
-
-        String forcedAccountName =
-                getProperties().getString(FORCE_SIGNIN_ACCOUNT_TO);
-        if (!TextUtils.isEmpty(forcedAccountName)) {
-            mView.switchToForcedAccountMode(forcedAccountName);
-        }
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        mView.setButtonsEnabled(true);
-        mView.setProfileDataCache(getPageDelegate().getProfileDataCache());
-        getPageDelegate().onSigninDialogShown();
+        RecordUserAction.record("MobileFre.SignInShown");
+        RecordUserAction.record("Signin_Signin_FromStartPage");
+        SigninManager.logSigninStartAccessPoint(SigninAccessPoint.START_PAGE);
     }
 
     // FirstRunPage:

@@ -21,6 +21,7 @@ import static org.chromium.chrome.browser.compositor.layouts.phone.stack.StackTa
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation;
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation.Animatable;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
+import org.chromium.chrome.browser.util.FeatureUtilities;
 import org.chromium.chrome.browser.util.MathUtils;
 import org.chromium.ui.base.LocalizationUtils;
 
@@ -28,10 +29,10 @@ class StackAnimationLandscape extends StackAnimation {
     /**
      * Only Constructor.
      */
-    public StackAnimationLandscape(float width, float height, float heightMinusTopControls,
-            float borderFramePaddingTop, float borderFramePaddingTopOpaque,
-            float borderFramePaddingLeft) {
-        super(width, height, heightMinusTopControls, borderFramePaddingTop,
+    public StackAnimationLandscape(Stack stack, float width, float height,
+            float heightMinusBrowserControls, float borderFramePaddingTop,
+            float borderFramePaddingTopOpaque, float borderFramePaddingLeft) {
+        super(stack, width, height, heightMinusBrowserControls, borderFramePaddingTop,
                 borderFramePaddingTopOpaque, borderFramePaddingLeft);
     }
 
@@ -53,8 +54,8 @@ class StackAnimationLandscape extends StackAnimation {
             final float scrollOffset = StackTab.screenToScroll(i * spacing, warpSize);
 
             addAnimation(set, tab.getLayoutTab(), MAX_CONTENT_HEIGHT,
-                    tab.getLayoutTab().getUnclampedOriginalContentHeight(), mHeightMinusTopControls,
-                    ENTER_STACK_ANIMATION_DURATION, 0);
+                    tab.getLayoutTab().getUnclampedOriginalContentHeight(),
+                    mStack.getMaxTabHeight(), ENTER_STACK_ANIMATION_DURATION, 0);
             if (i < focusIndex) {
                 addAnimation(set, tab, SCROLL_OFFSET, initialScrollOffset, scrollOffset,
                         ENTER_STACK_ANIMATION_DURATION, 0);
@@ -128,14 +129,17 @@ class StackAnimationLandscape extends StackAnimation {
                         set, tab, SCALE, tab.getScale(), 1.0f, TAB_FOCUSED_ANIMATION_DURATION, 0);
                 addAnimation(set, tab, X_IN_STACK_INFLUENCE, tab.getXInStackInfluence(), 0.0f,
                         TAB_FOCUSED_ANIMATION_DURATION, 0);
+                int tabYInfluenceDuration = FeatureUtilities.isChromeHomeEnabled()
+                        ? TAB_FOCUSED_ANIMATION_DURATION
+                        : TAB_FOCUSED_Y_STACK_DURATION;
                 addAnimation(set, tab, Y_IN_STACK_INFLUENCE, tab.getYInStackInfluence(), 0.0f,
-                        TAB_FOCUSED_Y_STACK_DURATION, 0);
+                        tabYInfluenceDuration, 0);
 
                 addAnimation(set, tab.getLayoutTab(), MAX_CONTENT_HEIGHT,
                         tab.getLayoutTab().getMaxContentHeight(),
                         tab.getLayoutTab().getUnclampedOriginalContentHeight(),
                         TAB_FOCUSED_ANIMATION_DURATION, 0);
-                tab.setYOutOfStack(mHeight - mHeightMinusTopControls - mBorderTopHeight);
+                tab.setYOutOfStack(getStaticTabPosition());
 
                 if (layoutTab.shouldStall()) {
                     addAnimation(set, layoutTab, SATURATION, 1.0f, 0.0f,

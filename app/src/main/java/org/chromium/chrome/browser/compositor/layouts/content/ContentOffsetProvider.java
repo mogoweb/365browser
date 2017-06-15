@@ -10,7 +10,8 @@ package org.chromium.chrome.browser.compositor.layouts.content;
  */
 public interface ContentOffsetProvider {
     /**
-     * @return How far to translate any Android overlay views to recreate the correct content data.
+     * @return How far to translate any Android overlay views to recreate the correct content data
+     *         in px.
      */
-    public int getOverlayTranslateY();
+    public float getOverlayTranslateY();
 }

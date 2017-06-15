@@ -11,15 +11,13 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
-import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -30,64 +28,53 @@ import android.os.Parcelable;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
-import android.text.Editable;
+import android.support.annotation.IntDef;
 import android.text.InputType;
-import android.text.Selection;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
-import android.view.ActionMode;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.ViewStub;
-import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.CommandLine;
 import org.chromium.base.VisibleForTesting;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeActivity;
 import org.chromium.chrome.browser.ChromeSwitches;
-import org.chromium.chrome.browser.WebsiteSettingsPopup;
+import org.chromium.chrome.browser.NativePage;
+import org.chromium.chrome.browser.UrlConstants;
 import org.chromium.chrome.browser.WindowDelegate;
-import org.chromium.chrome.browser.appmenu.AppMenuButtonHelper;
-import org.chromium.chrome.browser.dom_distiller.DomDistillerServiceFactory;
-import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtils;
+import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.ntp.NativePageFactory;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPage.FakeboxDelegate;
 import org.chromium.chrome.browser.ntp.NewTabPageUma;
+import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
 import org.chromium.chrome.browser.omnibox.AutocompleteController.OnSuggestionsReceivedListener;
 import org.chromium.chrome.browser.omnibox.OmniboxResultsAdapter.OmniboxResultItem;
 import org.chromium.chrome.browser.omnibox.OmniboxResultsAdapter.OmniboxSuggestionDelegate;
-import org.chromium.chrome.browser.omnibox.OmniboxSuggestion.Type;
 import org.chromium.chrome.browser.omnibox.VoiceSuggestionProvider.VoiceResult;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationSnackbarController;
+import org.chromium.chrome.browser.page_info.PageInfoPopup;
 import org.chromium.chrome.browser.preferences.privacy.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlService;
-import org.chromium.chrome.browser.ssl.ConnectionSecurityLevel;
-import org.chromium.chrome.browser.tab.ChromeTab;
+import org.chromium.chrome.browser.snackbar.SnackbarManager.SnackbarManageable;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.toolbar.ActionModeController;
-import org.chromium.chrome.browser.toolbar.ActionModeController.ActionBarDelegate;
 import org.chromium.chrome.browser.toolbar.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarPhone;
@@ -95,19 +82,20 @@ import org.chromium.chrome.browser.util.ColorUtils;
 import org.chromium.chrome.browser.util.FeatureUtilities;
 import org.chromium.chrome.browser.util.KeyNavigationUtil;
 import org.chromium.chrome.browser.util.ViewUtils;
+import org.chromium.chrome.browser.widget.FadingBackgroundView;
 import org.chromium.chrome.browser.widget.TintedImageButton;
-import org.chromium.components.dom_distiller.core.DomDistillerService;
-import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
-import org.chromium.content.browser.ContentViewCore;
-import org.chromium.content.browser.accessibility.BrowserAccessibilityManager;
+import org.chromium.chrome.browser.widget.bottomsheet.BottomSheet;
+import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -116,15 +104,12 @@ import java.util.List;
  * This class represents the location bar where the user types in URLs and
  * search terms.
  */
-public class LocationBarLayout extends FrameLayout implements OnClickListener,
-        OnSuggestionsReceivedListener, LocationBar, FakeboxDelegate,
-        WindowAndroid.IntentCallback {
-
+public class LocationBarLayout extends FrameLayout
+        implements OnClickListener, OnSuggestionsReceivedListener, LocationBar, FakeboxDelegate,
+                   WindowAndroid.IntentCallback, FadingBackgroundView.FadingViewObserver {
     // Delay triggering the omnibox results upon key press to allow the location bar to repaint
     // with the new characters.
     private static final long OMNIBOX_SUGGESTION_START_DELAY_MS = 30;
-
-    private static final int OMNIBOX_CONTAINER_BACKGROUND_FADE_MS = 250;
 
     // Delay showing the geolocation snackbar when the omnibox is focused until the keyboard is
     // hopefully visible.
@@ -134,9 +119,8 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     // response (as opposed to treating it like a typed string in the Omnibox).
     private static final float VOICE_SEARCH_CONFIDENCE_NAVIGATE_THRESHOLD = 0.9f;
 
-    private static final int CONTENT_OVERLAY_COLOR = Color.argb(166, 0, 0, 0);
-    private static final int OMNIBOX_RESULTS_BG_COLOR = Color.rgb(245, 245, 246);
-    private static final int OMNIBOX_INCOGNITO_RESULTS_BG_COLOR = Color.rgb(50, 50, 50);
+    private static final int OMNIBOX_RESULTS_BG_COLOR = 0xFFF5F5F6;
+    private static final int OMNIBOX_INCOGNITO_RESULTS_BG_COLOR = 0xFF323232;
 
     /**
      * URI schemes that ContentView can handle.
@@ -147,24 +131,33 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      * The following additions have been made: "chrome", "ftp".
      */
     private static final HashSet<String> ACCEPTED_SCHEMES = CollectionUtil.newHashSet(
-            "about", "data", "file", "ftp", "http", "https", "inline", "javascript", "chrome");
-    private static final HashSet<String> UNSUPPORTED_SCHEMES_TO_SPLIT =
-            CollectionUtil.newHashSet("file", "javascript", "data");
+            ContentUrlConstants.ABOUT_SCHEME, UrlConstants.DATA_SCHEME, UrlConstants.FILE_SCHEME,
+            UrlConstants.FTP_SCHEME, UrlConstants.HTTP_SCHEME, UrlConstants.HTTPS_SCHEME,
+            UrlConstants.INLINE_SCHEME, UrlConstants.JAVASCRIPT_SCHEME, UrlConstants.CHROME_SCHEME);
+
+    /**
+     * The URL schemes that should be displayed complete with path.
+     */
+    protected static final HashSet<String> UNSUPPORTED_SCHEMES_TO_SPLIT =
+            CollectionUtil.newHashSet(UrlConstants.FILE_SCHEME,
+                    UrlConstants.JAVASCRIPT_SCHEME, UrlConstants.DATA_SCHEME);
 
     protected ImageView mNavigationButton;
-    protected ImageButton mSecurityButton;
+    protected TintedImageButton mSecurityButton;
+    protected TextView mVerboseStatusTextView;
     protected TintedImageButton mDeleteButton;
     protected TintedImageButton mMicButton;
     protected UrlBar mUrlBar;
-    protected UrlContainer mUrlContainer;
-    private ActionModeController mActionModeController = null;
+
+    /** A handle to the bottom sheet for chrome home. */
+    protected BottomSheet mBottomSheet;
 
     private AutocompleteController mAutocomplete;
 
-    private ToolbarDataProvider mToolbarDataProvider;
+    protected ToolbarDataProvider mToolbarDataProvider;
     private UrlFocusChangeListener mUrlFocusChangeListener;
 
-    private boolean mNativeInitialized;
+    protected boolean mNativeInitialized;
 
     private final List<Runnable> mDeferredNativeRunnables = new ArrayList<Runnable>();
 
@@ -172,7 +165,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     private NavigationButtonType mNavigationButtonType;
 
     // The type of the security icon currently active.
-    private int mSecurityIconType;
+    private int mSecurityIconResource;
 
     private final OmniboxResultsAdapter mSuggestionListAdapter;
     private OmniboxSuggestionsList mSuggestionList;
@@ -186,15 +179,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     private String mUrlTextAfterSuggestionsReceived;
 
-    // Set to true when the URL bar text is modified programmatically. Initially set
-    // to true until the old state has been loaded.
-    private boolean mIgnoreURLBarModification = true;
     private boolean mIgnoreOmniboxItemSelection = true;
-
-    private boolean mLastUrlEditWasDelete = false;
-
-    // True if we are showing the search query instead of the url.
-    private boolean mQueryInTheOmnibox = false;
 
     private String mOriginalUrl = "";
 
@@ -204,14 +189,15 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     private Runnable mRequestSuggestions;
 
     private ViewGroup mOmniboxResultsContainer;
-    private ObjectAnimator mFadeInOmniboxBackgroundAnimator;
-    private ObjectAnimator mFadeOutOmniboxBackgroundAnimator;
-    private Animator mOmniboxBackgroundAnimator;
+    protected FadingBackgroundView mFadingView;
 
     private boolean mSuggestionsShown;
     private boolean mUrlHasFocus;
+    protected boolean mUrlFocusChangeInProgress;
     private boolean mUrlFocusedFromFakebox;
-    private boolean mHasRecordedUrlFocusSource;
+    private boolean mUrlFocusedWithoutAnimations;
+
+    private boolean mVoiceSearchEnabled;
 
     // Set to true when the user has started typing new input in the omnibox, set to false
     // when the omnibox loses focus or becomes empty.
@@ -220,22 +206,17 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     // modifying the omnibox with new input.
     private long mNewOmniboxEditSessionTimestamp = -1;
 
-    private boolean mSecurityButtonShown;
+    @LocationBarButtonType private int mLocationBarButtonType;
 
     private AnimatorSet mLocationBarIconActiveAnimator;
     private AnimatorSet mSecurityButtonShowAnimator;
     private AnimatorSet mNavigationIconShowAnimator;
 
-    private TextWatcher mTextWatcher;
-
     private OmniboxPrerender mOmniboxPrerender;
-
-    private View mFocusedTabView;
-    private int mFocusedTabImportantForAccessibilityState;
-    private BrowserAccessibilityManager mFocusedTabAccessibilityManager;
 
     private boolean mSuggestionModalShown;
     private boolean mUseDarkColors;
+    private boolean mIsEmphasizingHttpsScheme;
 
     // True if the user has just selected a suggestion from the suggestion list. This suppresses
     // the recording of the dismissal of the suggestion list. (The list is only considered to have
@@ -244,9 +225,37 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     // code paths in a not necessarily obvious or even deterministic order.
     private boolean mSuggestionSelectionInProgress;
 
-    private ToolbarActionModeCallback mDefaultActionModeCallbackForTextEdit;
-
     private Runnable mShowSuggestions;
+
+    private boolean mShowCachedZeroSuggestResults;
+
+    private DeferredOnSelectionRunnable mDeferredOnSelection;
+
+    private abstract class DeferredOnSelectionRunnable implements Runnable {
+        protected final OmniboxSuggestion mSuggestion;
+        protected final int mPosition;
+        protected boolean mShouldLog;
+
+        public DeferredOnSelectionRunnable(OmniboxSuggestion suggestion, int position) {
+            this.mSuggestion = suggestion;
+            this.mPosition = position;
+        }
+
+        /**
+         * Set whether the selection matches with native results for logging to make sense.
+         * @param log Whether the selection should be logged in native code.
+         */
+        public void setShouldLog(boolean log) {
+            mShouldLog = log;
+        }
+
+        /**
+         * @return Whether the selection should be logged in native code.
+         */
+        public boolean shouldLog() {
+            return mShouldLog;
+        }
+    }
 
     /**
      * Listener for receiving the messages related with interacting with the omnibox during startup.
@@ -267,79 +276,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
          * Called when the omnibox is focused.
          */
         void onOmniboxFocused();
-    }
-
-    /**
-     * Class to handle text changes in the URL bar, ensuring that the appropriate
-     * buttons are displayed as the text changes, and requesting suggestions.
-     */
-    private final class UrlBarTextWatcher implements TextWatcher {
-        @Override
-        public void afterTextChanged(final Editable editableText) {
-            updateDeleteButtonVisibility();
-            updateNavigationButton();
-
-            if (mIgnoreURLBarModification) return;
-
-            if (!mHasStartedNewOmniboxEditSession && mNativeInitialized) {
-                RecordUserAction.record("MobileFirstEditInOmnibox");
-                mAutocomplete.resetSession();
-                mHasStartedNewOmniboxEditSession = true;
-                mNewOmniboxEditSessionTimestamp = SystemClock.elapsedRealtime();
-            }
-
-            if (!isInTouchMode() && mSuggestionList != null) {
-                mSuggestionList.setSelection(0);
-            }
-
-            stopAutocomplete(false);
-            if (TextUtils.isEmpty(mUrlBar.getTextWithoutAutocomplete())) {
-                hideSuggestions();
-                startZeroSuggest();
-            } else {
-                assert mRequestSuggestions == null : "Multiple omnibox requests in flight.";
-                mRequestSuggestions = new Runnable() {
-                    @Override
-                    public void run() {
-                        String textWithoutAutocomplete = mUrlBar.getTextWithoutAutocomplete();
-
-                        boolean preventAutocomplete = !shouldAutocomplete()
-                                || (editableText != null && Selection.getSelectionEnd(editableText)
-                                        != editableText.length());
-                        mRequestSuggestions = null;
-                        if (getCurrentTab() == null) return;
-                        mAutocomplete.start(
-                                getCurrentTab().getProfile(),
-                                getCurrentTab().getUrl(),
-                                textWithoutAutocomplete, preventAutocomplete);
-                    }
-                };
-                if (mNativeInitialized) {
-                    postDelayed(mRequestSuggestions, OMNIBOX_SUGGESTION_START_DELAY_MS);
-                } else {
-                    mDeferredNativeRunnables.add(mRequestSuggestions);
-                }
-            }
-
-            // Occasionally, was seeing the selection in the URL not being cleared during
-            // very rapid editing.  This is here to hopefully force a selection reset during
-            // deletes.
-            if (mLastUrlEditWasDelete) mUrlBar.setSelection(mUrlBar.getSelectionStart());
-        }
-
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            cancelPendingAutocompleteStart();
-        }
-
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-            // We need to determine whether the text change was triggered by a delete (so we
-            // don't autocomplete of the entered text in that case). With soft-keyboard, there
-            // is no way to know that the delete button was pressed, so we track text removal
-            // changes.
-            mLastUrlEditWasDelete = (count == 0);
-        }
     }
 
     /**
@@ -391,7 +327,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                                 mSuggestionList.getSelectedItemPosition());
                 // Set the UrlBar text to empty, so that it will trigger a text change when we
                 // set the text to the suggestion again.
-                setUrlBarText(null, null, "");
+                setUrlBarText("", null);
                 mUrlBar.setText(selectedItem.getSuggestion().getFillIntoEdit());
                 mSuggestionList.setSelection(0);
                 mUrlBar.setSelection(mUrlBar.getText().length());
@@ -400,7 +336,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                     && LocationBarLayout.this.getVisibility() == VISIBLE) {
                 UiUtils.hideKeyboard(mUrlBar);
                 mSuggestionSelectionInProgress = true;
-                final String urlText = mUrlBar.getQueryText();
+                final String urlText = mUrlBar.getTextWithAutocomplete();
                 if (mNativeInitialized) {
                     findMatchAndLoadUrl(urlText);
                 } else {
@@ -412,14 +348,31 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                     });
                 }
                 return true;
+            } else if (keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    // Tell the framework to start tracking this event.
+                    getKeyDispatcherState().startTracking(event, this);
+                    return true;
+                } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                    getKeyDispatcherState().handleUpEvent(event);
+                    if (event.isTracking() && !event.isCanceled()) {
+                        backKeyPressed();
+                        return true;
+                    }
+                }
+            } else if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    revertChanges();
+                    return true;
+                }
             }
-
             return false;
         }
 
         private void findMatchAndLoadUrl(String urlText) {
             int suggestionMatchPosition;
             OmniboxSuggestion suggestionMatch;
+            boolean skipOutOfBoundsCheck = false;
 
             if (mSuggestionList != null
                     && mSuggestionList.isShown()
@@ -443,19 +396,27 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 // from the autocomplete controller.
                 suggestionMatch = mAutocomplete.classify(urlText);
                 suggestionMatchPosition = 0;
+                // Classify matches don't propagate to java, so skip the OOB check.
+                skipOutOfBoundsCheck = true;
 
                 // If urlText couldn't be classified, bail.
                 if (suggestionMatch == null) return;
             }
 
             String suggestionMatchUrl = updateSuggestionUrlIfNeeded(suggestionMatch,
-                    suggestionMatchPosition);
+                        suggestionMatchPosition, skipOutOfBoundsCheck);
+
 
             // It's important to use the page transition from the suggestion or we might end
             // up saving generated URLs as typed URLs, which would then pollute the subsequent
-            // omnibox results.
-            loadUrlFromOmniboxMatch(suggestionMatchUrl, suggestionMatch.getTransition(),
-                    suggestionMatchPosition, suggestionMatch.getType());
+            // omnibox results. There is one special case where the suggestion text was pasted,
+            // where we want the transition type to be LINK.
+            int transition = suggestionMatch.getType() == OmniboxSuggestionType.URL_WHAT_YOU_TYPED
+                    && mUrlBar.isPastedText() ? PageTransition.LINK
+                            : suggestionMatch.getTransition();
+
+            loadUrlFromOmniboxMatch(suggestionMatchUrl, transition, suggestionMatchPosition,
+                    suggestionMatch.getType());
         }
     }
 
@@ -468,14 +429,16 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         EMPTY,
     }
 
-    /**
-     * @param outRect Populated with a {@link Rect} that represents the {@link Tab} specific content
-     *                of this {@link LocationBar}.
-     */
-    public void getContentRect(Rect outRect) {
-        outRect.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(),
-                getHeight() - getPaddingBottom());
-    }
+    /** Specifies which button should be shown in location bar, if any. */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({BUTTON_TYPE_NONE, BUTTON_TYPE_SECURITY_ICON, BUTTON_TYPE_NAVIGATION_ICON})
+    public @interface LocationBarButtonType {}
+    /** No button should be shown. */
+    public static final int BUTTON_TYPE_NONE = 0;
+    /** Security button should be shown (includes offline icon). */
+    public static final int BUTTON_TYPE_SECURITY_ICON = 1;
+    /** Navigation button should be shown. */
+    public static final int BUTTON_TYPE_NAVIGATION_ICON = 2;
 
     /**
      * A widget for showing a list of omnibox suggestions.
@@ -484,6 +447,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     public class OmniboxSuggestionsList extends ListView {
         private final int mSuggestionHeight;
         private final int mSuggestionAnswerHeight;
+        private final int mSuggestionDefinitionHeight;
         private final View mAnchorView;
 
         private final int[] mTempPosition = new int[2];
@@ -508,6 +472,8 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                     R.dimen.omnibox_suggestion_height);
             mSuggestionAnswerHeight = context.getResources().getDimensionPixelOffset(
                     R.dimen.omnibox_suggestion_answer_height);
+            mSuggestionDefinitionHeight = context.getResources().getDimensionPixelOffset(
+                    R.dimen.omnibox_suggestion_definition_height);
 
             int paddingTop = context.getResources().getDimensionPixelOffset(
                     R.dimen.omnibox_suggestion_list_padding_top);
@@ -532,7 +498,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 setVisibility(VISIBLE);
                 if (getSelectedItemPosition() != 0) setSelection(0);
             }
-            updateSuggestionsLayoutDirection(mUrlBar.getUrlDirection());
         }
 
         /**
@@ -621,7 +586,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             int decorHeight = getWindowDelegate().getDecorViewHeight();
             int availableViewportHeight = Math.min(mTempRect.height(), decorHeight);
             int availableListHeight = availableViewportHeight - anchorBottomRelativeToContent;
-            int desiredHeight = Math.min(availableListHeight, getIdealHeight());
+            // If the bottom sheet is used, the suggestions should consume all available space.
+            int desiredHeight = mBottomSheet != null
+                    ? availableListHeight : Math.min(availableListHeight, getIdealHeight());
             if (layoutParams.height != desiredHeight) {
                 layoutParams.height = desiredHeight;
                 updateLayout = true;
@@ -641,7 +608,13 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             for (int i = 0; i < mSuggestionItems.size(); i++) {
                 OmniboxResultItem item = mSuggestionItems.get(i);
                 if (!TextUtils.isEmpty(item.getSuggestion().getAnswerContents())) {
-                    idealListSize += mSuggestionAnswerHeight;
+                    int num = SuggestionView.parseNumAnswerLines(
+                            item.getSuggestion().getAnswer().getSecondLine().getTextFields());
+                    if (num > 1) {
+                        idealListSize += mSuggestionDefinitionHeight;
+                    } else {
+                        idealListSize += mSuggestionAnswerHeight;
+                    }
                 } else {
                     idealListSize += mSuggestionHeight;
                 }
@@ -668,19 +641,36 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 getSelectedView().setSelected(true);
             }
         }
+
+        private void updateSuggestionsLayoutDirection(int layoutDirection) {
+            if (!isShown()) return;
+
+            for (int i = 0; i < getChildCount(); i++) {
+                View childView = getChildAt(i);
+                if (!(childView instanceof SuggestionView)) continue;
+                ApiCompatibilityUtils.setLayoutDirection(childView, layoutDirection);
+            }
+        }
     }
 
     public LocationBarLayout(Context context, AttributeSet attrs) {
+        this(context, attrs, R.layout.location_bar);
+    }
+
+    public LocationBarLayout(Context context, AttributeSet attrs, int layoutId) {
         super(context, attrs);
 
-        LayoutInflater.from(context).inflate(R.layout.location_bar, this, true);
+        LayoutInflater.from(context).inflate(layoutId, this, true);
         mNavigationButton = (ImageView) findViewById(R.id.navigation_button);
         assert mNavigationButton != null : "Missing navigation type view.";
-        mNavigationButtonType = DeviceFormFactor.isTablet(context)
-                ? NavigationButtonType.PAGE : NavigationButtonType.EMPTY;
 
-        mSecurityButton = (ImageButton) findViewById(R.id.security_button);
-        mSecurityIconType = ConnectionSecurityLevel.NONE;
+        mNavigationButtonType = DeviceFormFactor.isTablet() ? NavigationButtonType.PAGE
+                                                            : NavigationButtonType.EMPTY;
+
+        mSecurityButton = (TintedImageButton) findViewById(R.id.security_button);
+        mSecurityIconResource = 0;
+
+        mVerboseStatusTextView = (TextView) findViewById(R.id.location_bar_verbose_status);
 
         mDeleteButton = (TintedImageButton) findViewById(R.id.delete_button);
 
@@ -699,8 +689,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         }
         mUrlBar.setDelegate(this);
 
-        mUrlContainer = (UrlContainer) findViewById(R.id.url_container);
-
         mSuggestionItems = new ArrayList<OmniboxResultItem>();
         mSuggestionListAdapter = new OmniboxResultsAdapter(getContext(), this, mSuggestionItems);
 
@@ -712,8 +700,12 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         super.onFinishInflate();
 
         mUrlBar.setCursorVisible(false);
-        mNavigationButton.setVisibility(VISIBLE);
-        mSecurityButton.setVisibility(INVISIBLE);
+
+        mLocationBarButtonType = getLocationBarButtonToShow();
+        mNavigationButton.setVisibility(
+                mLocationBarButtonType == BUTTON_TYPE_NAVIGATION_ICON ? VISIBLE : INVISIBLE);
+        mSecurityButton.setVisibility(
+                mLocationBarButtonType == BUTTON_TYPE_SECURITY_ICON ? VISIBLE : INVISIBLE);
 
         setLayoutTransition(null);
 
@@ -753,16 +745,16 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
 
         mUrlBar.setOnKeyListener(new UrlBarKeyListener());
 
-        mTextWatcher = new UrlBarTextWatcher();
-        mUrlBar.setLocationBarTextWatcher(mTextWatcher);
-
         // mLocationBar's direction is tied to this UrlBar's text direction. Icons inside the
         // location bar, e.g. lock, refresh, X, should be reversed if UrlBar's text is RTL.
         mUrlBar.setUrlDirectionListener(new UrlBar.UrlDirectionListener() {
             @Override
             public void onUrlDirectionChanged(int layoutDirection) {
                 ApiCompatibilityUtils.setLayoutDirection(LocationBarLayout.this, layoutDirection);
-                updateSuggestionsLayoutDirection(layoutDirection);
+
+                if (mSuggestionList != null) {
+                    mSuggestionList.updateSuggestionsLayoutDirection(layoutDirection);
+                }
             }
         });
 
@@ -775,49 +767,71 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
-    private void updateSuggestionsLayoutDirection(int layoutDirection) {
-        if (mSuggestionList != null && mSuggestionList.isShown()) {
-            ListView listView = mSuggestionList;
-            ApiCompatibilityUtils.setLayoutDirection(listView, layoutDirection);
-            for (int i = 0; i < listView.getChildCount(); i++) {
-                ApiCompatibilityUtils.setLayoutDirection(listView.getChildAt(i),
-                        layoutDirection);
-            }
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        boolean retVal = super.dispatchKeyEvent(event);
+        if (retVal && mUrlHasFocus && mUrlFocusedWithoutAnimations
+                && event.getAction() == KeyEvent.ACTION_DOWN && event.isPrintingKey()
+                && event.hasNoModifiers()) {
+            handleUrlFocusAnimation(mUrlHasFocus);
+        }
+        return retVal;
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        if (mUrlHasFocus && mUrlFocusedWithoutAnimations
+                && newConfig.keyboard != Configuration.KEYBOARD_QWERTY) {
+            // If we lose the hardware keyboard and the focus animations were not run, then the
+            // user has not typed any text, so we will just clear the focus instead.
+            setUrlBarFocus(false);
         }
     }
 
     @Override
     public void initializeControls(WindowDelegate windowDelegate,
-            ActionBarDelegate actionBarDelegate, WindowAndroid windowAndroid) {
+            WindowAndroid windowAndroid) {
         mWindowDelegate = windowDelegate;
-
-        mActionModeController = new ActionModeController(getContext(), actionBarDelegate);
-        mActionModeController.setCustomSelectionActionModeCallback(
-                new ToolbarActionModeCallback() {
-                    @Override
-                    public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                        boolean retVal = super.onCreateActionMode(mode, menu);
-                        mode.getMenuInflater().inflate(R.menu.textselectionmenu, menu);
-                        return retVal;
-                    }
-
-                    @Override
-                    public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                        if (item.getItemId() == R.id.copy_url) {
-                            ClipboardManager clipboard =
-                                    (ClipboardManager) getContext().getSystemService(
-                                            Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("url", mOriginalUrl);
-                            clipboard.setPrimaryClip(clip);
-                            mode.finish();
-                            return true;
-                        } else {
-                            return super.onActionItemClicked(mode, item);
-                        }
-                    }
-                });
-
         mWindowAndroid = windowAndroid;
+
+        mUrlBar.setWindowDelegate(windowDelegate);
+        // If the user focused the omnibox prior to the native libraries being initialized,
+        // autocomplete will not always be enabled, so we force it enabled in that case.
+        mUrlBar.setIgnoreTextChangesForAutocomplete(false);
+        mAutocomplete = new AutocompleteController(this);
+    }
+
+    /**
+     * Sets to show cached zero suggest results. This will start both caching zero suggest results
+     * in shared preferences and also attempt to show them when appropriate without needing native
+     * initialization. See {@link LocationBarLayout#showCachedZeroSuggestResultsIfAvailable()} for
+     * showing the loaded results before native initialization.
+     * @param showCachedZeroSuggestResults Whether cached zero suggest should be shown.
+     */
+    public void setShowCachedZeroSuggestResults(boolean showCachedZeroSuggestResults) {
+        mShowCachedZeroSuggestResults = showCachedZeroSuggestResults;
+        if (mShowCachedZeroSuggestResults) mAutocomplete.startCachedZeroSuggest();
+    }
+
+    /**
+     * Signals the omnibox to shows the cached zero suggest results if they have been loaded from
+     * cache successfully.
+     */
+    public void showCachedZeroSuggestResultsIfAvailable() {
+        if (!mShowCachedZeroSuggestResults || mSuggestionList == null) return;
+        setSuggestionsListVisibility(true);
+        mSuggestionList.updateLayoutParams();
+    }
+
+    /**
+     * @param focusable Whether the url bar should be focusable.
+     */
+    public void setUrlBarFocusable(boolean focusable) {
+        if (mUrlBar == null) return;
+        mUrlBar.setFocusable(focusable);
+        mUrlBar.setFocusableInTouchMode(focusable);
     }
 
     /**
@@ -837,11 +851,10 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
 
         mSecurityButton.setOnClickListener(this);
         mNavigationButton.setOnClickListener(this);
+        mVerboseStatusTextView.setOnClickListener(this);
         updateMicButtonState();
         mDeleteButton.setOnClickListener(this);
         mMicButton.setOnClickListener(this);
-
-        mAutocomplete = new AutocompleteController(this);
 
         mOmniboxPrerender = new OmniboxPrerender();
 
@@ -851,8 +864,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         mDeferredNativeRunnables.clear();
 
         mUrlBar.onOmniboxFullyFunctional();
-
-        updateCustomSelectionActionModeCallback();
         updateVisualsForState();
     }
 
@@ -871,6 +882,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     @VisibleForTesting
     public void setAutocompleteController(AutocompleteController controller) {
+        if (mAutocomplete != null) stopAutocomplete(true);
         mAutocomplete = controller;
     }
 
@@ -889,18 +901,47 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         mOmniboxPrerender.initializeForProfile(profile);
     }
 
-    private void changeLocationBarIcon(boolean showSecurityButton) {
+    @LocationBarButtonType private int getLocationBarButtonToShow() {
+        boolean isOffline =
+                getCurrentTab() != null && OfflinePageUtils.isOfflinePage(getCurrentTab());
+        boolean isTablet = DeviceFormFactor.isTablet();
+
+        // The navigation icon type is only applicable on tablets.  While smaller form factors do
+        // not have an icon visible to the user when the URL is focused, BUTTON_TYPE_NONE is not
+        // returned as it will trigger an undesired jump during the animation as it attempts to
+        // hide the icon.
+        if (mUrlHasFocus && isTablet) return BUTTON_TYPE_NAVIGATION_ICON;
+
+        return getSecurityIconResource(getSecurityLevel(), !isTablet, isOffline) != 0
+                ? BUTTON_TYPE_SECURITY_ICON
+                : BUTTON_TYPE_NONE;
+    }
+
+    private void changeLocationBarIcon() {
         if (mLocationBarIconActiveAnimator != null && mLocationBarIconActiveAnimator.isRunning()) {
             mLocationBarIconActiveAnimator.cancel();
         }
-        View viewToBeShown = showSecurityButton ? mSecurityButton : mNavigationButton;
+
+        mLocationBarButtonType = getLocationBarButtonToShow();
+
+        View viewToBeShown = null;
+        switch (mLocationBarButtonType) {
+            case BUTTON_TYPE_SECURITY_ICON:
+                viewToBeShown = mSecurityButton;
+                mLocationBarIconActiveAnimator = mSecurityButtonShowAnimator;
+                break;
+            case BUTTON_TYPE_NAVIGATION_ICON:
+                viewToBeShown = mNavigationButton;
+                mLocationBarIconActiveAnimator = mNavigationIconShowAnimator;
+                break;
+            case BUTTON_TYPE_NONE:
+            default:
+                mLocationBarIconActiveAnimator = null;
+                return;
+        }
+
         if (viewToBeShown.getVisibility() == VISIBLE && viewToBeShown.getAlpha() == 1) {
             return;
-        }
-        if (showSecurityButton) {
-            mLocationBarIconActiveAnimator = mSecurityButtonShowAnimator;
-        } else {
-            mLocationBarIconActiveAnimator = mNavigationIconShowAnimator;
         }
         if (shouldAnimateIconChanges()) {
             mLocationBarIconActiveAnimator.setDuration(URL_FOCUS_CHANGE_ANIMATION_DURATION_MS);
@@ -911,22 +952,39 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     @Override
-    public void onUrlPreFocusChanged(boolean gainFocus) {
-        if (mToolbarDataProvider == null || mToolbarDataProvider.getTab() == null) return;
-
-        if (!mQueryInTheOmnibox
-                && FeatureUtilities.isDocumentMode(getContext())
-                && !TextUtils.isEmpty(mUrlBar.getText())) {
-            mUrlBar.setUrl(mToolbarDataProvider.getTab().getUrl(), null);
-        }
-    }
-
-    @Override
     public void setUrlBarFocus(boolean shouldBeFocused) {
         if (shouldBeFocused) {
             mUrlBar.requestFocus();
         } else {
             mUrlBar.clearFocus();
+        }
+    }
+
+    @Override
+    public boolean isUrlBarFocused() {
+        return mUrlHasFocus;
+    }
+
+    @Override
+    public void selectAll() {
+        mUrlBar.selectAll();
+    }
+
+    @Override
+    public void revertChanges() {
+        if (!mUrlHasFocus) {
+            setUrlToPageUrl();
+        } else {
+            Tab tab = mToolbarDataProvider.getTab();
+            if (NativePageFactory.isNativePageUrl(tab.getUrl(), tab.isIncognito())) {
+                setUrlBarText("", null);
+            } else {
+                setUrlBarText(
+                        mToolbarDataProvider.getText(), getCurrentTabUrl());
+                selectAll();
+            }
+            hideSuggestions();
+            UiUtils.hideKeyboard(mUrlBar);
         }
     }
 
@@ -940,7 +998,17 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      *         a phone device.
      */
     protected boolean isUrlFocusChangeInProgress() {
-        return false;
+        return mUrlFocusChangeInProgress;
+    }
+
+    /**
+     * @param inProgress Whether a URL focus change is taking place.
+     */
+    protected void setUrlFocusChangeInProgress(boolean inProgress) {
+        mUrlFocusChangeInProgress = inProgress;
+        if (!inProgress) {
+            updateButtonVisibility();
+        }
     }
 
     /**
@@ -949,19 +1017,30 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     public void onUrlFocusChange(boolean hasFocus) {
         mUrlHasFocus = hasFocus;
-        mUrlContainer.onUrlFocusChanged(hasFocus);
-        updateFocusSource(hasFocus);
-        updateDeleteButtonVisibility();
+        updateButtonVisibility();
+        updateNavigationButton();
         Tab currentTab = getCurrentTab();
         if (hasFocus) {
+            if (mNativeInitialized) RecordUserAction.record("FocusLocation");
             mUrlBar.deEmphasizeUrl();
         } else {
+            mUrlFocusedFromFakebox = false;
+            mUrlFocusedWithoutAnimations = false;
             hideSuggestions();
 
             // Focus change caused by a close-tab may result in an invalid current tab.
             if (currentTab != null) {
                 setUrlToPageUrl();
                 emphasizeUrl();
+            }
+            // Moving focus away from UrlBar(EditText) to a non-editable focus holder, such as
+            // ToolbarPhone, won't automatically hide keyboard app, but restart it with TYPE_NULL,
+            // which will result in a visual glitch. We apply this logic only to ChromeHome
+            // cautiously since hiding keyboard may lower FPS of other animation effects.
+            if (mBottomSheet != null) {
+                InputMethodManager imm = (InputMethodManager) getContext().getSystemService(
+                        Context.INPUT_METHOD_SERVICE);
+                if (imm.isActive(mUrlBar)) imm.hideSoftInputFromWindow(getWindowToken(), 0, null);
             }
         }
 
@@ -970,25 +1049,23 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             if (mUrlHasFocus) mUrlBar.selectAll();
         }
 
-        if (mUrlFocusChangeListener != null) mUrlFocusChangeListener.onUrlFocusChange(hasFocus);
-        changeLocationBarIcon(
-                (!DeviceFormFactor.isTablet(getContext()) || !hasFocus) && isSecurityButtonShown());
+        changeLocationBarIcon();
+        updateVerboseStatusVisibility();
+        updateLocationBarIconContainerVisibility();
         mUrlBar.setCursorVisible(hasFocus);
-        if (mQueryInTheOmnibox) mUrlBar.setSelection(mUrlBar.getSelectionEnd());
 
-        updateOmniboxResultsContainer();
-        if (hasFocus) updateOmniboxResultsContainerBackground(true);
+        if (!mUrlFocusedWithoutAnimations) handleUrlFocusAnimation(hasFocus);
 
         if (hasFocus && currentTab != null && !currentTab.isIncognito()) {
             if (mNativeInitialized
                     && TemplateUrlService.getInstance().isDefaultSearchEngineGoogle()) {
-                GeolocationHeader.primeLocationForGeoHeader(getContext());
+                GeolocationHeader.primeLocationForGeoHeader();
             } else {
                 mDeferredNativeRunnables.add(new Runnable() {
                     @Override
                     public void run() {
                         if (TemplateUrlService.getInstance().isDefaultSearchEngineGoogle()) {
-                            GeolocationHeader.primeLocationForGeoHeader(getContext());
+                            GeolocationHeader.primeLocationForGeoHeader();
                         }
                     }
                 });
@@ -1001,19 +1078,11 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             mDeferredNativeRunnables.add(new Runnable() {
                 @Override
                 public void run() {
-                    if (TextUtils.isEmpty(mUrlBar.getQueryText())) {
+                    if (TextUtils.isEmpty(mUrlBar.getTextWithAutocomplete())) {
                         startZeroSuggest();
                     }
                 }
             });
-        }
-
-        // Add and remove text watcher from the URL bar with focus, so that it's
-        // not called when we modify the displayed information on focus.
-        if (hasFocus) {
-            mUrlBar.addTextChangedListener(mTextWatcher);
-        } else {
-            mUrlBar.removeTextChangedListener(mTextWatcher);
         }
 
         if (!hasFocus) {
@@ -1022,7 +1091,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         }
 
         if (hasFocus && currentTab != null) {
-            ChromeActivity activity = (ChromeActivity) mWindowAndroid.getActivity().get();
+            SnackbarManageable activity = (SnackbarManageable) mWindowAndroid.getActivity().get();
             if (activity != null) {
                 GeolocationSnackbarController.maybeShowSnackbar(activity.getSnackbarManager(),
                         LocationBarLayout.this, currentTab.isIncognito(),
@@ -1032,8 +1101,22 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     /**
-     * Make a zero suggest request if native is loaded, the URL bar has focus, and the
-     * current tab is not incognito.
+     * Handle and run any necessary animations that are triggered off focusing the UrlBar.
+     * @param hasFocus Whether focus was gained.
+     */
+    protected void handleUrlFocusAnimation(boolean hasFocus) {
+        if (hasFocus) mUrlFocusedWithoutAnimations = false;
+        if (mUrlFocusChangeListener != null) mUrlFocusChangeListener.onUrlFocusChange(hasFocus);
+
+        updateOmniboxResultsContainer();
+        if (hasFocus) updateFadingBackgroundView(true);
+    }
+
+    /**
+     * Make a zero suggest request if:
+     * - Native is loaded.
+     * - The URL bar has focus.
+     * - The current tab is not incognito.
      */
     private void startZeroSuggest() {
         // Reset "edited" state in the omnibox if zero suggest is triggered -- new edits
@@ -1041,37 +1124,86 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         mHasStartedNewOmniboxEditSession = false;
         mNewOmniboxEditSessionTimestamp = -1;
         Tab currentTab = getCurrentTab();
-        if (mNativeInitialized
-                && mUrlHasFocus
-                && currentTab != null
-                && !currentTab.isIncognito()) {
-            mAutocomplete.startZeroSuggest(currentTab.getProfile(), mUrlBar.getQueryText(),
-                    currentTab.getUrl(), mQueryInTheOmnibox, mUrlFocusedFromFakebox);
+        if (mNativeInitialized && mUrlHasFocus && currentTab != null) {
+            mAutocomplete.startZeroSuggest(currentTab.getProfile(),
+                    mUrlBar.getTextWithAutocomplete(), mToolbarDataProvider.getCurrentUrl(),
+                    mUrlFocusedFromFakebox);
         }
     }
 
     @Override
-    public void setDefaultTextEditActionModeCallback(ToolbarActionModeCallback callback) {
-        mDefaultActionModeCallbackForTextEdit = callback;
+    public void onTextChangedForAutocomplete(final boolean textDeleted) {
+        cancelPendingAutocompleteStart();
+
+        updateButtonVisibility();
+        updateNavigationButton();
+
+        if (!mHasStartedNewOmniboxEditSession && mNativeInitialized) {
+            mAutocomplete.resetSession();
+            mHasStartedNewOmniboxEditSession = true;
+            mNewOmniboxEditSessionTimestamp = SystemClock.elapsedRealtime();
+        }
+
+        if (!isInTouchMode() && mSuggestionList != null) {
+            mSuggestionList.setSelection(0);
+        }
+
+        stopAutocomplete(false);
+        if (TextUtils.isEmpty(mUrlBar.getTextWithoutAutocomplete())) {
+            hideSuggestions();
+            startZeroSuggest();
+        } else {
+            assert mRequestSuggestions == null : "Multiple omnibox requests in flight.";
+            mRequestSuggestions = new Runnable() {
+                @Override
+                public void run() {
+                    String textWithoutAutocomplete = mUrlBar.getTextWithoutAutocomplete();
+
+                    boolean preventAutocomplete = textDeleted || !mUrlBar.shouldAutocomplete();
+                    mRequestSuggestions = null;
+
+                    if (getCurrentTab() == null
+                            && (mBottomSheet == null || mToolbarDataProvider.isIncognito())) {
+                        return;
+                    }
+
+                    // If the bottom sheet is not null, the current tab will be null when the
+                    // NTP UI is showing. Use the original profile rather than the tab profile
+                    // in that scenario.
+                    Profile profile = getCurrentTab() != null
+                            ? getCurrentTab().getProfile()
+                            : Profile.getLastUsedProfile().getOriginalProfile();
+                    String url = getCurrentTab() != null ? getCurrentTab().getUrl()
+                                                         : UrlConstants.NTP_URL;
+                    mAutocomplete.start(profile, url, textWithoutAutocomplete, preventAutocomplete);
+                }
+            };
+            if (mNativeInitialized) {
+                postDelayed(mRequestSuggestions, OMNIBOX_SUGGESTION_START_DELAY_MS);
+            } else {
+                mDeferredNativeRunnables.add(mRequestSuggestions);
+            }
+        }
+
+        // Occasionally, was seeing the selection in the URL not being cleared during
+        // very rapid editing.  This is here to hopefully force a selection reset during
+        // deletes.
+        if (textDeleted) mUrlBar.setSelection(mUrlBar.getSelectionStart());
     }
 
-    /**
-     * If query in the omnibox, sets UrlBar's ActionModeCallback to show copy url button. Else,
-     * it is set to the default one.
-     */
-    private void updateCustomSelectionActionModeCallback() {
-        if (mQueryInTheOmnibox) {
-            mUrlBar.setCustomSelectionActionModeCallback(
-                    mActionModeController.getActionModeCallback());
-        } else {
-            mUrlBar.setCustomSelectionActionModeCallback(mDefaultActionModeCallbackForTextEdit);
-        }
+    @Override
+    public void setDefaultTextEditActionModeCallback(ToolbarActionModeCallback callback) {
+        mUrlBar.setCustomSelectionActionModeCallback(callback);
     }
 
     @Override
     public void requestUrlFocusFromFakebox(String pastedText) {
         mUrlFocusedFromFakebox = true;
-        mUrlBar.requestFocus();
+        if (mUrlHasFocus && mUrlFocusedWithoutAnimations) {
+            handleUrlFocusAnimation(mUrlHasFocus);
+        } else {
+            setUrlBarFocus(true);
+        }
 
         if (pastedText != null) {
             // This must be happen after requestUrlFocus(), which changes the selection.
@@ -1080,12 +1212,28 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         }
     }
 
+    @Override
+    public boolean isCurrentPage(NativePage nativePage) {
+        assert nativePage != null;
+        return nativePage == mToolbarDataProvider.getNewTabPageForCurrentTab();
+    }
+
+    @Override
+    public void showUrlBarCursorWithoutFocusAnimations() {
+        if (mUrlHasFocus || mUrlFocusedFromFakebox) return;
+
+        mUrlFocusedWithoutAnimations = true;
+        setUrlBarFocus(true);
+    }
+
     /**
      * Sets the toolbar that owns this LocationBar.
      */
     @Override
     public void setToolbarDataProvider(ToolbarDataProvider toolbarDataProvider) {
         mToolbarDataProvider = toolbarDataProvider;
+
+        updateButtonVisibility();
 
         mUrlBar.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
@@ -1096,7 +1244,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     @Override
-    public void setMenuButtonHelper(AppMenuButtonHelper helper) { }
+    public void setBottomSheet(BottomSheet sheet) {
+        mBottomSheet = sheet;
+    }
 
     /**
      * Sets the URL focus change listner that will be notified when the URL gains or loses focus.
@@ -1107,63 +1257,33 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         mUrlFocusChangeListener = listener;
     }
 
-    /**
-     * @return The toolbar data provider.
-     */
-    @VisibleForTesting
-    protected ToolbarDataProvider getToolbarDataProvider() {
+    @Override
+    public ToolbarDataProvider getToolbarDataProvider() {
         return mToolbarDataProvider;
     }
 
     private static NavigationButtonType suggestionTypeToNavigationButtonType(
-            OmniboxSuggestion.Type suggestionType) {
-        switch (suggestionType) {
-            case NAVSUGGEST:
-            case HISTORY_URL:
-            case URL_WHAT_YOU_TYPED:
-            case HISTORY_TITLE:
-            case HISTORY_BODY:
-            case HISTORY_KEYWORD:
-                return NavigationButtonType.PAGE;
-            case SEARCH_WHAT_YOU_TYPED:
-            case SEARCH_HISTORY:
-            case SEARCH_SUGGEST:
-            case SEARCH_SUGGEST_ENTITY:
-            case SEARCH_SUGGEST_TAIL:
-            case SEARCH_SUGGEST_PERSONALIZED:
-            case SEARCH_SUGGEST_PROFILE:
-            case VOICE_SUGGEST:
-            case SEARCH_OTHER_ENGINE:
-            case OPEN_HISTORY_PAGE:
-                return NavigationButtonType.MAGNIFIER;
-            default:
-                assert false;
-                return NavigationButtonType.MAGNIFIER;
+            OmniboxSuggestion suggestion) {
+        if (suggestion.isUrlSuggestion()) {
+            return NavigationButtonType.PAGE;
+        } else {
+            return NavigationButtonType.MAGNIFIER;
         }
     }
 
     // Updates the navigation button based on the URL string
     private void updateNavigationButton() {
-        boolean isTablet = DeviceFormFactor.isTablet(getContext());
+        boolean isTablet = DeviceFormFactor.isTablet();
         NavigationButtonType type = NavigationButtonType.EMPTY;
         if (isTablet && !mSuggestionItems.isEmpty()) {
             // If there are suggestions showing, show the icon for the default suggestion.
             type = suggestionTypeToNavigationButtonType(
-                    mSuggestionItems.get(0).getSuggestion().getType());
-        } else if (mQueryInTheOmnibox) {
-            type = NavigationButtonType.MAGNIFIER;
+                    mSuggestionItems.get(0).getSuggestion());
         } else if (isTablet) {
             type = NavigationButtonType.PAGE;
         }
 
         if (type != mNavigationButtonType) setNavigationButtonType(type);
-    }
-
-    /**
-     * @return Whether the query is shown in the omnibox instead of the url.
-     */
-    public boolean showingQueryInTheOmnibox() {
-        return mQueryInTheOmnibox;
     }
 
     private int getSecurityLevel() {
@@ -1174,21 +1294,31 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     /**
      * Determines the icon that should be displayed for the current security level.
      * @param securityLevel The security level for which the resource will be returned.
-     * @param usingLightTheme Whether light themed security assets should be used.
+     * @param isSmallDevice Whether the device form factor is small (like a phone) or large
+     * (like a tablet).
      * @return The resource ID of the icon that should be displayed, 0 if no icon should show.
      */
-    public static int getSecurityIconResource(int securityLevel, boolean usingLightTheme) {
+    public static int getSecurityIconResource(
+            int securityLevel, boolean isSmallDevice, boolean isOfflinePage) {
+        // Both conditions should be met, because isOfflinePage might take longer to be cleared.
+        // HTTP_SHOW_WARNING added because of field trail causing http://crbug.com/671453.
+        if ((securityLevel == ConnectionSecurityLevel.NONE
+                    || securityLevel == ConnectionSecurityLevel.HTTP_SHOW_WARNING)
+                && isOfflinePage) {
+            return R.drawable.offline_pin_round;
+        }
         switch (securityLevel) {
             case ConnectionSecurityLevel.NONE:
-                return 0;
+                return isSmallDevice ? 0 : R.drawable.omnibox_info;
+            case ConnectionSecurityLevel.HTTP_SHOW_WARNING:
+                return R.drawable.omnibox_info;
             case ConnectionSecurityLevel.SECURITY_WARNING:
-                return R.drawable.omnibox_https_warning;
-            case ConnectionSecurityLevel.SECURITY_ERROR:
+                return R.drawable.omnibox_info;
+            case ConnectionSecurityLevel.DANGEROUS:
                 return R.drawable.omnibox_https_invalid;
             case ConnectionSecurityLevel.SECURE:
             case ConnectionSecurityLevel.EV_SECURE:
-                return usingLightTheme
-                        ? R.drawable.omnibox_https_valid_light : R.drawable.omnibox_https_valid;
+                return R.drawable.omnibox_https_valid;
             default:
                 assert false;
         }
@@ -1196,65 +1326,86 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     /**
+     * @param securityLevel The security level for which the color will be returned.
+     * @param provider The {@link ToolbarDataProvider}.
+     * @param resources The Resources for the Context.
+     * @param isOmniboxOpaque Whether the omnibox is an opaque color.
+     * @return The {@link ColorStateList} to use to tint the security state icon.
+     */
+    public static ColorStateList getColorStateList(int securityLevel, ToolbarDataProvider provider,
+            Resources resources, boolean isOmniboxOpaque) {
+        ColorStateList list = null;
+        int color = provider.getPrimaryColor();
+        boolean needLightIcon = ColorUtils.shouldUseLightForegroundOnBackground(color);
+        if (provider.isIncognito() || needLightIcon) {
+            // For a dark theme color, use light icons.
+            list = ApiCompatibilityUtils.getColorStateList(resources, R.color.light_mode_tint);
+        } else if (!ColorUtils.isUsingDefaultToolbarColor(resources, color) && !isOmniboxOpaque) {
+            // For theme colors which are not dark and are also not
+            // light enough to warrant an opaque URL bar, use dark
+            // icons.
+            list = ApiCompatibilityUtils.getColorStateList(resources, R.color.dark_mode_tint);
+        } else {
+            // For the default toolbar color, use a green or red icon.
+            if (securityLevel == ConnectionSecurityLevel.DANGEROUS) {
+                list = ApiCompatibilityUtils.getColorStateList(resources, R.color.google_red_700);
+            } else if (securityLevel == ConnectionSecurityLevel.SECURE
+                    || securityLevel == ConnectionSecurityLevel.EV_SECURE) {
+                list = ApiCompatibilityUtils.getColorStateList(resources, R.color.google_green_700);
+            } else {
+                list = ApiCompatibilityUtils.getColorStateList(resources, R.color.dark_mode_tint);
+            }
+        }
+        assert list != null : "Missing ColorStateList for Security Button.";
+        return list;
+    }
+
+    /**
      * Updates the security icon displayed in the LocationBar.
      */
     @Override
     public void updateSecurityIcon(int securityLevel) {
-        if (mQueryInTheOmnibox) {
-            if (securityLevel == ConnectionSecurityLevel.SECURE
-                    || securityLevel == ConnectionSecurityLevel.EV_SECURE) {
-                securityLevel = ConnectionSecurityLevel.NONE;
-            } else if (securityLevel == ConnectionSecurityLevel.SECURITY_WARNING
-                    || securityLevel == ConnectionSecurityLevel.SECURITY_ERROR) {
-                setUrlToPageUrl();
-            }
-        }
-
-        // ImageView#setImageResource is no-op if given resource is the current one.
-        int securityIconResource = getSecurityIconResource(securityLevel, !shouldEmphasizeHttpsScheme());
-        if (securityIconResource > 0)
-            mSecurityButton.setImageResource(securityIconResource);
-
-        if (mSecurityIconType == securityLevel) return;
-        mSecurityIconType = securityLevel;
-
-        if (securityLevel == ConnectionSecurityLevel.NONE) {
-            updateSecurityButton(false);
+        boolean isSmallDevice = !DeviceFormFactor.isTablet();
+        boolean isOfflinePage =
+                getCurrentTab() != null && OfflinePageUtils.isOfflinePage(getCurrentTab());
+        int id = getSecurityIconResource(securityLevel, isSmallDevice, isOfflinePage);
+        if (id == 0) {
+            mSecurityButton.setImageDrawable(null);
         } else {
-            updateSecurityButton(true);
-            // Since we emphasize the schema of the URL based on the security type, we need to
-            // refresh the emphasis.
-            mUrlBar.deEmphasizeUrl();
+            // ImageView#setImageResource is no-op if given resource is the current one.
+            mSecurityButton.setImageResource(id);
+            mSecurityButton.setTint(getColorStateList(securityLevel, getToolbarDataProvider(),
+                    getResources(), ColorUtils.shouldUseOpaqueTextboxBackground(
+                            getToolbarDataProvider().getPrimaryColor())));
         }
+
+        updateVerboseStatusVisibility();
+
+        boolean shouldEmphasizeHttpsScheme = shouldEmphasizeHttpsScheme();
+        if (mSecurityIconResource == id
+                && mIsEmphasizingHttpsScheme == shouldEmphasizeHttpsScheme) {
+            return;
+        }
+        mSecurityIconResource = id;
+
+        changeLocationBarIcon();
+        updateLocationBarIconContainerVisibility();
+        // Since we emphasize the scheme of the URL based on the security type, we need to
+        // refresh the emphasis.
+        mUrlBar.deEmphasizeUrl();
         emphasizeUrl();
+        mIsEmphasizingHttpsScheme = shouldEmphasizeHttpsScheme;
     }
 
     private void emphasizeUrl() {
-        if (!mQueryInTheOmnibox) mUrlBar.emphasizeUrl();
+        mUrlBar.emphasizeUrl();
     }
 
     @Override
     public boolean shouldEmphasizeHttpsScheme() {
-        int securityLevel = getSecurityLevel();
-        if (securityLevel == ConnectionSecurityLevel.SECURITY_ERROR
-                || securityLevel == ConnectionSecurityLevel.SECURITY_WARNING
-                || securityLevel == ConnectionSecurityLevel.SECURITY_POLICY_WARNING) {
-            return true;
-        }
-        if (getToolbarDataProvider().isUsingBrandColor()) return false;
-        if (getToolbarDataProvider().isIncognito()) return false;
+        ToolbarDataProvider provider = getToolbarDataProvider();
+        if (provider.isUsingBrandColor() || provider.isIncognito()) return false;
         return true;
-    }
-
-    /**
-     * Updates the display of the security button.
-     * @param enabled Whether the security button should be displayed.
-     */
-    private void updateSecurityButton(boolean enabled) {
-        changeLocationBarIcon(enabled
-                && (!DeviceFormFactor.isTablet(getContext()) || !mUrlHasFocus));
-        mSecurityButtonShown = enabled;
-        updateLocationBarIconContainerVisibility();
     }
 
     /**
@@ -1262,7 +1413,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     @VisibleForTesting
     public boolean isSecurityButtonShown() {
-        return mSecurityButtonShown;
+        return mLocationBarButtonType == BUTTON_TYPE_SECURITY_ICON;
     }
 
     /**
@@ -1270,12 +1421,13 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      * @param buttonType The type of navigation button to be shown.
      */
     private void setNavigationButtonType(NavigationButtonType buttonType) {
+        if (!DeviceFormFactor.isTablet()) return;
         switch (buttonType) {
             case PAGE:
                 Drawable page = ApiCompatibilityUtils.getDrawable(
                         getResources(), R.drawable.ic_omnibox_page);
                 page.setColorFilter(mUseDarkColors
-                        ? getResources().getColor(R.color.light_normal_color)
+                        ? ApiCompatibilityUtils.getColor(getResources(), R.color.light_normal_color)
                         : Color.WHITE, PorterDuff.Mode.SRC_IN);
                 mNavigationButton.setImageDrawable(page);
                 break;
@@ -1283,7 +1435,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 mNavigationButton.setImageResource(R.drawable.ic_omnibox_magnifier);
                 break;
             case EMPTY:
-//                mNavigationButton.setImageResource(0);
+                mNavigationButton.setImageDrawable(null);
                 break;
             default:
                 assert false;
@@ -1293,7 +1445,37 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             mNavigationButton.setVisibility(VISIBLE);
         }
         mNavigationButtonType = buttonType;
+
         updateLocationBarIconContainerVisibility();
+    }
+
+    /**
+     * Update visibility of the verbose status based on the button type and focus state of the
+     * omnibox.
+     */
+    private void updateVerboseStatusVisibility() {
+        // Because is offline page is cleared a bit slower, we also ensure that connection security
+        // level is NONE or HTTP_SHOW_WARNING (http://crbug.com/671453).
+        boolean verboseStatusVisible = !mUrlHasFocus && getCurrentTab() != null
+                && OfflinePageUtils.isOfflinePage(getCurrentTab())
+                && (getSecurityLevel() == ConnectionSecurityLevel.NONE
+                           || getSecurityLevel() == ConnectionSecurityLevel.HTTP_SHOW_WARNING);
+
+        int verboseStatusVisibility = verboseStatusVisible ? VISIBLE : GONE;
+
+        mVerboseStatusTextView.setTextColor(ApiCompatibilityUtils.getColor(getResources(),
+                mUseDarkColors ? R.color.locationbar_status_color
+                        : R.color.locationbar_status_color_light));
+        mVerboseStatusTextView.setVisibility(verboseStatusVisibility);
+
+        View separator = findViewById(R.id.location_bar_verbose_status_separator);
+        separator.setBackgroundColor(ApiCompatibilityUtils.getColor(getResources(), mUseDarkColors
+                ? R.color.locationbar_status_separator_color
+                : R.color.locationbar_status_separator_color_light));
+        separator.setVisibility(verboseStatusVisibility);
+
+        findViewById(R.id.location_bar_verbose_status_extra_space)
+                .setVisibility(verboseStatusVisibility);
     }
 
     /**
@@ -1301,17 +1483,10 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      * security and navigation icons.
      */
     protected void updateLocationBarIconContainerVisibility() {
-        boolean showContainer =
-                mSecurityButtonShown || mNavigationButtonType != NavigationButtonType.EMPTY;
-        findViewById(R.id.location_bar_icon).setVisibility(showContainer ? VISIBLE : GONE);
-    }
-
-    private boolean isStoredArticle(String url) {
-        DomDistillerService domDistillerService =
-                DomDistillerServiceFactory.getForProfile(Profile.getLastUsedProfile());
-        String entryIdFromUrl = DomDistillerUrlUtils.getValueForKeyInUrl(url, "entry_id");
-        if (TextUtils.isEmpty(entryIdFromUrl)) return false;
-        return domDistillerService.hasEntry(entryIdFromUrl);
+        @LocationBarButtonType
+        int buttonToShow = getLocationBarButtonToShow();
+        findViewById(R.id.location_bar_icon)
+                .setVisibility(buttonToShow != BUTTON_TYPE_NONE ? VISIBLE : GONE);
     }
 
     /**
@@ -1328,7 +1503,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                     ApiCompatibilityUtils.setMarginStart(childLayoutParams, startMargin);
                     childView.setLayoutParams(childLayoutParams);
                 }
-                if (childView == mUrlContainer) {
+                if (childView == mUrlBar) {
                     urlContainerChildIndex = i;
                     break;
                 }
@@ -1371,10 +1546,10 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                                 + ApiCompatibilityUtils.getMarginEnd(childLayoutParams));
             }
         }
-        LayoutParams urlLayoutParams = (LayoutParams) mUrlContainer.getLayoutParams();
+        LayoutParams urlLayoutParams = (LayoutParams) mUrlBar.getLayoutParams();
         if (ApiCompatibilityUtils.getMarginEnd(urlLayoutParams) != urlContainerMarginEnd) {
             ApiCompatibilityUtils.setMarginEnd(urlLayoutParams, urlContainerMarginEnd);
-            mUrlContainer.setLayoutParams(urlLayoutParams);
+            mUrlBar.setLayoutParams(urlLayoutParams);
         }
     }
 
@@ -1382,14 +1557,16 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      * @return Whether the delete button should be shown.
      */
     protected boolean shouldShowDeleteButton() {
-        // Show the delete button at the endon the right when the bar has focus and has some text.
-        return mUrlBar.hasFocus() && !TextUtils.isEmpty(mUrlBar.getText());
+        // Show the delete button at the end when the bar has focus and has some text.
+        boolean hasText = !TextUtils.isEmpty(mUrlBar.getText());
+        return hasText && (mUrlBar.hasFocus() || mUrlFocusChangeInProgress);
     }
 
     /**
      * Updates the display of the delete URL content button.
      */
     protected void updateDeleteButtonVisibility() {
+        mDeleteButton.setVisibility(shouldShowDeleteButton() ? VISIBLE : GONE);
     }
 
     /**
@@ -1429,7 +1606,11 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 .addOnLayoutChangeListener(suggestionListResizer);
 
         mSuggestionList = new OmniboxSuggestionsList(getContext());
+
+        // Ensure the results container is initialized and add the suggestion list to it.
+        initOmniboxResultsContainer();
         mOmniboxResultsContainer.addView(mSuggestionList);
+
         // Start with visibility GONE to ensure that show() is called. http://crbug.com/517438
         mSuggestionList.setVisibility(GONE);
         mSuggestionList.setAdapter(mSuggestionListAdapter);
@@ -1438,7 +1619,17 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             @Override
             public void onSelection(OmniboxSuggestion suggestion, int position) {
                 mSuggestionSelectionInProgress = true;
-                String suggestionMatchUrl = updateSuggestionUrlIfNeeded(suggestion, position);
+                if (mShowCachedZeroSuggestResults && !mNativeInitialized) {
+                    mDeferredOnSelection = new DeferredOnSelectionRunnable(suggestion, position) {
+                        @Override
+                        public void run() {
+                            onSelection(this.mSuggestion, this.mPosition);
+                        }
+                    };
+                    return;
+                }
+                String suggestionMatchUrl = updateSuggestionUrlIfNeeded(
+                        suggestion, position, false);
                 loadUrlFromOmniboxMatch(suggestionMatchUrl, suggestion.getTransition(), position,
                         suggestion.getType());
                 hideSuggestions();
@@ -1456,7 +1647,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             @Override
             public void onSetUrlToSuggestion(OmniboxSuggestion suggestion) {
                 if (mIgnoreOmniboxItemSelection) return;
-                setUrlBarText(null, null, suggestion.getFillIntoEdit());
+                setUrlBarText(suggestion.getFillIntoEdit(), null);
                 mUrlBar.setSelection(mUrlBar.getText().length());
                 mIgnoreOmniboxItemSelection = true;
             }
@@ -1548,34 +1739,44 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      *
      * @param suggestion The chosen omnibox suggestion.
      * @param selectedIndex The index of the chosen omnibox suggestion.
+     * @param skipCheck Whether to skip an out of bounds check.
      * @return The url to navigate to.
      */
-    private String updateSuggestionUrlIfNeeded(OmniboxSuggestion suggestion, int selectedIndex) {
+    private String updateSuggestionUrlIfNeeded(OmniboxSuggestion suggestion, int selectedIndex,
+            boolean skipCheck) {
         // Only called once we have suggestions, and don't have a listener though which we can
         // receive suggestions until the native side is ready, so this is safe
         assert mNativeInitialized
                 : "updateSuggestionUrlIfNeeded called before native initialization";
 
         String updatedUrl = null;
-        // Only replace URL queries for corpus search refinements, this does not work well
-        // for regular web searches.
-        // TODO(mariakhomenko): improve efficiency by just checking whether corpus exists.
-        if (mQueryInTheOmnibox && !suggestion.isUrlSuggestion()
-                && !TextUtils.isEmpty(mToolbarDataProvider.getCorpusChipText())) {
-            String query = suggestion.getFillIntoEdit();
-            Tab currentTab = getCurrentTab();
-            if (currentTab != null && !TextUtils.isEmpty(currentTab.getUrl())
-                    && !TextUtils.isEmpty(query)) {
-                updatedUrl = TemplateUrlService.getInstance().replaceSearchTermsInUrl(
-                        query, currentTab.getUrl());
+        if (suggestion.getType() != OmniboxSuggestionType.VOICE_SUGGEST) {
+            int verifiedIndex = -1;
+            if (!skipCheck) {
+                if (mSuggestionItems.size() > selectedIndex
+                        && mSuggestionItems.get(selectedIndex).getSuggestion() == suggestion) {
+                    verifiedIndex = selectedIndex;
+                } else {
+                    // Underlying omnibox results may have changed since the selection was made,
+                    // find the suggestion item, if possible.
+                    for (int i = 0; i < mSuggestionItems.size(); i++) {
+                        if (suggestion.equals(mSuggestionItems.get(i).getSuggestion())) {
+                            verifiedIndex = i;
+                            break;
+                        }
+                    }
+                }
             }
-        } else if (suggestion.getType() != Type.VOICE_SUGGEST) {
+
+            // If we do not have the suggestion as part of our results, skip the URL update.
+            if (verifiedIndex == -1) return suggestion.getUrl();
+
             // TODO(mariakhomenko): Ideally we want to update match destination URL with new aqs
             // for query in the omnibox and voice suggestions, but it's currently difficult to do.
             long elapsedTimeSinceInputChange = mNewOmniboxEditSessionTimestamp > 0
                     ? (SystemClock.elapsedRealtime() - mNewOmniboxEditSessionTimestamp) : -1;
             updatedUrl = mAutocomplete.updateMatchDestinationUrlWithQueryFormulationTime(
-                    selectedIndex, elapsedTimeSinceInputChange);
+                    verifiedIndex, elapsedTimeSinceInputChange);
         }
 
         return updatedUrl == null ? suggestion.getUrl() : updatedUrl;
@@ -1599,11 +1800,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     @Override
     public void hideSuggestions() {
-        if (mAutocomplete == null) return;
+        if (mAutocomplete == null || !mNativeInitialized) return;
 
         if (mShowSuggestions != null) removeCallbacks(mShowSuggestions);
-
-        recordSuggestionsDismissed();
 
         stopAutocomplete(true);
 
@@ -1612,36 +1811,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         updateNavigationButton();
 
         mSuggestionSelectionInProgress = false;
-    }
-
-    /**
-     * Records a UMA action indicating that the user dismissed the suggestion list (e.g. pressed
-     * the back button or the 'x' button in the Omnibox).  If there was an answer shown its type
-     * is recorded.
-     *
-     * The action is not recorded if mSelectionInProgress is true.   This allows us to avoid
-     * recording the action in the case where the user is selecting a suggestion which is not
-     * considered a dismissal.
-     */
-    private void recordSuggestionsDismissed() {
-        if (mSuggestionSelectionInProgress || mSuggestionItems.size() == 0) return;
-
-        int answerTypeShown = 0;
-        for (int i = 0; i < mSuggestionItems.size(); i++) {
-            OmniboxSuggestion suggestion = mSuggestionItems.get(i).getSuggestion();
-            if (suggestion.hasAnswer()) {
-                try {
-                    answerTypeShown = Integer.parseInt(suggestion.getAnswerType());
-                } catch (NumberFormatException e) {
-                    Log.e(getClass().getSimpleName(),
-                            "Answer type in dismissed suggestions is not an int: "
-                            + suggestion.getAnswerType());
-                }
-                break;
-            }
-        }
-        RecordHistogram.recordSparseSlowlyHistogram(
-                "Omnibox.SuggestionsDismissed.AnswerType", answerTypeShown);
     }
 
     /**
@@ -1658,7 +1827,8 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     /**
      * Cancels the queued task to start the autocomplete controller, if any.
      */
-    private void cancelPendingAutocompleteStart() {
+    @VisibleForTesting
+    void cancelPendingAutocompleteStart() {
         if (mRequestSuggestions != null) {
             // There is a request for suggestions either waiting for the native side
             // to start, or on the message queue. Remove it from wherever it is.
@@ -1677,9 +1847,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     /**
-     * Performs a search query on the current {@link ChromeTab}.  This calls
+     * Performs a search query on the current {@link Tab}.  This calls
      * {@link TemplateUrlService#getUrlForSearchQuery(String)} to get a url based on {@code query}
-     * and loads that url in the current {@link ChromeTab}.
+     * and loads that url in the current {@link Tab}.
      * @param query The {@link String} that represents the text query that should be searched for.
      */
     @VisibleForTesting
@@ -1714,13 +1884,16 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             return;
         }
 
-        setUrlBarText(null, null, query);
+        setUrlBarText(query, null);
         mUrlBar.setSelection(0, mUrlBar.getText().length());
-        mUrlBar.requestFocus();
+        setUrlBarFocus(true);
         stopAutocomplete(false);
         if (getCurrentTab() != null) {
             mAutocomplete.start(
                     getCurrentTab().getProfile(), getCurrentTab().getUrl(), query, false);
+        } else if (mBottomSheet != null && !mToolbarDataProvider.isIncognito()) {
+            mAutocomplete.start(Profile.getLastUsedProfile().getOriginalProfile(),
+                    UrlConstants.NTP_URL, query, false);
         }
         post(new Runnable() {
             @Override
@@ -1731,52 +1904,37 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     /**
-     * Whether {@code v} is a location icon which can be clicked to show the
-     * origin info dialog.
+     * Whether {@code v} is a view (location icon, verbose status, ...) which can be clicked to
+     * show the Page Info popup.
      */
-    private boolean isLocationIcon(View v) {
-        return v == mSecurityButton || v == mNavigationButton;
+    private boolean shouldShowPageInfoForView(View v) {
+        return v == mSecurityButton || v == mNavigationButton || v == mVerboseStatusTextView;
     }
 
     @Override
     public void onClick(View v) {
         if (v == mDeleteButton) {
-            if (!TextUtils.isEmpty(mUrlBar.getQueryText())) {
-                setUrlBarText(null, null, "");
+            if (!TextUtils.isEmpty(mUrlBar.getTextWithAutocomplete())) {
+                setUrlBarText("", null);
                 hideSuggestions();
+                updateButtonVisibility();
             }
 
             startZeroSuggest();
             return;
-        } else if (!mUrlHasFocus && isLocationIcon(v)) {
+        } else if (!mUrlHasFocus && shouldShowPageInfoForView(v)) {
             Tab currentTab = getCurrentTab();
             if (currentTab != null && currentTab.getWebContents() != null) {
                 Activity activity = currentTab.getWindowAndroid().getActivity().get();
                 if (activity != null) {
-                    WebsiteSettingsPopup.show(activity, currentTab.getProfile(),
-                            currentTab.getWebContents());
+                    PageInfoPopup.show(
+                            activity, currentTab, null, PageInfoPopup.OPENED_FROM_TOOLBAR);
                 }
             }
         } else if (v == mMicButton) {
             RecordUserAction.record("MobileOmniboxVoiceSearch");
             startVoiceRecognition();
         }
-    }
-
-    /**
-     * Whether we want to be showing inline autocomplete results. We don't want to show them as the
-     * user deletes input. Also if there is a composition (e.g. while using the Japanese IME),
-     * we must not autocomplete or we'll destroy the composition.
-     * @return Whether we want to be showing inline autocomplete results.
-     */
-    private boolean shouldAutocomplete() {
-        if (mLastUrlEditWasDelete) return false;
-        Editable text = mUrlBar.getText();
-
-        return mUrlBar.isCursorAtEndOfTypedText()
-                && !mUrlBar.isHandlingBatchInput()
-                && BaseInputConnection.getComposingSpanEnd(text)
-                        == BaseInputConnection.getComposingSpanStart(text);
     }
 
     @Override
@@ -1786,12 +1944,13 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         // so can only be called once the native side is set up.
         assert mNativeInitialized : "Suggestions received before native side intialialized";
 
-        if (getCurrentTab() == null) {
-            // If the current tab is not available, drop the suggestions and hide the autocomplete.
-            hideSuggestions();
-            return;
+        if (mDeferredOnSelection != null) {
+            mDeferredOnSelection.setShouldLog(newSuggestions.size() > mDeferredOnSelection.mPosition
+                    && mDeferredOnSelection.mSuggestion.equals(
+                            newSuggestions.get(mDeferredOnSelection.mPosition)));
+            mDeferredOnSelection.run();
+            mDeferredOnSelection = null;
         }
-
         String userText = mUrlBar.getTextWithoutAutocomplete();
         mUrlTextAfterSuggestionsReceived = userText + inlineAutocompleteText;
 
@@ -1807,7 +1966,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                 // Determine whether the suggestions have changed. If not, save some time by not
                 // redrawing the suggestions UI.
                 if (suggestion.equals(newSuggestion)
-                        && suggestion.getType() != OmniboxSuggestion.Type.SEARCH_SUGGEST_TAIL) {
+                        && suggestion.getType() != OmniboxSuggestionType.SEARCH_SUGGEST_TAIL) {
                     if (suggestionItem.getMatchedQuery().equals(userText)) {
                         continue;
                     } else if (!suggestion.getDisplayText().startsWith(userText)
@@ -1832,13 +1991,19 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             return;
         }
 
-        if (shouldAutocomplete()) {
+        if (mUrlBar.shouldAutocomplete()) {
             mUrlBar.setAutocompleteText(userText, inlineAutocompleteText);
         }
 
         // Show the suggestion list.
         initSuggestionList();  // It may not have been initialized yet.
         mSuggestionList.resetMaxTextWidths();
+
+        // Handle the case where suggestions (in particular zero suggest) are received without the
+        // URL focusing happening.
+        if (mUrlFocusedWithoutAnimations && mUrlHasFocus) {
+            handleUrlFocusAnimation(mUrlHasFocus);
+        }
 
         if (itemsChanged) mSuggestionListAdapter.notifySuggestionsChanged();
 
@@ -1864,8 +2029,10 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         // Update the navigation button to show the default suggestion's icon.
         updateNavigationButton();
 
-        if (!CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_INSTANT)
-                && PrivacyPreferencesManager.getInstance(getContext()).shouldPrerender()) {
+        if (mNativeInitialized
+                && !CommandLine.getInstance().hasSwitch(ChromeSwitches.DISABLE_INSTANT)
+                && PrivacyPreferencesManager.getInstance().shouldPrerender()
+                && getCurrentTab() != null) {
             mOmniboxPrerender.prerenderMaybe(
                     userText,
                     getOriginalUrl(),
@@ -1943,14 +2110,24 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     @Override
     public void setUrlToPageUrl() {
+        String url = getCurrentTabUrl();
+
         // If the URL is currently focused, do not replace the text they have entered with the URL.
         // Once they stop editing the URL, the current tab's URL will automatically be filled in.
-        if (mUrlBar.hasFocus()) return;
-
-        mQueryInTheOmnibox = false;
+        if (mUrlBar.hasFocus()) {
+            if ((mUrlFocusedWithoutAnimations && !NewTabPage.isNTPUrl(url))
+                    || (mBottomSheet != null && mBottomSheet.isShowingNewTab())) {
+                // If we did not run the focus animations, then the user has not typed any text.
+                // So, clear the focus and accept whatever URL the page is currently attempting to
+                // display. If the NTP is showing, the current page's URL should not be displayed.
+                setUrlBarFocus(false);
+            } else {
+                return;
+            }
+        }
 
         if (getCurrentTab() == null) {
-            setUrlBarText(null, null, "");
+            setUrlBarText("", null);
             return;
         }
 
@@ -1958,95 +2135,67 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         Profile profile = getCurrentTab().getProfile();
         if (profile != null) mOmniboxPrerender.clear(profile);
 
-        String url = getCurrentTab().getUrl().trim();
         mOriginalUrl = url;
 
-        if (NativePageFactory.isNativePageUrl(url, getCurrentTab().isIncognito())) {
+        if (NativePageFactory.isNativePageUrl(url, getCurrentTab().isIncognito())
+                || NewTabPage.isNTPUrl(url)) {
             // Don't show anything for Chrome URLs.
-            setUrlBarText("", null, null);
+            setUrlBarText(null, "");
             return;
         }
 
-        boolean showingQuery = false;
-        String displayText = mToolbarDataProvider.getText();
-        int securityLevel = getSecurityLevel();
-        if (securityLevel != ConnectionSecurityLevel.SECURITY_ERROR
-                && !TextUtils.isEmpty(displayText) && mToolbarDataProvider.wouldReplaceURL()) {
-            url = displayText.trim();
-            showingQuery = true;
-            mQueryInTheOmnibox = true;
-        }
-        String path = null;
-        if (!showingQuery && FeatureUtilities.isDocumentMode(getContext())) {
-            Pair<String, String> urlText = splitPathFromUrlDisplayText(displayText);
-            displayText = urlText.first;
-            path = urlText.second;
-        }
-
-        if (DomDistillerUrlUtils.isDistilledPage(url)) {
-            if (isStoredArticle(url)) {
-                DomDistillerService domDistillerService =
-                        DomDistillerServiceFactory.getForProfile(profile);
-                String originalUrl = domDistillerService.getUrlForEntry(
-                        DomDistillerUrlUtils.getValueForKeyInUrl(url, "entry_id"));
-                displayText =
-                        DomDistillerTabUtils.getFormattedUrlFromOriginalDistillerUrl(originalUrl);
-            } else if (DomDistillerUrlUtils.getOriginalUrlFromDistillerUrl(url) != null) {
-                String originalUrl = DomDistillerUrlUtils.getOriginalUrlFromDistillerUrl(url);
-                displayText =
-                        DomDistillerTabUtils.getFormattedUrlFromOriginalDistillerUrl(originalUrl);
-            }
-        }
-
-        if (setUrlBarText(displayText, path, url)) {
+        if (setUrlBarText(url, mToolbarDataProvider.getText())) {
             mUrlBar.deEmphasizeUrl();
             emphasizeUrl();
         }
-        if (showingQuery) {
-            updateNavigationButton();
-        }
-        updateCustomSelectionActionModeCallback();
+    }
+
+    /** Gets the URL of the web page in the tab. */
+    private String getCurrentTabUrl() {
+        Tab currentTab = getCurrentTab();
+        if (currentTab == null) return "";
+        return currentTab.getUrl().trim();
     }
 
     /**
      * Changes the text on the url bar
+     * @param originalText The original text (URL or search terms) for copy/cut.
      * @param displayText The text (URL or search terms) for user display.
-     * @param trailingText The trailing text (path portion of the URL) to be displayed separately.
-     * @param text The original text (URL or search terms) for copy/cut.
      * @return Whether the URL was changed as a result of this call.
      */
-    private boolean setUrlBarText(String displayText, String trailingText, String text) {
-        mIgnoreURLBarModification = true;
-        boolean urlChanged = mUrlContainer.setUrlText(displayText, trailingText, text);
-        mIgnoreURLBarModification = false;
+    private boolean setUrlBarText(String originalText, String displayText) {
+        mUrlBar.setIgnoreTextChangesForAutocomplete(true);
+        boolean urlChanged = mUrlBar.setUrl(originalText, displayText);
+        mUrlBar.setIgnoreTextChangesForAutocomplete(false);
         return urlChanged;
     }
 
-    /**
-     * Sets whether modifications to the URL bar should be ignored.
-     */
-    @Override
-    public void setIgnoreURLBarModification(boolean value) {
-        mIgnoreURLBarModification = value;
-    }
-
-    private void loadUrlFromOmniboxMatch(String url, int transition, int matchPosition,
-            OmniboxSuggestion.Type type) {
+    private void loadUrlFromOmniboxMatch(String url, int transition, int matchPosition, int type) {
         // loadUrl modifies AutocompleteController's state clearing the native
         // AutocompleteResults needed by onSuggestionsSelected. Therefore,
         // loadUrl should should be invoked last.
         Tab currentTab = getCurrentTab();
-        String currentPageUrl = currentTab != null ? currentTab.getUrl() : "";
+        String currentPageUrl = getCurrentTabUrl();
         WebContents webContents = currentTab != null ? currentTab.getWebContents() : null;
         long elapsedTimeSinceModified = mNewOmniboxEditSessionTimestamp > 0
                 ? (SystemClock.elapsedRealtime() - mNewOmniboxEditSessionTimestamp) : -1;
-        mAutocomplete.onSuggestionSelected(matchPosition, type, currentPageUrl,
-                mQueryInTheOmnibox, mUrlFocusedFromFakebox, elapsedTimeSinceModified,
-                webContents);
+        boolean shouldSkipNativeLog = mShowCachedZeroSuggestResults
+                && (mDeferredOnSelection != null)
+                && !mDeferredOnSelection.shouldLog();
+        if (!shouldSkipNativeLog) {
+            mAutocomplete.onSuggestionSelected(matchPosition, type, currentPageUrl,
+                    mUrlFocusedFromFakebox, elapsedTimeSinceModified,
+                    mUrlBar.getAutocompleteLength(),
+                    webContents);
+        }
         loadUrl(url, transition);
     }
 
-    private void loadUrl(String url, int transition) {
+    /**
+     * Load the url given with the given transition. Exposed for child classes to overwrite as
+     * necessary.
+     */
+    protected void loadUrl(String url, int transition) {
         Tab currentTab = getCurrentTab();
 
         // The code of the rest of this class ensures that this can't be called until the native
@@ -2062,20 +2211,35 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
             if (url.isEmpty()) url = currentTab.getUrl();
         }
 
-        // Loads the |url| in the current ContentView and gives focus to the ContentView.
-        if (currentTab != null && !url.isEmpty()) {
+        // Loads the |url| in a new tab or the current ContentView and gives focus to the
+        // ContentView.
+        if (mBottomSheet != null && mBottomSheet.isShowingNewTab()) {
             LoadUrlParams loadUrlParams = new LoadUrlParams(url);
-            loadUrlParams.setVerbatimHeaders(
-                    GeolocationHeader.getGeoHeader(getContext(), url, currentTab.isIncognito()));
             loadUrlParams.setTransitionType(transition | PageTransition.FROM_ADDRESS_BAR);
-            currentTab.loadUrl(loadUrlParams);
+            mBottomSheet.loadUrlInNewTab(loadUrlParams);
+
+            currentTab = getCurrentTab();
+            RecordUserAction.record("MobileOmniboxUse");
+        } else if (currentTab != null && !url.isEmpty()) {
+            LoadUrlParams loadUrlParams = new LoadUrlParams(url);
+            loadUrlParams.setVerbatimHeaders(GeolocationHeader.getGeoHeader(url, currentTab));
+            loadUrlParams.setTransitionType(transition | PageTransition.FROM_ADDRESS_BAR);
+
+            // If the bottom sheet exists, route the navigation through it instead of the tab.
+            if (mBottomSheet != null) {
+                mBottomSheet.loadUrl(loadUrlParams, currentTab.isIncognito());
+            } else {
+                currentTab.loadUrl(loadUrlParams);
+            }
 
             setUrlToPageUrl();
-            RecordUserAction.record("MobileOmniboxSearch");
+            RecordUserAction.record("MobileOmniboxUse");
             RecordUserAction.record("MobileTabClobbered");
         } else {
             setUrlToPageUrl();
         }
+
+        LocaleManager.getInstance().recordLocaleBasedSearchMetrics(false, url, transition);
 
         if (currentTab != null) currentTab.requestFocus();
 
@@ -2095,172 +2259,104 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         updateSecurityIcon(getSecurityLevel());
     }
 
-    /**
-     * @return The ChromeTab currently showing.
-     */
     @Override
-    public ChromeTab getCurrentTab() {
+    public Tab getCurrentTab() {
         if (mToolbarDataProvider == null) return null;
-        return ChromeTab.fromTab(mToolbarDataProvider.getTab());
+        return mToolbarDataProvider.getTab();
     }
 
-    private ContentViewCore getContentViewCore() {
-        Tab currentTab = getCurrentTab();
-        return currentTab != null ? currentTab.getContentViewCore() : null;
+    @Override
+    public boolean allowKeyboardLearning() {
+        if (mToolbarDataProvider == null) return false;
+        return !mToolbarDataProvider.isIncognito();
+    }
+
+    private void initOmniboxResultsContainer() {
+        if (mOmniboxResultsContainer != null) return;
+
+        // Use the omnibox results container in the bottom sheet if it exists.
+        int omniboxResultsContainerId = R.id.omnibox_results_container_stub;
+        if (mBottomSheet != null) {
+            omniboxResultsContainerId = R.id.bottom_omnibox_results_container_stub;
+        }
+
+        ViewStub overlayStub = (ViewStub) getRootView().findViewById(omniboxResultsContainerId);
+        mOmniboxResultsContainer = (ViewGroup) overlayStub.inflate();
     }
 
     private void updateOmniboxResultsContainer() {
         if (mSuggestionsShown || mUrlHasFocus) {
-            if (mOmniboxResultsContainer == null) {
-                ViewStub overlayStub =
-                        (ViewStub) getRootView().findViewById(R.id.omnibox_results_container_stub);
-                mOmniboxResultsContainer = (ViewGroup) overlayStub.inflate();
-                mOmniboxResultsContainer.setBackgroundColor(CONTENT_OVERLAY_COLOR);
-                // Prevent touch events from propagating down to the chrome view.
-                mOmniboxResultsContainer.setOnTouchListener(new OnTouchListener() {
-                    @Override
-                    @SuppressLint("ClickableViewAccessibility")
-                    public boolean onTouch(View v, MotionEvent event) {
-                        int action = event.getActionMasked();
-                        if (action == MotionEvent.ACTION_CANCEL
-                                || action == MotionEvent.ACTION_UP) {
-                            mUrlBar.clearFocus();
-                            updateOmniboxResultsContainerBackground(false);
-                        }
-                        return true;
-                    }
-                });
-            }
+            initOmniboxResultsContainer();
             updateOmniboxResultsContainerVisibility(true);
         } else if (mOmniboxResultsContainer != null) {
-            updateOmniboxResultsContainerBackground(false);
+            updateFadingBackgroundView(false);
         }
     }
 
     private void updateOmniboxResultsContainerVisibility(boolean visible) {
         boolean currentlyVisible = mOmniboxResultsContainer.getVisibility() == VISIBLE;
-        if (currentlyVisible == visible) {
-            // This early return is necessary. Otherwise, calling
-            // updateOmniboxResultsContainerVisibility(true) twice in a row will update
-            // mFocusedTabImportantForAccessibilityState incorrectly and cause
-            // mFocusedTabView to be stuck in IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS mode.
-            // http://crbug.com/445560
-            return;
-        }
+        if (currentlyVisible == visible) return;
 
         if (visible) {
             mOmniboxResultsContainer.setVisibility(VISIBLE);
-
-            if (getContentViewCore() != null) {
-                mFocusedTabAccessibilityManager =
-                        getContentViewCore().getBrowserAccessibilityManager();
-                if (mFocusedTabAccessibilityManager != null) {
-                    mFocusedTabAccessibilityManager.setVisible(false);
-                }
-            }
-
-            if (getCurrentTab() != null && getCurrentTab().getView() != null) {
-                mFocusedTabView = getCurrentTab().getView();
-                mFocusedTabImportantForAccessibilityState =
-                        mFocusedTabView.getImportantForAccessibility();
-                mFocusedTabView.setImportantForAccessibility(
-                        IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-            }
         } else {
             mOmniboxResultsContainer.setVisibility(INVISIBLE);
-
-            if (mFocusedTabAccessibilityManager != null) {
-                mFocusedTabAccessibilityManager.setVisible(true);
-                mFocusedTabAccessibilityManager = null;
-            }
-
-            if (mFocusedTabView != null) {
-                mFocusedTabView.setImportantForAccessibility(
-                        mFocusedTabImportantForAccessibilityState);
-                mFocusedTabView = null;
-            }
         }
     }
 
     /**
-     * Set the background of the omnibox results container.
+     * Initialize the fading background for when the omnibox is focused.
+     */
+    protected void initFadingOverlayView() {
+        mFadingView =
+                (FadingBackgroundView) getRootView().findViewById(R.id.fading_focus_target);
+        mFadingView.addObserver(this);
+    }
+
+    @Override
+    public void onFadingViewClick() {
+        setUrlBarFocus(false);
+
+        // If the bottom sheet is used, it will control the fading view.
+        if (mBottomSheet == null) updateFadingBackgroundView(false);
+    }
+
+    @Override
+    public void onFadingViewVisibilityChanged(boolean visible) {
+        Activity activity = mWindowAndroid.getActivity().get();
+        if (!(activity instanceof ChromeActivity)) return;
+        ChromeActivity chromeActivity = (ChromeActivity) activity;
+
+        if (visible) {
+            chromeActivity.addViewObscuringAllTabs(mFadingView);
+        } else {
+            chromeActivity.removeViewObscuringAllTabs(mFadingView);
+            updateOmniboxResultsContainerVisibility(false);
+        }
+    }
+
+    /**
+     * Update the fading background view that shows when the omnibox is focused. If Chrome Home is
+     * enabled, this method is a no-op.
      * @param visible Whether the background should be made visible.
      */
-    private void updateOmniboxResultsContainerBackground(boolean visible) {
-        if (getToolbarDataProvider() == null) return;
+    private void updateFadingBackgroundView(boolean visible) {
+        if (mFadingView == null) initFadingOverlayView();
+
+        // If Chrome Home is enabled (the bottom sheet is not null), it will be controlling the
+        // fading view, so block any updating here.
+        if (getToolbarDataProvider() == null || mBottomSheet != null) return;
 
         NewTabPage ntp = getToolbarDataProvider().getNewTabPageForCurrentTab();
         boolean locationBarShownInNTP = ntp != null && ntp.isLocationBarShownInNTP();
-        if (visible) {
-            if (locationBarShownInNTP) {
-                mOmniboxResultsContainer.getBackground().setAlpha(0);
-            } else {
-                fadeInOmniboxResultsContainerBackground();
-            }
+
+        if (visible && !locationBarShownInNTP) {
+            // If the location bar is shown in the NTP, the toolbar will eventually trigger a
+            // fade in.
+            mFadingView.showFadingOverlay();
         } else {
-            if (locationBarShownInNTP) {
-                updateOmniboxResultsContainerVisibility(false);
-            } else {
-                fadeOutOmniboxResultsContainerBackground();
-            }
+            mFadingView.hideFadingOverlay(!locationBarShownInNTP);
         }
-    }
-
-    /**
-     * Trigger a fade in of the omnibox results background.
-     */
-    protected void fadeInOmniboxResultsContainerBackground() {
-        if (mFadeInOmniboxBackgroundAnimator == null) {
-            mFadeInOmniboxBackgroundAnimator = ObjectAnimator.ofInt(
-                    getRootView().findViewById(R.id.omnibox_results_container).getBackground(),
-                    "alpha", 0, 255);
-            mFadeInOmniboxBackgroundAnimator.setDuration(OMNIBOX_CONTAINER_BACKGROUND_FADE_MS);
-            mFadeInOmniboxBackgroundAnimator.setInterpolator(
-                    BakedBezierInterpolator.FADE_IN_CURVE);
-        }
-        runOmniboxResultsFadeAnimation(mFadeInOmniboxBackgroundAnimator);
-    }
-
-    private void fadeOutOmniboxResultsContainerBackground() {
-        if (mFadeOutOmniboxBackgroundAnimator == null) {
-            mFadeOutOmniboxBackgroundAnimator = ObjectAnimator.ofInt(
-                    getRootView().findViewById(R.id.omnibox_results_container).getBackground(),
-                    "alpha", 255, 0);
-            mFadeOutOmniboxBackgroundAnimator.setDuration(OMNIBOX_CONTAINER_BACKGROUND_FADE_MS);
-            mFadeOutOmniboxBackgroundAnimator.setInterpolator(
-                    BakedBezierInterpolator.FADE_OUT_CURVE);
-            mFadeOutOmniboxBackgroundAnimator.addListener(new AnimatorListenerAdapter() {
-                private boolean mIsCancelled;
-
-                @Override
-                public void onAnimationStart(Animator animation) {
-                    mIsCancelled = false;
-                }
-
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                    mIsCancelled = true;
-                }
-
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    if (mIsCancelled) return;
-                    updateOmniboxResultsContainerVisibility(false);
-                }
-            });
-        }
-        runOmniboxResultsFadeAnimation(mFadeOutOmniboxBackgroundAnimator);
-    }
-
-    private void runOmniboxResultsFadeAnimation(Animator fadeAnimation) {
-        if (mOmniboxBackgroundAnimator == fadeAnimation
-                && mOmniboxBackgroundAnimator.isRunning()) {
-            return;
-        } else if (mOmniboxBackgroundAnimator != null) {
-            mOmniboxBackgroundAnimator.cancel();
-        }
-        mOmniboxBackgroundAnimator = fadeAnimation;
-        mOmniboxBackgroundAnimator.start();
     }
 
     @Override
@@ -2284,12 +2380,32 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
     }
 
     /**
+     * Call to update the visibility of the buttons inside the location bar.
+     */
+    protected void updateButtonVisibility() {
+        updateDeleteButtonVisibility();
+    }
+
+    /**
      * Call to notify the location bar that the state of the voice search microphone button may
      * need to be updated.
      */
     @Override
     public void updateMicButtonState() {
-        mMicButton.setVisibility(isVoiceSearchEnabled() ? View.VISIBLE : View.GONE);
+        mVoiceSearchEnabled = isVoiceSearchEnabled();
+        updateButtonVisibility();
+    }
+
+    /**
+     * Updates the display of the mic button.
+     * @param urlFocusChangePercent The completeion percentage of the URL focus change animation.
+     */
+    protected void updateMicButtonVisibility(float urlFocusChangePercent) {
+        boolean visible = !shouldShowDeleteButton();
+        boolean showMicButton = mVoiceSearchEnabled && visible
+                && (mUrlBar.hasFocus() || mUrlFocusChangeInProgress
+                        || urlFocusChangePercent > 0f);
+        mMicButton.setVisibility(showMicButton ? VISIBLE : GONE);
     }
 
     /**
@@ -2298,16 +2414,16 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
      */
     @Override
     public void updateVisualsForState() {
-        if (updateUseDarkColors() || getToolbarDataProvider().isUsingBrandColor()) {
+        if (updateUseDarkColors() || mIsEmphasizingHttpsScheme != shouldEmphasizeHttpsScheme()) {
             updateSecurityIcon(getSecurityLevel());
         }
-        ColorStateList colorStateList = getResources().getColorStateList(mUseDarkColors
-                ? R.color.dark_mode_tint : R.color.light_mode_tint);
+        ColorStateList colorStateList = ApiCompatibilityUtils.getColorStateList(getResources(),
+                mUseDarkColors ? R.color.dark_mode_tint : R.color.light_mode_tint);
         mMicButton.setTint(colorStateList);
         mDeleteButton.setTint(colorStateList);
 
         setNavigationButtonType(mNavigationButtonType);
-        mUrlContainer.setUseDarkTextColors(mUseDarkColors);
+        mUrlBar.setUseDarkTextColors(mUseDarkColors);
 
         if (mSuggestionList != null) {
             mSuggestionList.setBackground(getSuggestionPopupBackground());
@@ -2325,10 +2441,12 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         if (getToolbarDataProvider().isUsingBrandColor() && !mUrlHasFocus) {
             int currentPrimaryColor = getToolbarDataProvider().getPrimaryColor();
             brandColorNeedsLightText =
-                    ColorUtils.shoudUseLightForegroundOnBackground(currentPrimaryColor);
+                    ColorUtils.shouldUseLightForegroundOnBackground(currentPrimaryColor);
         }
 
-        boolean useDarkColors = tab == null || !(tab.isIncognito() || brandColorNeedsLightText);
+        boolean useDarkColors =
+                (mToolbarDataProvider == null || !mToolbarDataProvider.isIncognito())
+                && (tab == null || !(tab.isIncognito() || brandColorNeedsLightText));
         boolean hasChanged = useDarkColors != mUseDarkColors;
         mUseDarkColors = useDarkColors;
 
@@ -2350,10 +2468,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
                     @Override
                     public void onRequestPermissionsResult(
                             String[] permissions, int[] grantResults) {
-                        if (grantResults.length != 1) {
-                            assert false;
-                            return;
-                        }
+                        if (grantResults.length != 1) return;
 
                         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                             startVoiceRecognition();
@@ -2386,8 +2501,7 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
 
     // WindowAndroid.IntentCallback implementation:
     @Override
-    public void onIntentCompleted(WindowAndroid window, int resultCode,
-            ContentResolver contentResolver, Intent data) {
+    public void onIntentCompleted(WindowAndroid window, int resultCode, Intent data) {
         if (resultCode != Activity.RESULT_OK) return;
         if (data.getExtras() == null) return;
 
@@ -2410,37 +2524,6 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
         loadUrl(url, PageTransition.TYPED);
     }
 
-    /**
-     * Tracks how the URL bar was focused (i.e. from the omnibox or the fakebox) and records a UMA
-     * stat for this. Should be called whenever the URL bar gains or loses focus.
-     * @param hasFocus Whether the URL bar now has focus.
-     */
-    private void updateFocusSource(boolean hasFocus) {
-        if (!hasFocus) {
-            mUrlFocusedFromFakebox = false;
-            mHasRecordedUrlFocusSource = false;
-            return;
-        }
-
-        // Record UMA event for how the URL bar was focused.
-        if (mHasRecordedUrlFocusSource) return;
-
-        Tab currentTab = getCurrentTab();
-        if (currentTab == null) return;
-
-        String url = currentTab.getUrl();
-        if (mUrlFocusedFromFakebox) {
-            RecordUserAction.record("MobileFocusedFakeboxOnNtp");
-        } else {
-            if (currentTab.isNativePage() && NewTabPage.isNTPUrl(url)) {
-                RecordUserAction.record("MobileFocusedOmniboxOnNtp");
-            } else {
-                RecordUserAction.record("MobileFocusedOmniboxNotOnNtp");
-            }
-        }
-        mHasRecordedUrlFocusSource = true;
-    }
-
     @Override
     public void onTabLoadingNTP(NewTabPage ntp) {
         ntp.setFakeboxDelegate(this);
@@ -2456,4 +2539,9 @@ public class LocationBarLayout extends FrameLayout implements OnClickListener,
 
     @Override
     public void setShowTitle(boolean showTitle) { }
+
+    @Override
+    public boolean mustQueryUrlBarLocationForSuggestions() {
+        return DeviceFormFactor.isTablet();
+    }
 }

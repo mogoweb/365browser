@@ -38,7 +38,7 @@
             android:layout_weight="1"
             android:background="@drawable/btn_bg_holo_active"
             android:src="@drawable/btn_normal_tabs"
-            chrome:tint="@color/light_mode_tint"
+            chrome:chrometint="@color/light_mode_tint"
             android:contentDescription="@string/accessibility_tab_switcher_standard_stack"
             style="?android:attr/borderlessButtonStyle" />
 
@@ -54,7 +54,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:src="@drawable/btn_incognito_tabs"
-            chrome:tint="@color/light_mode_tint"
+            chrome:chrometint="@color/light_mode_tint"
             android:background="@drawable/btn_bg_holo"
             android:contentDescription="@string/accessibility_tab_switcher_incognito_stack"
             style="?android:attr/borderlessButtonStyle" />

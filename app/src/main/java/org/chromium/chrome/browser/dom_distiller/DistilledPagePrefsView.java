@@ -22,7 +22,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.accessibility.FontSizePrefs;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
 import org.chromium.components.dom_distiller.core.FontFamily;
@@ -38,8 +37,7 @@ import java.util.Map;
  * to change the theme, font size, etc. of distilled pages.
  */
 public class DistilledPagePrefsView extends LinearLayout
-        implements DistilledPagePrefs.Observer, SeekBar.OnSeekBarChangeListener,
-        FontSizePrefs.Observer {
+        implements DistilledPagePrefs.Observer, SeekBar.OnSeekBarChangeListener {
     // XML layout for View.
     private static final int VIEW_LAYOUT = R.layout.distilled_page_prefs_view;
 
@@ -50,7 +48,6 @@ public class DistilledPagePrefsView extends LinearLayout
     private final Map<Theme, RadioButton> mColorModeButtons;
 
     private final DistilledPagePrefs mDistilledPagePrefs;
-    private final FontSizePrefs mFontSizePrefs;
 
     // Text field showing font scale percentage.
     private TextView mFontScaleTextView;
@@ -73,7 +70,6 @@ public class DistilledPagePrefsView extends LinearLayout
         super(context, attrs);
         mDistilledPagePrefs = DomDistillerServiceFactory.getForProfile(
                 Profile.getLastUsedProfile()).getDistilledPagePrefs();
-        mFontSizePrefs = FontSizePrefs.getInstance(getContext());
         mColorModeButtons = new EnumMap<Theme, RadioButton>(Theme.class);
         mPercentageFormatter = NumberFormat.getPercentInstance(Locale.getDefault());
     }
@@ -108,7 +104,7 @@ public class DistilledPagePrefsView extends LinearLayout
         initFontFamilySpinner();
 
         // Setting initial progress on font scale seekbar.
-        onChangeFontSize(mFontSizePrefs.getFontScaleFactor());
+        onChangeFontScaling(mDistilledPagePrefs.getFontScaling());
         mFontScaleSeekBar.setOnSeekBarChangeListener(this);
     }
 
@@ -217,6 +213,12 @@ public class DistilledPagePrefsView extends LinearLayout
         mColorModeButtons.get(theme).setChecked(true);
     }
 
+    @Override
+    public void onChangeFontScaling(float scaling) {
+        setFontScaleTextView(scaling);
+        setFontScaleProgress(scaling);
+    }
+
     // SeekBar.OnSeekBarChangeListener
 
     @Override
@@ -225,7 +227,9 @@ public class DistilledPagePrefsView extends LinearLayout
         // newValue = .50, .55, .60, ..., 1.95, 2.00 (supported font scales)
         float newValue = (progress / 20f + .5f);
         setFontScaleTextView(newValue);
-        mFontSizePrefs.setFontScaleFactor(newValue);
+        if (fromUser) {
+            mDistilledPagePrefs.setFontScaling(newValue);
+        }
     }
 
     @Override
@@ -233,20 +237,6 @@ public class DistilledPagePrefsView extends LinearLayout
 
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {}
-
-    // FontSizePrefs.Observer
-
-    @Override
-    public void onChangeFontSize(float newFontSize) {
-        setFontScaleTextView(newFontSize);
-        setFontScaleProgress(newFontSize);
-    }
-
-    @Override
-    public void onChangeForceEnableZoom(boolean enabled) {}
-
-    @Override
-    public void onChangeUserSetForceEnableZoom(boolean enabled) {}
 
     /**
      * Initiatializes a Button and selects it if it corresponds to the current
@@ -269,7 +259,7 @@ public class DistilledPagePrefsView extends LinearLayout
     private void setFontScaleProgress(float newValue) {
         // newValue = .50, .55, .60, ..., 1.95, 2.00 (supported font scales)
         // progress = [0, 30]
-        int progress = (int) ((newValue - .5) * 20);
+        int progress = (int) Math.round((newValue - .5) * 20);
         mFontScaleSeekBar.setProgress(progress);
     }
 

@@ -11,18 +11,23 @@ import android.graphics.RectF;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
+import org.chromium.chrome.browser.compositor.layouts.LayoutManager;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton;
+import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton.CompositorOnClickHandler;
 import org.chromium.chrome.browser.compositor.layouts.components.VirtualView;
-import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaGestureEventFilter;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EventFilter;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.GestureHandler;
 import org.chromium.chrome.browser.compositor.overlays.SceneOverlay;
 import org.chromium.chrome.browser.compositor.scene_layer.SceneOverlayLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.TabStripSceneLayer;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.resources.ResourceManager;
 
 import java.util.List;
@@ -32,9 +37,6 @@ import java.util.List;
  * all input and model events to the proper destination.
  */
 public class StripLayoutHelperManager implements SceneOverlay {
-    // Visibility Constants
-    private static final float TAB_STRIP_HEIGHT_DP = 40.f;
-
     // Caching Variables
     private final RectF mStripFilterArea = new RectF();
 
@@ -44,15 +46,14 @@ public class StripLayoutHelperManager implements SceneOverlay {
 
     // Model selector buttons constants.
     private static final float MODEL_SELECTOR_BUTTON_Y_OFFSET_DP = 10.f;
-    private static final float MODEL_SELECTOR_BUTTON_RIGHT_PADDING_DP = 6.f;
-    private static final float MODEL_SELECTOR_BUTTON_LEFT_PADDING_DP = 3.f;
+    private static final float MODEL_SELECTOR_BUTTON_END_PADDING_DP = 6.f;
+    private static final float MODEL_SELECTOR_BUTTON_START_PADDING_DP = 3.f;
     private static final float MODEL_SELECTOR_BUTTON_WIDTH_DP = 24.f;
     private static final float MODEL_SELECTOR_BUTTON_HEIGHT_DP = 24.f;
 
     // External influences
     private TabModelSelector mTabModelSelector;
     private final LayoutUpdateHost mUpdateHost;
-    private final LayoutRenderHost mRenderHost;
 
     // Event Filters
     private final AreaGestureEventFilter mEventFilter;
@@ -63,12 +64,68 @@ public class StripLayoutHelperManager implements SceneOverlay {
     private final StripLayoutHelper mIncognitoHelper;
 
     // UI State
-    private float mWidth;
-    private final float mHeight;
+    private float mWidth;  // in dp units
+    private final float mHeight;  // in dp units
     private int mOrientation;
     private final CompositorButton mModelSelectorButton;
 
     private TabStripSceneLayer mTabStripTreeProvider;
+
+    private TabStripEventHandler mTabStripEventHandler;
+
+    private class TabStripEventHandler implements GestureHandler {
+        @Override
+        public void onDown(float x, float y, boolean fromMouse, int buttons) {
+            if (mModelSelectorButton.onDown(x, y)) return;
+            getActiveStripLayoutHelper().onDown(time(), x, y, fromMouse, buttons);
+        }
+
+        @Override
+        public void onUpOrCancel() {
+            if (mModelSelectorButton.onUpOrCancel() && mTabModelSelector != null) {
+                getActiveStripLayoutHelper().finishAnimation();
+                if (!mModelSelectorButton.isVisible()) return;
+                mTabModelSelector.selectModel(!mTabModelSelector.isIncognitoSelected());
+                return;
+            }
+            getActiveStripLayoutHelper().onUpOrCancel(time());
+        }
+
+        @Override
+        public void drag(float x, float y, float dx, float dy, float tx, float ty) {
+            mModelSelectorButton.drag(x, y);
+            getActiveStripLayoutHelper().drag(time(), x, y, dx, dy, tx, ty);
+        }
+
+        @Override
+        public void click(float x, float y, boolean fromMouse, int buttons) {
+            long time = time();
+            if (mModelSelectorButton.click(x, y)) {
+                mModelSelectorButton.handleClick(time);
+                return;
+            }
+            getActiveStripLayoutHelper().click(time(), x, y, fromMouse, buttons);
+        }
+
+        @Override
+        public void fling(float x, float y, float velocityX, float velocityY) {
+            getActiveStripLayoutHelper().fling(time(), x, y, velocityX, velocityY);
+        }
+
+        @Override
+        public void onLongPress(float x, float y) {
+            getActiveStripLayoutHelper().onLongPress(time(), x, y);
+        }
+
+        @Override
+        public void onPinch(float x0, float y0, float x1, float y1, boolean firstEvent) {
+            // Not implemented.
+        }
+
+        private long time() {
+            return LayoutManager.time();
+        }
+    }
 
     /**
      * Creates an instance of the {@link StripLayoutHelperManager}.
@@ -76,21 +133,25 @@ public class StripLayoutHelperManager implements SceneOverlay {
      * @param updateHost        The parent {@link LayoutUpdateHost}.
      * @param renderHost        The {@link LayoutRenderHost}.
      */
-    public StripLayoutHelperManager(Context context, LayoutUpdateHost updateHost,
-            LayoutRenderHost renderHost, AreaGestureEventFilter eventFilter) {
-        mHeight = TAB_STRIP_HEIGHT_DP;
-
+    public StripLayoutHelperManager(
+            Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost) {
         mUpdateHost = updateHost;
-        mRenderHost = renderHost;
         mTabStripTreeProvider = new TabStripSceneLayer(context);
-
-        mEventFilter = eventFilter;
+        mTabStripEventHandler = new TabStripEventHandler();
+        mEventFilter =
+                new AreaGestureEventFilter(context, mTabStripEventHandler, null, false, false);
 
         mNormalHelper = new StripLayoutHelper(context, updateHost, renderHost, false);
         mIncognitoHelper = new StripLayoutHelper(context, updateHost, renderHost, true);
 
-        mModelSelectorButton = new CompositorButton(
-                context, MODEL_SELECTOR_BUTTON_WIDTH_DP, MODEL_SELECTOR_BUTTON_HEIGHT_DP);
+        CompositorOnClickHandler selectorClickHandler = new CompositorOnClickHandler() {
+            @Override
+            public void onClick(long time) {
+                handleModelSelectorButtonClick();
+            }
+        };
+        mModelSelectorButton = new CompositorButton(context, MODEL_SELECTOR_BUTTON_WIDTH_DP,
+                MODEL_SELECTOR_BUTTON_HEIGHT_DP, selectorClickHandler);
         mModelSelectorButton.setIncognito(false);
         mModelSelectorButton.setVisible(false);
         // Pressed resources are the same as the unpressed resources.
@@ -100,6 +161,7 @@ public class StripLayoutHelperManager implements SceneOverlay {
         mModelSelectorButton.setY(MODEL_SELECTOR_BUTTON_Y_OFFSET_DP);
 
         Resources res = context.getResources();
+        mHeight = res.getDimension(R.dimen.tab_strip_height) / res.getDisplayMetrics().density;
         mModelSelectorButton.setAccessibilityDescription(
                 res.getString(R.string.accessibility_tabstrip_btn_incognito_toggle_standard),
                 res.getString(R.string.accessibility_tabstrip_btn_incognito_toggle_incognito));
@@ -113,16 +175,46 @@ public class StripLayoutHelperManager implements SceneOverlay {
     public void destroy() {
         mTabStripTreeProvider.destroy();
         mTabStripTreeProvider = null;
+        mIncognitoHelper.destroy();
+        mNormalHelper.destroy();
+    }
+
+    private void handleModelSelectorButtonClick() {
+        if (mTabModelSelector == null) return;
+        getActiveStripLayoutHelper().finishAnimation();
+        if (!mModelSelectorButton.isVisible()) return;
+        mTabModelSelector.selectModel(!mTabModelSelector.isIncognitoSelected());
+    }
+
+    @VisibleForTesting
+    public void simulateClick(float x, float y, boolean fromMouse, int buttons) {
+        mTabStripEventHandler.click(x, y, fromMouse, buttons);
+    }
+
+    @VisibleForTesting
+    public void simulateLongPress(float x, float y) {
+        mTabStripEventHandler.onLongPress(x, y);
     }
 
     @Override
-    public SceneOverlayLayer getUpdatedSceneOverlayTree(LayerTitleCache layerTitleCache,
-            ResourceManager resourceManager, float yOffset) {
+    public SceneOverlayLayer getUpdatedSceneOverlayTree(RectF viewport, RectF visibleViewport,
+            LayerTitleCache layerTitleCache, ResourceManager resourceManager, float yOffset) {
         assert mTabStripTreeProvider != null;
 
+        Tab selectedTab = mTabModelSelector.getCurrentModel().getTabAt(
+                mTabModelSelector.getCurrentModel().index());
+        int selectedTabId = selectedTab == null ? TabModel.INVALID_TAB_INDEX : selectedTab.getId();
         mTabStripTreeProvider.pushAndUpdateStrip(this, layerTitleCache, resourceManager,
-                getActiveStripLayoutHelper().getStripLayoutTabsToRender(), yOffset);
+                getActiveStripLayoutHelper().getStripLayoutTabsToRender(), yOffset,
+                selectedTabId);
         return mTabStripTreeProvider;
+    }
+
+    @Override
+    public boolean isSceneOverlayTreeShowing() {
+        // TODO(mdjones): This matches existing behavior but can be improved to return false if
+        // the browser controls offset is equal to the browser controls height.
+        return true;
     }
 
     @Override
@@ -135,8 +227,13 @@ public class StripLayoutHelperManager implements SceneOverlay {
             float width, float height, float visibleViewportOffsetY, int orientation) {
         mWidth = width;
         mOrientation = orientation;
-        mModelSelectorButton.setX(
-                mWidth - MODEL_SELECTOR_BUTTON_WIDTH_DP - MODEL_SELECTOR_BUTTON_RIGHT_PADDING_DP);
+        if (!LocalizationUtils.isLayoutRtl()) {
+            mModelSelectorButton.setX(
+                    mWidth - MODEL_SELECTOR_BUTTON_WIDTH_DP - MODEL_SELECTOR_BUTTON_END_PADDING_DP);
+        } else {
+            mModelSelectorButton.setX(MODEL_SELECTOR_BUTTON_END_PADDING_DP);
+        }
+
         mNormalHelper.onSizeChanged(mWidth, mHeight);
         mIncognitoHelper.onSizeChanged(mWidth, mHeight);
 
@@ -158,18 +255,30 @@ public class StripLayoutHelperManager implements SceneOverlay {
         getActiveStripLayoutHelper().getVirtualViews(views);
     }
 
+    @Override
+    public boolean shouldHideAndroidBrowserControls() {
+        return false;
+    }
+
+    /**
+     * @return The opacity to use for the fade on the left side of the tab strip.
+     */
+    public float getLeftFadeOpacity() {
+        return getActiveStripLayoutHelper().getLeftFadeOpacity();
+    }
+
+    /**
+     * @return The opacity to use for the fade on the right side of the tab strip.
+     */
+    public float getRightFadeOpacity() {
+        return getActiveStripLayoutHelper().getRightFadeOpacity();
+    }
+
     /**
      * @return The brightness of background tabs in the tabstrip.
      */
     public float getBackgroundTabBrightness() {
         return getActiveStripLayoutHelper().getBackgroundTabBrightness();
-    }
-
-    /**
-     * @param brightness Sets the brightness for the entire tabstrip.
-     */
-    public void setBrightness(float brightness) {
-        getActiveStripLayoutHelper().setBrightness(brightness);
     }
 
     /**
@@ -184,16 +293,15 @@ public class StripLayoutHelperManager implements SceneOverlay {
      * represent, and various objects associated with it.
      * @param modelSelector The {@link TabModelSelector} to visually represent.
      * @param tabCreatorManager The {@link TabCreatorManager}, used to create new tabs.
-     * @param tabContentManager The {@link TabContentManager}, used to provide display content for
-     *                          tabs.
      */
     public void setTabModelSelector(TabModelSelector modelSelector,
-            TabCreatorManager tabCreatorManager, TabContentManager tabContentManager) {
+            TabCreatorManager tabCreatorManager) {
         if (mTabModelSelector == modelSelector) return;
+
         mTabModelSelector = modelSelector;
-        mNormalHelper.setTabModel(mTabModelSelector.getModel(false), tabContentManager,
+        mNormalHelper.setTabModel(mTabModelSelector.getModel(false),
                 tabCreatorManager.getTabCreator(false));
-        mIncognitoHelper.setTabModel(mTabModelSelector.getModel(true), tabContentManager,
+        mIncognitoHelper.setTabModel(mTabModelSelector.getModel(true),
                 tabCreatorManager.getTabCreator(true));
         tabModelSwitched(mTabModelSelector.isIncognitoSelected());
     }
@@ -235,9 +343,30 @@ public class StripLayoutHelperManager implements SceneOverlay {
     }
 
     @Override
+    public boolean onBackPressed() {
+        return false;
+    }
+
+    @Override
+    public void onHideLayout() {}
+
+    @Override
+    public boolean handlesTabCreating() {
+        return false;
+    }
+
+    @Override
+    public void tabStateInitialized() {
+        updateModelSwitcherButton();
+    }
+
+    @Override
     public void tabModelSwitched(boolean incognito) {
         if (incognito == mIsIncognito) return;
         mIsIncognito = incognito;
+
+        mIncognitoHelper.tabModelSelected(mIsIncognito);
+        mNormalHelper.tabModelSelected(!mIsIncognito);
 
         updateModelSwitcherButton();
 
@@ -250,12 +379,13 @@ public class StripLayoutHelperManager implements SceneOverlay {
             boolean isVisible = mTabModelSelector.getModel(true).getCount() != 0;
             mModelSelectorButton.setVisible(isVisible);
 
-            float rightMargin = isVisible
-                    ? MODEL_SELECTOR_BUTTON_WIDTH_DP + MODEL_SELECTOR_BUTTON_RIGHT_PADDING_DP
-                            + MODEL_SELECTOR_BUTTON_LEFT_PADDING_DP
+            float endMargin = isVisible
+                    ? MODEL_SELECTOR_BUTTON_WIDTH_DP + MODEL_SELECTOR_BUTTON_END_PADDING_DP
+                            + MODEL_SELECTOR_BUTTON_START_PADDING_DP
                     : 0.0f;
-            mNormalHelper.setRightMargin(rightMargin);
-            mIncognitoHelper.setRightMargin(rightMargin);
+
+            mNormalHelper.setEndMargin(endMargin);
+            mIncognitoHelper.setEndMargin(endMargin);
         }
     }
 
@@ -304,89 +434,6 @@ public class StripLayoutHelperManager implements SceneOverlay {
     @Override
     public void tabLoadFinished(int id, boolean incognito) {
         getStripLayoutHelper(incognito).tabLoadFinished(id);
-    }
-
-    /**
-     * Called on touch drag event.
-     * @param time   The current time of the app in ms.
-     * @param x      The y coordinate of the end of the drag event.
-     * @param y      The y coordinate of the end of the drag event.
-     * @param deltaX The number of pixels dragged in the x direction.
-     * @param deltaY The number of pixels dragged in the y direction.
-     * @param totalX The total delta x since the drag started.
-     * @param totalY The total delta y since the drag started.
-     */
-    public void drag(
-            long time, float x, float y, float deltaX, float deltaY, float totalX, float totalY) {
-        mModelSelectorButton.drag(x, y);
-        getActiveStripLayoutHelper().drag(time, x, y, deltaX, deltaY, totalX, totalY);
-    }
-
-    /**
-     * Called on touch fling event. This is called before the onUpOrCancel event.
-     * @param time      The current time of the app in ms.
-     * @param x         The y coordinate of the start of the fling event.
-     * @param y         The y coordinate of the start of the fling event.
-     * @param velocityX The amount of velocity in the x direction.
-     * @param velocityY The amount of velocity in the y direction.
-     */
-    public void fling(long time, float x, float y, float velocityX, float velocityY) {
-        getActiveStripLayoutHelper().fling(time, x, y, velocityX, velocityY);
-    }
-
-    /**
-     * Called on onDown event.
-     * @param time      The time stamp in millisecond of the event.
-     * @param x         The x position of the event.
-     * @param y         The y position of the event.
-     * @param fromMouse Whether the event originates from a mouse.
-     * @param buttons   State of all buttons that are pressed.
-     */
-    public void onDown(long time, float x, float y, boolean fromMouse, int buttons) {
-        if (mModelSelectorButton.onDown(x, y)) return;
-        getActiveStripLayoutHelper().onDown(time, x, y, fromMouse, buttons);
-    }
-
-    /**
-     * Called on long press touch event.
-     * @param time The current time of the app in ms.
-     * @param x    The x coordinate of the position of the press event.
-     * @param y    The y coordinate of the position of the press event.
-     */
-    public void onLongPress(long time, float x, float y) {
-        getActiveStripLayoutHelper().onLongPress(time, x, y);
-    }
-
-    /**
-     * Called on click. This is called before the onUpOrCancel event.
-     * @param time      The current time of the app in ms.
-     * @param x         The x coordinate of the position of the click.
-     * @param y         The y coordinate of the position of the click.
-     * @param fromMouse Whether the event originates from a mouse.
-     * @param buttons   State of all buttons that were pressed when onDown was invoked.
-     */
-    public void click(long time, float x, float y, boolean fromMouse, int buttons) {
-        if (mModelSelectorButton.click(x, y) && mTabModelSelector != null) {
-            getActiveStripLayoutHelper().finishAnimation();
-            if (!mModelSelectorButton.isVisible()) return;
-            mTabModelSelector.selectModel(!mTabModelSelector.isIncognitoSelected());
-            return;
-        }
-        getActiveStripLayoutHelper().click(time, x, y, fromMouse, buttons);
-    }
-
-    /**
-     * Called on up or cancel touch events. This is called after the click and fling event if any.
-     * @param time The current time of the app in ms.
-     */
-    public void onUpOrCancel(long time) {
-        if (mModelSelectorButton.onUpOrCancel() && mTabModelSelector != null) {
-            getActiveStripLayoutHelper().finishAnimation();
-            if (!mModelSelectorButton.isVisible()) return;
-            mTabModelSelector.selectModel(!mTabModelSelector.isIncognitoSelected());
-            return;
-        }
-        getActiveStripLayoutHelper().onUpOrCancel(time);
     }
 
     /**

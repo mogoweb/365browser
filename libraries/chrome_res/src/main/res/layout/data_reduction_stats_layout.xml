@@ -2,86 +2,118 @@
 <!-- Copyright 2015 The Chromium Authors. All rights reserved.
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
-<LinearLayout android:clipChildren="false" android:clipToPadding="false" android:id="@+id/data_reduction_stats_container" android:layout_height="wrap_content" android:layout_width="match_parent" android:orientation="vertical" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
-  
 
-    
-  <TextView android:fadingEdge="horizontal" android:layout_height="wrap_content" android:layout_width="match_parent" android:text="@string/data_reduction_stats_title" android:textAppearance="@style/PreferenceCategoryTextStyle"/>
-  
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/data_reduction_stats_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical" >
 
-    
-  <include layout="@layout/data_usage_chart"/>
-  
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal" >
 
-    
-  <LinearLayout android:layout_height="wrap_content" android:layout_width="match_parent">
-    
+        <LinearLayout
+            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical" >
 
-        
-    <TextView android:id="@+id/data_reduction_start_date" android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="0dp" android:textAppearance="@style/PreferenceSummary" android:textSize="14sp"/>
-    
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" >
 
-        
-    <TextView android:id="@+id/data_reduction_end_date" android:layout_height="wrap_content" android:layout_width="wrap_content" android:textAppearance="@style/PreferenceSummary" android:textSize="14sp"/>
-    
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:text="@string/data_reduction_savings_label"
+                    android:textAppearance="@style/PreferenceCategoryTextStyle" />
 
-    
-  </LinearLayout>
-  
+                <TextView
+                    android:id="@+id/data_reduction_savings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="3dp"
+                    android:textAppearance="@style/PreferenceCategoryTextStyle" />
 
-    
-  <LinearLayout android:layout_height="wrap_content" android:layout_width="match_parent" android:orientation="horizontal">
-    
+            </LinearLayout>
 
-        
-    <TextView android:id="@+id/data_reduction_percent" android:layout_height="wrap_content" android:layout_marginTop="0dp" android:layout_width="wrap_content" android:textColor="?android:attr/textColorPrimary" android:textSize="50sp"/>
-    
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal" >
 
-        
-    <FrameLayout android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="0dp" android:paddingLeft="20dp" android:paddingRight="6dp">
-      
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true"
+                    android:text="@string/data_reduction_usage_label"
+                    android:textAppearance="@style/DataReductionPrefSecondaryStyle" />
 
-            
-      <LinearLayout android:layout_gravity="end" android:layout_height="wrap_content" android:layout_width="wrap_content" android:orientation="vertical" tools:ignore="UselessParent">
-        
+                <TextView
+                    android:id="@+id/data_reduction_usage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="3dp"
+                    android:textAppearance="@style/DataReductionPrefSecondaryStyle" />
+            </LinearLayout>
 
-                
-        <TextView android:layout_height="wrap_content" android:layout_marginTop="14dp" android:layout_width="match_parent" android:singleLine="true" android:text="@string/data_reduction_original_size_label" android:textColor="?android:attr/textColorPrimary" android:textSize="14sp"/>
-        
+        </LinearLayout>
 
-                
-        <TextView android:layout_height="wrap_content" android:layout_marginTop="4dp" android:layout_width="match_parent" android:singleLine="true" android:text="@string/data_reduction_compressed_size_label" android:textColor="?android:attr/textColorPrimary" android:textSize="14sp"/>
-        
-            
-      </LinearLayout>
-      
+        <TextView
+            android:id="@+id/data_reduction_percent"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="0dp"
+            android:includeFontPadding="false"
+            android:textColor="@color/light_active_color"
+            android:textSize="34sp" />
 
-        
-    </FrameLayout>
-    
-
-        
-    <LinearLayout android:layout_height="wrap_content" android:layout_width="wrap_content" android:orientation="vertical" android:paddingLeft="10dp">
-      
-
-            
-      <TextView android:id="@+id/data_reduction_original_size" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:layout_width="wrap_content" android:textColor="?android:attr/textColorPrimary" android:textSize="14sp" android:textStyle="bold"/>
-      
-
-            
-      <TextView android:id="@+id/data_reduction_compressed_size" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:layout_width="wrap_content" android:textColor="?android:attr/textColorPrimary" android:textSize="14sp" android:textStyle="bold"/>
-      
-        
     </LinearLayout>
-    
 
-    
-  </LinearLayout>
-  
+    <include layout="@layout/data_usage_chart" />
 
-    
-  <TextView android:drawableLeft="@drawable/exclamation_triangle" android:drawablePadding="6dp" android:id="@+id/data_reduction_proxy_unreachable" android:layout_height="wrap_content" android:layout_marginBottom="20dp" android:layout_marginTop="20dp" android:layout_width="match_parent" android:text="@string/data_reduction_proxy_unreachable_warn" android:textColor="?android:attr/textColorPrimary" android:textSize="14sp"/>
-  
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
 
+        <TextView
+            android:id="@+id/data_reduction_start_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/PreferenceSummary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/data_reduction_end_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/PreferenceSummary"
+            android:textSize="14sp" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/data_reduction_proxy_unreachable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:layout_marginTop="20dp"
+        android:drawableStart="@drawable/exclamation_triangle"
+        android:drawablePadding="6dp"
+        android:text="@string/data_reduction_proxy_unreachable_warn"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="14sp" />
+        
+    <include layout="@layout/data_usage_breakdown" />
 
 </LinearLayout>

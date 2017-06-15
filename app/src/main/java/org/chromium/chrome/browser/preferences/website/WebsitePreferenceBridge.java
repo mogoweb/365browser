@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.preferences.website;
 
+import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.browser.preferences.PrefServiceBridge;
 
@@ -16,22 +17,6 @@ import java.util.List;
  */
 public abstract class WebsitePreferenceBridge {
     private static final String LOG_TAG = "WebsiteSettingsUtils";
-
-    /**
-     * Interface for an object that listens to local storage info is ready callback.
-     */
-    public interface LocalStorageInfoReadyCallback {
-        @CalledByNative("LocalStorageInfoReadyCallback")
-        public void onLocalStorageInfoReady(HashMap map);
-    }
-
-    /**
-     * Interface for an object that listens to storage info is ready callback.
-     */
-    public interface StorageInfoReadyCallback {
-        @CalledByNative("StorageInfoReadyCallback")
-        public void onStorageInfoReady(ArrayList array);
-    }
 
     /**
      * Interface for an object that listens to storage info is cleared callback.
@@ -75,19 +60,6 @@ public abstract class WebsitePreferenceBridge {
         list.add(new MidiInfo(origin, embedder, false));
     }
 
-    public static List<CookieInfo> getCookieInfo() {
-        boolean managedOnly = PrefServiceBridge.getInstance().isAcceptCookiesManaged();
-        ArrayList<CookieInfo> list = new ArrayList<CookieInfo>();
-        nativeGetCookieOrigins(list, managedOnly);
-        return list;
-    }
-
-    @CalledByNative
-    private static void insertCookieInfoIntoList(
-            ArrayList<CookieInfo> list, String origin, String embedder) {
-        list.add(new CookieInfo(origin, embedder, false));
-    }
-
     @CalledByNative
     private static Object createStorageInfoList() {
         return new ArrayList<StorageInfo>();
@@ -107,8 +79,9 @@ public abstract class WebsitePreferenceBridge {
     @SuppressWarnings("unchecked")
     @CalledByNative
     private static void insertLocalStorageInfoIntoMap(
-            HashMap map, String origin, String fullOrigin, long size) {
-        ((HashMap<String, LocalStorageInfo>) map).put(origin, new LocalStorageInfo(origin, size));
+            HashMap map, String origin, String fullOrigin, long size, boolean important) {
+        ((HashMap<String, LocalStorageInfo>) map)
+                .put(origin, new LocalStorageInfo(origin, size, important));
     }
 
     /**
@@ -130,20 +103,19 @@ public abstract class WebsitePreferenceBridge {
     }
 
     /**
-     * @return the list of all origins that have push notification permissions in
-     *         non-incognito mode.
+     * @return the list of all origins that have notification permissions in non-incognito mode.
      */
     @SuppressWarnings("unchecked")
-    public static List<PushNotificationInfo> getPushNotificationInfo() {
-        ArrayList<PushNotificationInfo> list = new ArrayList<PushNotificationInfo>();
-        nativeGetPushNotificationOrigins(list);
+    public static List<NotificationInfo> getNotificationInfo() {
+        ArrayList<NotificationInfo> list = new ArrayList<NotificationInfo>();
+        nativeGetNotificationOrigins(list);
         return list;
     }
 
     @CalledByNative
-    private static void insertPushNotificationIntoList(
-            ArrayList<PushNotificationInfo> list, String origin, String embedder) {
-        list.add(new PushNotificationInfo(origin, embedder, false));
+    private static void insertNotificationIntoList(
+            ArrayList<NotificationInfo> list, String origin, String embedder) {
+        list.add(new NotificationInfo(origin, embedder, false));
     }
 
     /**
@@ -215,31 +187,57 @@ public abstract class WebsitePreferenceBridge {
         return managedExceptions;
     }
 
-    public static void fetchLocalStorageInfo(LocalStorageInfoReadyCallback callback) {
+    public static void fetchLocalStorageInfo(Callback<HashMap> callback) {
         nativeFetchLocalStorageInfo(callback);
     }
 
-    public static void fetchStorageInfo(StorageInfoReadyCallback callback) {
+    public static void fetchStorageInfo(Callback<ArrayList> callback) {
         nativeFetchStorageInfo(callback);
     }
 
     /**
-     * @return the list of all sites that have fullscreen permissions in non-incognito mode.
+     * Returns the list of all USB device permissions.
+     *
+     * There will be one UsbInfo instance for each granted permission. That
+     * means that if two origin/embedder pairs have permission for the same
+     * device there will be two UsbInfo instances.
      */
-    public static List<FullscreenInfo> getFullscreenInfo() {
-        boolean managedOnly = PrefServiceBridge.getInstance().isFullscreenManaged();
-        ArrayList<FullscreenInfo> list = new ArrayList<FullscreenInfo>();
-        nativeGetFullscreenOrigins(list, managedOnly);
+    public static List<UsbInfo> getUsbInfo() {
+        ArrayList<UsbInfo> list = new ArrayList<UsbInfo>();
+        nativeGetUsbOrigins(list);
         return list;
     }
 
     /**
-     * Inserts fullscreen information into a list.
+     * Inserts USB device information into a list.
      */
     @CalledByNative
-    private static void insertFullscreenInfoIntoList(
-            ArrayList<FullscreenInfo> list, String origin, String embedder) {
-        list.add(new FullscreenInfo(origin, embedder, false));
+    private static void insertUsbInfoIntoList(
+            ArrayList<UsbInfo> list, String origin, String embedder, String name, String object) {
+        list.add(new UsbInfo(origin, embedder, name, object));
+    }
+
+    /**
+     * Returns whether the DSE (Default Search Engine) geolocation setting should be used to
+     * determine geolocation access for the given origin.
+     */
+    public static boolean shouldUseDSEGeolocationSetting(
+            String origin, boolean isIncognito) {
+        return nativeShouldUseDSEGeolocationSetting(origin, isIncognito);
+    }
+
+    /**
+     * Returns the DSE (Default Search Engine) geolocation setting.
+     */
+    public static boolean getDSEGeolocationSetting() {
+        return nativeGetDSEGeolocationSetting();
+    }
+
+    /**
+     * Sets the DSE (Default Search Engine) geolocation setting.
+     */
+    public static void setDSEGeolocationSetting(boolean setting) {
+        nativeSetDSEGeolocationSetting(setting);
     }
 
     private static native void nativeGetGeolocationOrigins(Object list, boolean managedOnly);
@@ -252,11 +250,11 @@ public abstract class WebsitePreferenceBridge {
             String origin, String embedder, boolean isIncognito);
     static native void nativeSetMidiSettingForOrigin(
             String origin, String embedder, int value, boolean isIncognito);
-    private static native void nativeGetPushNotificationOrigins(Object list);
-    static native int nativeGetPushNotificationSettingForOrigin(
-            String origin, String embedder, boolean isIncognito);
-    static native void nativeSetPushNotificationSettingForOrigin(
-            String origin, String embedder, int value, boolean isIncognito);
+    private static native void nativeGetNotificationOrigins(Object list);
+    static native int nativeGetNotificationSettingForOrigin(
+            String origin, boolean isIncognito);
+    static native void nativeSetNotificationSettingForOrigin(
+            String origin, int value, boolean isIncognito);
     private static native void nativeGetProtectedMediaIdentifierOrigins(Object list);
     static native int nativeGetProtectedMediaIdentifierSettingForOrigin(
             String origin, String embedder, boolean isIncognito);
@@ -269,14 +267,9 @@ public abstract class WebsitePreferenceBridge {
     static native int nativeGetCameraSettingForOrigin(
             String origin, String embedder, boolean isIncognito);
     static native void nativeSetMicrophoneSettingForOrigin(
-            String origin, String embedder, int value, boolean isIncognito);
+            String origin, int value, boolean isIncognito);
     static native void nativeSetCameraSettingForOrigin(
-            String origin, String embedder, int value, boolean isIncognito);
-    private static native void nativeGetCookieOrigins(Object list, boolean managedOnly);
-    static native int nativeGetCookieSettingForOrigin(
-            String origin, String embedder, boolean isIncognito);
-    static native void nativeSetCookieSettingForOrigin(
-            String origin, String embedder, int setting, boolean isIncognito);
+            String origin, int value, boolean isIncognito);
     static native void nativeClearCookieData(String path);
     static native void nativeClearLocalStorageData(String path);
     static native void nativeClearStorageData(String origin, int type, Object callback);
@@ -284,9 +277,11 @@ public abstract class WebsitePreferenceBridge {
     private static native void nativeFetchStorageInfo(Object callback);
     static native boolean nativeIsContentSettingsPatternValid(String pattern);
     static native boolean nativeUrlMatchesContentSettingsPattern(String url, String pattern);
-    private static native void nativeGetFullscreenOrigins(Object list, boolean managedOnly);
-    static native int nativeGetFullscreenSettingForOrigin(
-            String origin, String embedder, boolean isIncognito);
-    static native void nativeSetFullscreenSettingForOrigin(
-            String origin, String embedder, int value, boolean isIncognito);
+    static native void nativeGetUsbOrigins(Object list);
+    static native void nativeRevokeUsbPermission(String origin, String embedder, String object);
+    static native void nativeClearBannerData(String origin);
+    private static native boolean nativeShouldUseDSEGeolocationSetting(
+            String origin, boolean isIncognito);
+    private static native boolean nativeGetDSEGeolocationSetting();
+    private static native void nativeSetDSEGeolocationSetting(boolean setting);
 }

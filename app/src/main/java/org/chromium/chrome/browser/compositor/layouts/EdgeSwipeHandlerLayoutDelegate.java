@@ -4,9 +4,9 @@
 
 package org.chromium.chrome.browser.compositor.layouts;
 
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeHandler;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EmptyEdgeSwipeHandler;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.ScrollDirection;
 
 /**
  * A {@link EdgeSwipeHandler} that takes a {@link LayoutProvider} and delegates all swipe events

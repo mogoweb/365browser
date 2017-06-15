@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.util.AttributeSet;
 import android.view.View;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -33,8 +34,8 @@ public class FindToolbarPhone extends FindToolbar {
     }
 
     @Override
-    public void deactivate() {
-        super.deactivate();
+    public void deactivate(boolean clearSelection) {
+        super.deactivate(clearSelection);
         setVisibility(View.GONE);
     }
 
@@ -43,26 +44,29 @@ public class FindToolbarPhone extends FindToolbar {
         int queryTextColorId;
         if (isIncognito) {
             setBackgroundResource(R.color.incognito_primary_color);
-            ColorStateList white = getResources().getColorStateList(R.color.light_mode_tint);
+            ColorStateList white = ApiCompatibilityUtils.getColorStateList(getResources(),
+                    R.color.light_mode_tint);
             mFindNextButton.setTint(white);
             mFindPrevButton.setTint(white);
             mCloseFindButton.setTint(white);
             queryTextColorId = R.color.find_in_page_query_white_color;
         } else {
             setBackgroundColor(Color.WHITE);
-            ColorStateList dark = getResources().getColorStateList(R.color.dark_mode_tint);
+            ColorStateList dark = ApiCompatibilityUtils.getColorStateList(getResources(),
+                    R.color.dark_mode_tint);
             mFindNextButton.setTint(dark);
             mFindPrevButton.setTint(dark);
             mCloseFindButton.setTint(dark);
             queryTextColorId = R.color.find_in_page_query_color;
         }
-        mFindQuery.setTextColor(getContext().getResources().getColor(queryTextColorId));
+        mFindQuery.setTextColor(
+                ApiCompatibilityUtils.getColor(getContext().getResources(), queryTextColorId));
     }
 
     @Override
     protected int getStatusColor(boolean failed, boolean incognito) {
         if (!failed && incognito) {
-            return getContext().getResources().getColor(
+            return ApiCompatibilityUtils.getColor(getContext().getResources(),
                     R.color.find_in_page_results_status_white_color);
         }
 

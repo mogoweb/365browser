@@ -5,24 +5,22 @@
 package org.chromium.chrome.browser.preferences;
 
 import android.Manifest;
-import android.content.Context;
-import android.content.Intent;
-import android.location.LocationManager;
-import android.provider.Settings;
 
-import org.chromium.base.ApplicationStatus;
+import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.SuppressFBWarnings;
-import org.chromium.chrome.browser.ChromeApplication;
-import org.chromium.content.browser.ContentViewCore;
+import org.chromium.chrome.browser.AppHooks;
+import org.chromium.components.location.LocationSettingsDialogContext;
+import org.chromium.components.location.LocationSettingsDialogOutcome;
+import org.chromium.components.location.LocationUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
- * Provides methods for querying Android system-wide location settings as well as Chrome's internal
- * location setting.
+ * Provides methods for querying Chrome's internal location setting and
+ * combining that with the system-wide setting and permissions.
  *
  * This class should be used only on the UI thread.
  */
@@ -30,14 +28,11 @@ public class LocationSettings {
 
     private static LocationSettings sInstance;
 
-    protected final Context mContext;
-
     /**
      * Don't use this; use getInstance() instead. This should be used only by the Application inside
      * of createLocationSettings().
      */
-    protected LocationSettings(Context context) {
-        mContext = context;
+    protected LocationSettings() {
     }
 
     /**
@@ -47,32 +42,59 @@ public class LocationSettings {
     public static LocationSettings getInstance() {
         ThreadUtils.assertOnUiThread();
         if (sInstance == null) {
-            ChromeApplication application =
-                    (ChromeApplication) ApplicationStatus.getApplicationContext();
-            sInstance = application.createLocationSettings();
+            sInstance = AppHooks.get().createLocationSettings();
         }
         return sInstance;
     }
 
     @CalledByNative
-    private static boolean canSitesRequestLocationPermission(WebContents webContents) {
-        if (!LocationSettings.getInstance().isSystemLocationSettingEnabled()) return false;
+    private static boolean hasAndroidLocationPermission() {
+        return LocationUtils.getInstance().hasAndroidLocationPermission();
+    }
 
-        ContentViewCore cvc = ContentViewCore.fromWebContents(webContents);
-        if (cvc == null) return false;
-        WindowAndroid windowAndroid = cvc.getWindowAndroid();
+    @CalledByNative
+    private static boolean canPromptForAndroidLocationPermission(WebContents webContents) {
+        WindowAndroid windowAndroid = webContents.getTopLevelNativeWindow();
         if (windowAndroid == null) return false;
 
-        return windowAndroid.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-                || windowAndroid.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                || windowAndroid.canRequestPermission(Manifest.permission.ACCESS_FINE_LOCATION);
+        return windowAndroid.canRequestPermission(Manifest.permission.ACCESS_FINE_LOCATION);
+    }
+
+    @CalledByNative
+    private static boolean isSystemLocationSettingEnabled() {
+        return LocationUtils.getInstance().isSystemLocationSettingEnabled();
+    }
+
+    @CalledByNative
+    private static boolean canPromptToEnableSystemLocationSetting() {
+        return LocationUtils.getInstance().canPromptToEnableSystemLocationSetting();
+    }
+
+    @CalledByNative
+    private static void promptToEnableSystemLocationSetting(
+            @LocationSettingsDialogContext int promptContext, WebContents webContents,
+            final long nativeCallback) {
+        WindowAndroid window = webContents.getTopLevelNativeWindow();
+        if (window == null) {
+            nativeOnLocationSettingsDialogOutcome(
+                    nativeCallback, LocationSettingsDialogOutcome.NO_PROMPT);
+            return;
+        }
+        LocationUtils.getInstance().promptToEnableSystemLocationSetting(
+                promptContext, window, new Callback<Integer>() {
+                    @Override
+                    public void onResult(Integer result) {
+                        nativeOnLocationSettingsDialogOutcome(nativeCallback, result);
+                    }
+                });
     }
 
     /**
      * Returns true if location is enabled system-wide and the Chrome location setting is enabled.
      */
     public boolean areAllLocationSettingsEnabled() {
-        return isChromeLocationSettingEnabled() && isSystemLocationSettingEnabled();
+        return isChromeLocationSettingEnabled()
+                && LocationUtils.getInstance().isSystemLocationSettingEnabled();
     }
 
     /**
@@ -82,28 +104,10 @@ public class LocationSettings {
         return PrefServiceBridge.getInstance().isAllowLocationEnabled();
     }
 
-    /**
-     * Returns whether location is enabled system-wide, i.e. whether Chrome itself is able to access
-     * location.
-     */
-    public boolean isSystemLocationSettingEnabled() {
-        LocationManager locationManager =
-                (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
-        return (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-                || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER));
-    }
-
-    /**
-     * Returns an intent to launch Android Location Settings.
-     */
-    public Intent getSystemLocationSettingsIntent() {
-        Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return i;
-    }
-
     @VisibleForTesting
     public static void setInstanceForTesting(LocationSettings instance) {
         sInstance = instance;
     }
+
+    private static native void nativeOnLocationSettingsDialogOutcome(long callback, int result);
 }

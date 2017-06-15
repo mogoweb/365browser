@@ -45,6 +45,14 @@ public class PaddedFrameLayout extends FrameLayout {
         a.recycle();
     }
 
+    protected void setMaxChildWidth(int maxChildWidth) {
+        mMaxChildWidth = maxChildWidth;
+    }
+
+    protected void setMaxChildHeight(int maxChildHeight) {
+        mMaxChildHeight = maxChildHeight;
+    }
+
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();

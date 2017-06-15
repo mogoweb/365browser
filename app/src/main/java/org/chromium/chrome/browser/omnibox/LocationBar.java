@@ -10,16 +10,14 @@ import android.view.ViewGroup;
 import android.view.Window;
 
 import org.chromium.chrome.browser.WindowDelegate;
-import org.chromium.chrome.browser.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.toolbar.ActionModeController;
-import org.chromium.chrome.browser.toolbar.ActionModeController.ActionBarDelegate;
 import org.chromium.chrome.browser.toolbar.Toolbar;
 import org.chromium.chrome.browser.toolbar.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
+import org.chromium.chrome.browser.widget.bottomsheet.BottomSheet;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -80,20 +78,22 @@ public interface LocationBar extends UrlBarDelegate {
     void setToolbarDataProvider(ToolbarDataProvider model);
 
     /**
-     * Sets the menu helper that should be used if there is a menu button in {@link LocationBar}.
-     * @param helper The helper to be used.
+     * Gets the {@link ToolbarDataProvider} to be used for accessing {@link Toolbar} state.
      */
-    void setMenuButtonHelper(AppMenuButtonHelper helper);
+    ToolbarDataProvider getToolbarDataProvider();
+
+    /**
+     * Set the bottom sheet for Chrome Home.
+     * @param sheet The bottom sheet for Chrome Home if it exists.
+     */
+    void setBottomSheet(BottomSheet sheet);
 
     /**
      * Initialize controls that will act as hooks to various functions.
      * @param windowDelegate {@link WindowDelegate} that will provide {@link Window} related info.
-     * @param delegate {@link ActionBarDelegate} to be used while creating a
-     *                 {@link ActionModeController}.
      * @param windowAndroid {@link WindowAndroid} that is used by the owning {@link Activity}.
      */
-    void initializeControls(WindowDelegate windowDelegate,
-            ActionBarDelegate delegate, WindowAndroid windowAndroid);
+    void initializeControls(WindowDelegate windowDelegate, WindowAndroid windowAndroid);
 
     /**
      * Sets the URL focus change listener that will be notified when the URL gains or loses focus.
@@ -107,6 +107,30 @@ public interface LocationBar extends UrlBarDelegate {
      *        and False clears focus.
      */
     void setUrlBarFocus(boolean shouldBeFocused);
+
+    /**
+     * Triggers the cursor to be visible in the UrlBar without triggering any of the focus animation
+     * logic.
+     * <p>
+     * Only applies to devices with a hardware keyboard attached.
+     */
+    void showUrlBarCursorWithoutFocusAnimations();
+
+    /**
+     * @return Whether the UrlBar currently has focus.
+     */
+    boolean isUrlBarFocused();
+
+    /**
+     * Selects all of the editable text in the UrlBar.
+     */
+    void selectAll();
+
+    /**
+     * Reverts any pending edits of the location bar and reset to the page state.  This does not
+     * change the focus state of the location bar.
+     */
+    void revertChanges();
 
     /**
      * @return The timestamp for the {@link UrlBar} gaining focus for the first time.
@@ -139,4 +163,12 @@ public interface LocationBar extends UrlBarDelegate {
      */
     void setDefaultTextEditActionModeCallback(ToolbarActionModeCallback callback);
 
+    /**
+     * Returns whether the {@link UrlBar} must be queried for its location on screen when
+     * suggestions are being laid out by {@link SuggestionView}.
+     * TODO(dfalcantara): Revisit this after M58.
+     *
+     * @return Whether or not the {@link UrlBar} has to be explicitly checked for its location.
+     */
+    boolean mustQueryUrlBarLocationForSuggestions();
 }

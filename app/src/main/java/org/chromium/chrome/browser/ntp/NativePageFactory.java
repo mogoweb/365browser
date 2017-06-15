@@ -8,55 +8,73 @@ import android.app.Activity;
 import android.net.Uri;
 
 import org.chromium.base.VisibleForTesting;
+import org.chromium.chrome.browser.ChromeActivity;
+import org.chromium.chrome.browser.ChromeFeatureList;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.NativePage;
+import org.chromium.chrome.browser.NativePageHost;
+import org.chromium.chrome.browser.TabLoadStatus;
 import org.chromium.chrome.browser.UrlConstants;
-import org.chromium.chrome.browser.enhancedbookmarks.EnhancedBookmarkPage;
-import org.chromium.chrome.browser.enhancedbookmarks.EnhancedBookmarkUtils;
+import org.chromium.chrome.browser.bookmarks.BookmarkPage;
+import org.chromium.chrome.browser.download.DownloadPage;
+import org.chromium.chrome.browser.history.HistoryPage;
+import org.chromium.chrome.browser.physicalweb.PhysicalWebDiagnosticsPage;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.util.FeatureUtilities;
-import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.content_public.browser.LoadUrlParams;
 
 /**
  * Creates NativePage objects to show chrome-native:// URLs using the native Android view system.
  */
 public class NativePageFactory {
-
-    public static final String CHROME_NATIVE_SCHEME = "chrome-native";
-
     private static NativePageBuilder sNativePageBuilder = new NativePageBuilder();
 
     @VisibleForTesting
     static class NativePageBuilder {
-        protected NativePage buildNewTabPage(Activity activity, Tab tab,
+        protected NativePage buildNewTabPage(ChromeActivity activity, Tab tab,
                 TabModelSelector tabModelSelector) {
-            if (tab.isIncognito()) {
+            if (FeatureUtilities.isChromeHomeEnabled()) {
+                if (tab.isIncognito()) {
+                    return new ChromeHomeIncognitoNewTabPage(activity, tab, tabModelSelector,
+                            ((ChromeTabbedActivity) activity).getLayoutManager());
+                } else {
+                    return new ChromeHomeNewTabPage(activity, tab, tabModelSelector,
+                            ((ChromeTabbedActivity) activity).getLayoutManager());
+                }
+            } else if (tab.isIncognito()) {
                 return new IncognitoNewTabPage(activity);
             } else {
-                return new NewTabPage(activity, tab, tabModelSelector);
+                return new NewTabPage(activity, new TabShim(tab), tabModelSelector);
             }
         }
 
-        protected NativePage buildBookmarksPage(Activity activity, Tab tab,
-                TabModelSelector tabModelSelector) {
-            if (EnhancedBookmarkUtils.isEnhancedBookmarkEnabled()
-                    && DeviceFormFactor.isTablet(activity)) {
-                return EnhancedBookmarkPage.buildPage(activity, tab);
-            } else {
-                return BookmarksPage.buildPage(activity, tab, tabModelSelector);
-            }
+        protected NativePage buildBookmarksPage(Activity activity, Tab tab) {
+            return new BookmarkPage(activity, new TabShim(tab));
         }
 
-        protected NativePage buildRecentTabsPage(Activity activity, Tab tab) {
-            RecentTabsManager recentTabsManager = FeatureUtilities.isDocumentMode(activity)
-                    ? new DocumentRecentTabsManager(tab, activity)
-                    : new RecentTabsManager(tab, tab.getProfile(), activity);
+        protected NativePage buildDownloadsPage(Activity activity, Tab tab) {
+            return new DownloadPage(activity, new TabShim(tab));
+        }
+
+        protected NativePage buildHistoryPage(Activity activity, Tab tab) {
+            return new HistoryPage(activity, new TabShim(tab));
+        }
+
+        protected NativePage buildRecentTabsPage(ChromeActivity activity, Tab tab) {
+            RecentTabsManager recentTabsManager =
+                    new RecentTabsManager(tab, tab.getProfile(), activity);
             return new RecentTabsPage(activity, recentTabsManager);
+        }
+
+        protected NativePage buildPhysicalWebDiagnosticsPage(Activity activity, Tab tab) {
+            return new PhysicalWebDiagnosticsPage(activity, new TabShim(tab));
         }
     }
 
     enum NativePageType {
-        NONE, CANDIDATE, NTP, BOOKMARKS, RECENT_TABS
+        NONE, CANDIDATE, NTP, BOOKMARKS, RECENT_TABS, PHYSICAL_WEB, DOWNLOADS, HISTORY,
     }
 
     private static NativePageType nativePageType(String url, NativePage candidatePage,
@@ -64,7 +82,7 @@ public class NativePageFactory {
         if (url == null) return NativePageType.NONE;
 
         Uri uri = Uri.parse(url);
-        if (!CHROME_NATIVE_SCHEME.equals(uri.getScheme())) {
+        if (!UrlConstants.CHROME_NATIVE_SCHEME.equals(uri.getScheme())) {
             return NativePageType.NONE;
         }
 
@@ -77,8 +95,18 @@ public class NativePageFactory {
             return NativePageType.NTP;
         } else if (UrlConstants.BOOKMARKS_HOST.equals(host)) {
             return NativePageType.BOOKMARKS;
+        } else if (UrlConstants.DOWNLOADS_HOST.equals(host)) {
+            return NativePageType.DOWNLOADS;
+        } else if (UrlConstants.HISTORY_HOST.equals(host)) {
+            return NativePageType.HISTORY;
         } else if (UrlConstants.RECENT_TABS_HOST.equals(host) && !isIncognito) {
             return NativePageType.RECENT_TABS;
+        } else if (UrlConstants.PHYSICAL_WEB_DIAGNOSTICS_HOST.equals(host)) {
+            if (ChromeFeatureList.isEnabled("PhysicalWeb")) {
+                return NativePageType.PHYSICAL_WEB;
+            } else {
+                return NativePageType.NONE;
+            }
         } else {
             return NativePageType.NONE;
         }
@@ -97,14 +125,14 @@ public class NativePageFactory {
      * @return A NativePage showing the specified url or null.
      */
     public static NativePage createNativePageForURL(String url, NativePage candidatePage,
-            Tab tab, TabModelSelector tabModelSelector, Activity activity) {
+            Tab tab, TabModelSelector tabModelSelector, ChromeActivity activity) {
         return createNativePageForURL(url, candidatePage, tab, tabModelSelector, activity,
                 tab.isIncognito());
     }
 
     @VisibleForTesting
     static NativePage createNativePageForURL(String url, NativePage candidatePage,
-            Tab tab, TabModelSelector tabModelSelector, Activity activity,
+            Tab tab, TabModelSelector tabModelSelector, ChromeActivity activity,
             boolean isIncognito) {
         NativePage page;
 
@@ -118,11 +146,19 @@ public class NativePageFactory {
                 page = sNativePageBuilder.buildNewTabPage(activity, tab, tabModelSelector);
                 break;
             case BOOKMARKS:
-                page = sNativePageBuilder.buildBookmarksPage(activity, tab, tabModelSelector);
-                if (page == null) return null;  // Enhanced Bookmarks page is not shown on phone
+                page = sNativePageBuilder.buildBookmarksPage(activity, tab);
+                break;
+            case DOWNLOADS:
+                page = sNativePageBuilder.buildDownloadsPage(activity, tab);
+                break;
+            case HISTORY:
+                page = sNativePageBuilder.buildHistoryPage(activity, tab);
                 break;
             case RECENT_TABS:
                 page = sNativePageBuilder.buildRecentTabsPage(activity, tab);
+                break;
+            case PHYSICAL_WEB:
+                page = sNativePageBuilder.buildPhysicalWebDiagnosticsPage(activity, tab);
                 break;
             default:
                 assert false;
@@ -147,5 +183,46 @@ public class NativePageFactory {
     @VisibleForTesting
     static void setNativePageBuilderForTesting(NativePageBuilder builder) {
         sNativePageBuilder = builder;
+    }
+
+    /** Simple implementation of NativePageHost backed by a {@link Tab} */
+    private static class TabShim implements NativePageHost {
+        private final Tab mTab;
+
+        public TabShim(Tab mTab) {
+            this.mTab = mTab;
+        }
+
+        @Override
+        public int loadUrl(LoadUrlParams urlParams, boolean incognito) {
+            if (incognito && !mTab.isIncognito()) {
+                mTab.getTabModelSelector().openNewTab(urlParams,
+                        TabModel.TabLaunchType.FROM_LONGPRESS_FOREGROUND, mTab,
+                        /* incognito = */ true);
+                return TabLoadStatus.DEFAULT_PAGE_LOAD;
+            }
+
+            return mTab.loadUrl(urlParams);
+        }
+
+        @Override
+        public boolean isIncognito() {
+            return mTab.isIncognito();
+        }
+
+        @Override
+        public int getParentId() {
+            return mTab.getParentId();
+        }
+
+        @Override
+        public Tab getActiveTab() {
+            return mTab;
+        }
+
+        @Override
+        public boolean isVisible() {
+            return mTab == mTab.getTabModelSelector().getCurrentTab();
+        }
     }
 }

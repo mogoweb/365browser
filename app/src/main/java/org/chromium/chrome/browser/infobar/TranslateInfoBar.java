@@ -5,15 +5,16 @@
 package org.chromium.chrome.browser.infobar;
 
 import android.content.Context;
+import android.support.v7.widget.SwitchCompat;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.ClickableSpan;
 import android.view.View;
-import android.widget.CheckBox;
 
 import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
 import org.chromium.ui.base.DeviceFormFactor;
 
@@ -21,7 +22,7 @@ import org.chromium.ui.base.DeviceFormFactor;
  * Java version of the translate infobar
  */
 public class TranslateInfoBar extends InfoBar implements SubPanelListener {
-    // Needs to be kept in sync with the Type enum in translate_infobar_delegate.h.
+    // Needs to be kept in sync with the TranslateStep enum in translate_step.h.
     public static final int BEFORE_TRANSLATE_INFOBAR = 0;
     public static final int TRANSLATING_INFOBAR = 1;
     public static final int AFTER_TRANSLATE_INFOBAR = 2;
@@ -42,20 +43,23 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
     private TranslateSubPanel mSubPanel;
     private final boolean mShouldShowNeverBar;
 
+    private static final String INFOBAR_IMPRESSION_HISTOGRAM = "Translate.InfobarShown";
+
     @CalledByNative
-    private static InfoBar show(int translateBarType, int sourceLanguageIndex,
-            int targetLanguageIndex, boolean autoTranslatePair, boolean showNeverInfobar,
-            boolean triggeredFromMenu, String[] languages) {
-        return new TranslateInfoBar(translateBarType, sourceLanguageIndex, targetLanguageIndex,
-                autoTranslatePair, showNeverInfobar, triggeredFromMenu, languages);
+    private static InfoBar show(int translateBarType, String sourceLanguageCode,
+            String targetLanguageCode, boolean alwaysTranslate, boolean showNeverInfobar,
+            boolean triggeredFromMenu, String[] languages, String[] codes) {
+        return new TranslateInfoBar(translateBarType, sourceLanguageCode, targetLanguageCode,
+                alwaysTranslate, showNeverInfobar, triggeredFromMenu, languages, codes);
     }
 
-    private TranslateInfoBar(int infoBarType, int sourceLanguageIndex, int targetLanguageIndex,
-            boolean autoTranslatePair, boolean shouldShowNeverBar, boolean triggeredFromMenu,
-            String[] languages) {
-        super(null, R.drawable.infobar_translate, null, null);
-        mOptions = new TranslateOptions(sourceLanguageIndex, targetLanguageIndex, languages,
-                autoTranslatePair, triggeredFromMenu);
+    private TranslateInfoBar(int infoBarType, String sourceLanguageCode, String targetLanguageCode,
+            boolean alwaysTranslate, boolean shouldShowNeverBar, boolean triggeredFromMenu,
+            String[] languages, String[] codes) {
+        super(R.drawable.infobar_translate, null, null);
+
+        mOptions = TranslateOptions.create(sourceLanguageCode, targetLanguageCode, languages, codes,
+                alwaysTranslate, triggeredFromMenu, null);
         mInfoBarType = infoBarType;
         mShouldShowNeverBar = shouldShowNeverBar;
         mOptionsPanelViewType = NO_PANEL;
@@ -120,11 +124,11 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
         switch (getInfoBarType()) {
             case BEFORE_TRANSLATE_INFOBAR:
                 String template = context.getString(R.string.translate_infobar_text);
-                return formatBeforeInfoBarMessage(template, mOptions.sourceLanguage(),
-                        mOptions.targetLanguage(), LANGUAGE_PANEL);
+                return formatBeforeInfoBarMessage(template, mOptions.sourceLanguageName(),
+                        mOptions.targetLanguageName(), LANGUAGE_PANEL);
             case AFTER_TRANSLATE_INFOBAR:
                 String translated = context.getString(
-                        R.string.translate_infobar_translation_done, mOptions.targetLanguage());
+                        R.string.translate_infobar_translation_done, mOptions.targetLanguageName());
                 if (needsAlwaysPanel()) {
                     String moreOptions = context.getString(R.string.more);
                     return formatAfterTranslateInfoBarMessage(translated, moreOptions,
@@ -133,8 +137,8 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
                     return translated;
                 }
             case TRANSLATING_INFOBAR:
-                return context.getString(R.string.translate_infobar_translating,
-                        mOptions.targetLanguage());
+                return context.getString(
+                        R.string.translate_infobar_translating, mOptions.targetLanguageName());
             default:
                 return context.getString(R.string.translate_infobar_error);
         }
@@ -172,6 +176,16 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
 
     @Override
     public void createContent(InfoBarLayout layout) {
+        // Log infobar impression only when the infobar shown is either in step: before translate
+        // or in step: translating and always enabled is true. This is to remove duplicate
+        // impressions.
+        int infoBarType = getInfoBarType();
+        if (infoBarType == BEFORE_TRANSLATE_INFOBAR
+                || (mOptions.alwaysTranslateLanguageState()
+                           && infoBarType == TRANSLATING_INFOBAR)) {
+            RecordHistogram.recordBooleanHistogram(INFOBAR_IMPRESSION_HISTOGRAM, true);
+        }
+
         if (mOptionsPanelViewType == NO_PANEL) {
             mSubPanel = null;
         } else {
@@ -186,12 +200,10 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
         layout.setMessage(getMessageText(context));
         layout.setButtons(getPrimaryButtonText(context), getSecondaryButtonText(context));
 
-        if (getInfoBarType() == AFTER_TRANSLATE_INFOBAR
-                && !needsAlwaysPanel()
+        if (getInfoBarType() == AFTER_TRANSLATE_INFOBAR && !needsAlwaysPanel()
                 && !mOptions.triggeredFromMenu()) {
-            // Long always translate version
-            TranslateCheckBox checkBox = new TranslateCheckBox(context, mOptions, this);
-            layout.setCustomContent(checkBox);
+            // Fully expanded version of the "Always Translate" InfoBar.
+            TranslateAlwaysPanel.createAlwaysToggle(layout, mOptions);
         }
     }
 
@@ -202,7 +214,7 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
         if (mOptionsPanelViewType == LANGUAGE_PANEL) {
             // Close the sub panel and show the infobar again.
             mOptionsPanelViewType = NO_PANEL;
-            updateViewForCurrentState(createView());
+            replaceView(createView());
         } else {
             // Apply options and close the infobar.
             onTranslateInfoBarButtonClicked(action);
@@ -211,28 +223,23 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
 
     private void onTranslateInfoBarButtonClicked(int action) {
         onOptionsChanged();
-        onButtonClicked(action, "");
-    }
-
-    @Override
-    public void setControlsEnabled(boolean state) {
-        super.setControlsEnabled(state);
-
-        // Handle the "Always Translate" checkbox.
-        ContentWrapperView wrapper = getContentWrapper(false);
-        if (wrapper != null) {
-            CheckBox checkBox = (CheckBox) wrapper.findViewById(R.id.infobar_extra_check);
-            if (checkBox != null) checkBox.setEnabled(state);
-        }
+        onButtonClicked(action);
     }
 
     @Override
     public void onOptionsChanged() {
         if (mNativeTranslateInfoBarPtr == 0) return;
 
+        // Handle the "Always Translate" checkbox.
+        if (getInfoBarType() == AFTER_TRANSLATE_INFOBAR) {
+            SwitchCompat alwaysSwitch = (SwitchCompat) getView().findViewById(
+                    R.id.translate_infobar_always_toggle);
+            mOptions.toggleAlwaysTranslateLanguageState(alwaysSwitch.isChecked());
+        }
+
         if (mOptions.optionsChanged()) {
-            nativeApplyTranslateOptions(mNativeTranslateInfoBarPtr, mOptions.sourceLanguageIndex(),
-                    mOptions.targetLanguageIndex(), mOptions.alwaysTranslateLanguageState(),
+            nativeApplyTranslateOptions(mNativeTranslateInfoBarPtr, mOptions.sourceLanguageCode(),
+                    mOptions.targetLanguageCode(), mOptions.alwaysTranslateLanguageState(),
                     mOptions.neverTranslateLanguageState(), mOptions.neverTranslateDomainState());
         }
     }
@@ -244,8 +251,7 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
 
     private boolean needsAlwaysPanel() {
         return (getInfoBarType() == TranslateInfoBar.AFTER_TRANSLATE_INFOBAR
-                && mOptions.alwaysTranslateLanguageState()
-                && !DeviceFormFactor.isTablet(getContext()));
+                && mOptions.alwaysTranslateLanguageState() && !DeviceFormFactor.isTablet());
     }
 
     /**
@@ -255,7 +261,7 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
     private void swapPanel(int newPanel) {
         assert (newPanel >= NO_PANEL && newPanel < MAX_PANEL_INDEX);
         mOptionsPanelViewType = newPanel;
-        updateViewForCurrentState(createView());
+        replaceView(createView());
     }
 
     /**
@@ -273,14 +279,6 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
             default:
                 return null;
         }
-    }
-
-    /**
-     * Swaps out the current view in the ContentViewWrapper.
-     */
-    private void updateViewForCurrentState(View replacement) {
-        setControlsEnabled(false);
-        getInfoBarContainer().swapInfoBarViews(this, replacement);
     }
 
     /**
@@ -345,13 +343,13 @@ public class TranslateInfoBar extends InfoBar implements SubPanelListener {
     private void changeTranslateInfoBarType(int infoBarType) {
         if (infoBarType >= 0 && infoBarType < MAX_INFOBAR_INDEX) {
             mInfoBarType = infoBarType;
-            updateViewForCurrentState(createView());
+            replaceView(createView());
         } else {
             assert false : "Trying to change the InfoBar to a type that is invalid.";
         }
     }
 
     private native void nativeApplyTranslateOptions(long nativeTranslateInfoBar,
-            int sourceLanguageIndex, int targetLanguageIndex, boolean alwaysTranslate,
+            String sourceLanguageCode, String targetLanguageCode, boolean alwaysTranslate,
             boolean neverTranslateLanguage, boolean neverTranslateSite);
 }

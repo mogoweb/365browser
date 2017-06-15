@@ -9,6 +9,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.util.Log;
 
+import org.chromium.chrome.browser.UrlConstants;
+
 import java.util.NoSuchElementException;
 
 /**
@@ -18,8 +20,10 @@ public class PartnerBookmarksProviderIterator implements PartnerBookmarksReader.
 
     private static final String TAG = "PartnerBookmarksProviderIterator";
     private static final String PROVIDER_AUTHORITY = "com.android.partnerbookmarks";
-    private static final Uri CONTENT_URI = new Uri.Builder().scheme("content")
-            .authority(PROVIDER_AUTHORITY).build();
+    private static final Uri CONTENT_URI = new Uri.Builder()
+                                                   .scheme(UrlConstants.CONTENT_SCHEME)
+                                                   .authority(PROVIDER_AUTHORITY)
+                                                   .build();
 
     // Private bookmarks structure.
     private static final String BOOKMARKS_PATH = "bookmarks";

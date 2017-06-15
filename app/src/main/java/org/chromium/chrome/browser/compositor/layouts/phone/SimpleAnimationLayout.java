@@ -5,7 +5,7 @@
 package org.chromium.chrome.browser.compositor.layouts.phone;
 
 import android.content.Context;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.animation.Interpolator;
 
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -15,12 +15,14 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.BlackHoleEventFilter;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EventFilter;
 import org.chromium.chrome.browser.compositor.layouts.phone.stack.Stack;
 import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackAnimation;
 import org.chromium.chrome.browser.compositor.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.TabListSceneLayer;
 import org.chromium.chrome.browser.fullscreen.ChromeFullscreenManager;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.ui.interpolators.BakedBezierInterpolator;
 import org.chromium.ui.resources.ResourceManager;
@@ -65,28 +67,37 @@ public class SimpleAnimationLayout
 
     private LayoutTab mAnimatedTab;
     private final TabListSceneLayer mSceneLayer;
+    private final BlackHoleEventFilter mBlackHoleEventFilter;
+
+    private boolean mForegroundTabCreationAnimationDisabled;
 
     /**
      * Creates an instance of the {@link SimpleAnimationLayout}.
      * @param context     The current Android's context.
      * @param updateHost  The {@link LayoutUpdateHost} view for this layout.
      * @param renderHost  The {@link LayoutRenderHost} view for this layout.
-     * @param eventFilter The {@link EventFilter} that is needed for this view.
      */
-    public SimpleAnimationLayout(Context context, LayoutUpdateHost updateHost,
-            LayoutRenderHost renderHost, EventFilter eventFilter) {
-        super(context, updateHost, renderHost, eventFilter);
+    public SimpleAnimationLayout(
+            Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost) {
+        super(context, updateHost, renderHost);
+        mBlackHoleEventFilter = new BlackHoleEventFilter(context);
         mSceneLayer = new TabListSceneLayer();
     }
 
     @Override
-    public int getSizingFlags() {
-        return SizingFlags.HELPER_SUPPORTS_FULLSCREEN;
+    public ViewportMode getViewportMode() {
+        return ViewportMode.USE_PREVIOUS_BROWSER_CONTROLS_STATE;
     }
 
     @Override
     public void show(long time, boolean animate) {
         super.show(time, animate);
+
+        if (mTabModelSelector != null && mTabContentManager != null) {
+            Tab tab = mTabModelSelector.getCurrentTab();
+            if (tab != null && tab.isNativePage()) mTabContentManager.cacheTabThumbnail(tab);
+        }
+
         reset();
     }
 
@@ -186,6 +197,8 @@ public class SimpleAnimationLayout
 
         mTabModelSelector.selectModel(newIsIncognito);
         startHiding(id, false);
+
+        if (mForegroundTabCreationAnimationDisabled) forceAnimationToFinish();
     }
 
     /**
@@ -397,18 +410,36 @@ public class SimpleAnimationLayout
     }
 
     @Override
+    public void onPropertyAnimationFinished(Property prop) {}
+
+    @Override
+    protected EventFilter getEventFilter() {
+        return mBlackHoleEventFilter;
+    }
+
+    @Override
     protected SceneLayer getSceneLayer() {
         return mSceneLayer;
     }
 
     @Override
-    protected void updateSceneLayer(Rect viewport, Rect contentViewport,
+    protected void updateSceneLayer(RectF viewport, RectF contentViewport,
             LayerTitleCache layerTitleCache, TabContentManager tabContentManager,
             ResourceManager resourceManager, ChromeFullscreenManager fullscreenManager) {
         super.updateSceneLayer(viewport, contentViewport, layerTitleCache, tabContentManager,
                 resourceManager, fullscreenManager);
         assert mSceneLayer != null;
-        mSceneLayer.pushLayers(getContext(), viewport, contentViewport, this, layerTitleCache,
-                tabContentManager, resourceManager);
+        // The content viewport is intentionally sent as both params below.
+        mSceneLayer.pushLayers(getContext(), contentViewport, contentViewport, this,
+                layerTitleCache, tabContentManager, resourceManager, fullscreenManager);
+    }
+
+    /**
+     * Sets whether the foreground tab animation is disabled.
+     * TODO(twellington): Remove this after Chrome Home NTP animations are complete.
+     * @param disabled Whether the foreground tab animation should be disabled.
+     */
+    public void setForegroundTabAnimationDisabled(boolean disabled) {
+        mForegroundTabCreationAnimationDisabled = disabled;
     }
 }

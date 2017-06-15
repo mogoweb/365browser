@@ -19,7 +19,7 @@ public class VerticallyFixedEditText extends AppCompatEditText {
         super(context, attrs);
     }
 
-    private boolean mBringingPointIntoView = false;
+    private boolean mBringingPointIntoView;
 
     @Override
     public boolean bringPointIntoView(int offset) {

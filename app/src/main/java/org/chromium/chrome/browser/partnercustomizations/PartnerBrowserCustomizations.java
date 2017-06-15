@@ -14,8 +14,12 @@ import android.os.AsyncTask;
 import android.text.TextUtils;
 import android.util.Log;
 
+import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.chrome.browser.ChromeSwitches;
+import org.chromium.chrome.browser.UrlConstants;
 import org.chromium.chrome.browser.partnerbookmarks.PartnerBookmarksReader;
 
 import java.util.ArrayList;
@@ -35,7 +39,7 @@ public class PartnerBrowserCustomizations {
     public static final String PARTNER_DISABLE_INCOGNITO_MODE_PATH = "disableincognitomode";
 
     private static String sProviderAuthority = PROVIDER_AUTHORITY;
-    private static boolean sIgnoreBrowserProviderSystemPackageCheck = false;
+    private static boolean sIgnoreBrowserProviderSystemPackageCheck;
     private static volatile String sHomepage;
     private static volatile boolean sIncognitoModeDisabled;
     private static volatile boolean sBookmarksEditingDisabled;
@@ -54,6 +58,7 @@ public class PartnerBrowserCustomizations {
     /**
      * @return Whether incognito mode is disabled by the partner.
      */
+    @CalledByNative
     public static boolean isIncognitoDisabled() {
         return sIncognitoModeDisabled;
     }
@@ -71,7 +76,7 @@ public class PartnerBrowserCustomizations {
      *         to read provider is also considered initialization.
      */
     @VisibleForTesting
-    static boolean isInitialized() {
+    public static boolean isInitialized() {
         return sIsInitialized;
     }
 
@@ -95,7 +100,7 @@ public class PartnerBrowserCustomizations {
     @VisibleForTesting
     public static Uri buildQueryUri(String path) {
         return new Uri.Builder()
-                .scheme("content")
+                .scheme(UrlConstants.CONTENT_SCHEME)
                 .authority(sProviderAuthority)
                 .appendPath(path)
                 .build();
@@ -284,6 +289,10 @@ public class PartnerBrowserCustomizations {
      *         provider or provider set it to null to disable homepage.
      */
     public static String getHomePageUrl() {
+        CommandLine commandLine = CommandLine.getInstance();
+        if (commandLine.hasSwitch(ChromeSwitches.PARTNER_HOMEPAGE_FOR_TESTING)) {
+            return commandLine.getSwitchValue(ChromeSwitches.PARTNER_HOMEPAGE_FOR_TESTING);
+        }
         return sHomepage;
     }
 }

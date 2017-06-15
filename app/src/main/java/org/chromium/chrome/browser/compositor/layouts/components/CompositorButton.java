@@ -25,8 +25,20 @@ public class CompositorButton
         OPACITY,
     }
 
-    // Precached bounds rect.
+    /** Handler for click actions on VirtualViews. */
+    public interface CompositorOnClickHandler {
+        /**
+         * Handles the click action.
+         * @param time The time of the click action.
+         */
+        void onClick(long time);
+    }
+
+    // Pre-allocated to avoid in-frame allocations.
     private final RectF mBounds = new RectF();
+    private final RectF mCacheBounds = new RectF();
+
+    private final CompositorOnClickHandler mClickHandler;
 
     private int mResource;
     private int mPressedResource;
@@ -42,15 +54,15 @@ public class CompositorButton
     private String mAccessibilityDescription;
     private String mAccessibilityDescriptionIncognito;
 
-    private final RectF mCacheBounds = new RectF(); // Pre-allocated to avoid in-frame allocations.
-
     /**
      * Default constructor for {@link CompositorButton}
-     * @param context   An Android context for fetching dimens.
-     * @param width     The button width.
-     * @param height    The button height.
+     * @param context      An Android context for fetching dimens.
+     * @param width        The button width.
+     * @param height       The button height.
+     * @param clickHandler The action to be performed on click.
      */
-    public CompositorButton(Context context, float width, float height) {
+    public CompositorButton(
+            Context context, float width, float height, CompositorOnClickHandler clickHandler) {
         mBounds.set(0, 0, width, height);
 
         mOpacity = 1.f;
@@ -62,15 +74,18 @@ public class CompositorButton
         Resources res = context.getResources();
         float sPxToDp = 1.0f / res.getDisplayMetrics().density;
         mClickSlop = res.getDimension(R.dimen.compositor_button_slop) * sPxToDp;
+
+        mClickHandler = clickHandler;
     }
 
     /**
      * Secondary constructor for {@link CompositorButton}
-     * @param context   An Android context for fetching dimens.
-     * @param bounds    A RectF that bounds the button.
+     * @param context      An Android context for fetching dimens.
+     * @param bounds       A RectF that bounds the button.
+     * @param clickHandler The action to be performed on click.
      */
-    public CompositorButton(Context context, RectF bounds) {
-        this(context, bounds.width(), bounds.height());
+    public CompositorButton(Context context, RectF bounds, CompositorOnClickHandler clickHandler) {
+        this(context, bounds.width(), bounds.height(), clickHandler);
         mBounds.set(bounds);
     }
 
@@ -276,6 +291,11 @@ public class CompositorButton
         return mCacheBounds.contains(x, y);
     }
 
+    @Override
+    public void handleClick(long time) {
+        mClickHandler.onClick(time);
+    }
+
     /**
      * Set state for a drag event.
      * @param x     The x offset of the event.
@@ -344,4 +364,7 @@ public class CompositorButton
                 // Do nothing.
         }
     }
+
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {}
 }

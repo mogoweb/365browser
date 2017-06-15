@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.gsa;
 
 import android.accounts.Account;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -12,7 +13,9 @@ import android.content.pm.ResolveInfo;
 import android.text.TextUtils;
 
 import org.chromium.base.PackageUtils;
-import org.chromium.sync.signin.ChromeSigninController;
+import org.chromium.components.signin.ChromeSigninController;
+
+import java.util.List;
 
 /**
  * A class responsible fore representing the current state of Chrome's integration with GSA.
@@ -30,6 +33,7 @@ public class GSAState {
     /**
      * An instance of GSAState class encapsulating knowledge about the current status.
      */
+    @SuppressLint("StaticFieldLeak")
     private static GSAState sGSAState;
 
     /**
@@ -60,6 +64,13 @@ public class GSAState {
         return sGSAState;
     }
 
+    /**
+     * @return Whether the given package name is the package name for Google Search App.
+     */
+    public static boolean isGsaPackageName(String packageName) {
+        return SEARCH_INTENT_PACKAGE.equals(packageName);
+    }
+
     /* Private constructor, since this is a singleton */
     private GSAState(Context context) {
         mContext = context.getApplicationContext();
@@ -78,7 +89,7 @@ public class GSAState {
      * both are logged out is not considered a match.
      */
     public boolean doesGsaAccountMatchChrome() {
-        Account chromeUser = ChromeSigninController.get(mContext).getSignedInUser();
+        Account chromeUser = ChromeSigninController.get().getSignedInUser();
         return chromeUser != null && !TextUtils.isEmpty(mGsaAccount) && TextUtils.equals(
                 chromeUser.name, mGsaAccount);
     }
@@ -101,8 +112,8 @@ public class GSAState {
         PackageManager pm = mContext.getPackageManager();
         Intent searchIntent = new Intent(SEARCH_INTENT_ACTION);
         searchIntent.setPackage(GSAState.SEARCH_INTENT_PACKAGE);
-        ResolveInfo resolveInfo = pm.resolveActivity(searchIntent, 0);
-        if (resolveInfo == null || resolveInfo.activityInfo == null) {
+        List<ResolveInfo> resolveInfo = pm.queryIntentActivities(searchIntent, 0);
+        if (resolveInfo.size() == 0) {
             mGsaAvailable = false;
         } else if (!isPackageAboveVersion(SEARCH_INTENT_PACKAGE, GSA_VERSION_FOR_DOCUMENT)
                 || !isPackageAboveVersion(GMS_CORE_PACKAGE, GMS_CORE_VERSION)) {

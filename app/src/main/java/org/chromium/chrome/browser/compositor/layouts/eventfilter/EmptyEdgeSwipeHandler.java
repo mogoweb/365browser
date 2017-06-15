@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.compositor.layouts.eventfilter;
 
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
-
 /**
  * An empty implementation of a {@link EdgeSwipeHandler}.
  */

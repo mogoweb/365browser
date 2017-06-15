@@ -8,27 +8,36 @@ import android.animation.Animator;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Property;
+import android.view.Gravity;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.FrameLayout;
 
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ntp.LogoBridge.Logo;
-import org.chromium.chrome.browser.ntp.NewTabPageView.NewTabPageManager;
+import org.chromium.chrome.browser.ntp.LogoBridge.LogoObserver;
+import org.chromium.chrome.browser.widget.LoadingView;
 
 import java.lang.ref.WeakReference;
 
+import jp.tomorrowkey.android.gifplayer.BaseGifDrawable;
+import jp.tomorrowkey.android.gifplayer.BaseGifImage;
+
 /**
  * This view shows the default search provider's logo and fades in a new logo if one becomes
- * available.
+ * available. It also maintains a {@link BaseGifDrawable} that will be played when the user clicks
+ * this view and we have an animated GIF logo ready.
  */
-public class LogoView extends View implements OnClickListener {
+public class LogoView extends FrameLayout implements OnClickListener {
 
     // Number of milliseconds for a new logo to fade in.
     private static final int LOGO_TRANSITION_TIME_MS = 400;
@@ -36,14 +45,20 @@ public class LogoView extends View implements OnClickListener {
     // The default logo is shared across all NTPs.
     private static WeakReference<Bitmap> sDefaultLogo;
 
-    private Paint mPaint;
+    // mLogo and mNewLogo are remembered for cross fading animation.
     private Bitmap mLogo;
     private Bitmap mNewLogo;
+    private BaseGifDrawable mAnimatedLogoDrawable;
+
+    private ObjectAnimator mFadeAnimation;
+    private Paint mPaint;
     private Matrix mLogoMatrix;
     private Matrix mNewLogoMatrix;
+    private Matrix mAnimatedLogoMatrix;
     private boolean mLogoIsDefault;
     private boolean mNewLogoIsDefault;
-    private ObjectAnimator mAnimation;
+
+    private LoadingView mLoadingView;
 
     /**
      * A measure from 0 to 1 of how much the new logo has faded in. 0 shows the old logo, 1 shows
@@ -52,7 +67,7 @@ public class LogoView extends View implements OnClickListener {
      */
     private float mTransitionAmount;
 
-    private NewTabPageManager mManager;
+    private Delegate mDelegate;
 
     private final Property<LogoView, Float> mTransitionProperty =
             new Property<LogoView, Float>(Float.class, "") {
@@ -73,6 +88,28 @@ public class LogoView extends View implements OnClickListener {
     };
 
     /**
+     * Handles tasks for the {@link LogoView} shown on an NTP.
+     */
+    public interface Delegate {
+        /**
+         * Called when the user clicks on the logo.
+         * @param isAnimatedLogoShowing Whether the animated GIF logo is playing.
+         */
+        void onLogoClicked(boolean isAnimatedLogoShowing);
+
+        /**
+         * Gets the default search provider's logo and calls logoObserver with the result.
+         * @param logoObserver The callback to notify when the logo is available.
+         */
+        void getSearchProviderLogo(LogoObserver logoObserver);
+
+        /**
+         * Should be called when the owning class is destroyed.
+         */
+        void destroy();
+    }
+
+    /**
      * Constructor used to inflate a LogoView from XML.
      */
     public LogoView(Context context, AttributeSet attrs) {
@@ -89,23 +126,59 @@ public class LogoView extends View implements OnClickListener {
         // logo is shown, this view will be marked clickable again.
         setOnClickListener(this);
         setClickable(false);
+        setWillNotDraw(false);
+
+        mLoadingView = new LoadingView(getContext());
+        LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        lp.gravity = Gravity.CENTER;
+        mLoadingView.setLayoutParams(lp);
+        mLoadingView.setVisibility(View.GONE);
+        addView(mLoadingView);
     }
 
     /**
-     * Sets the NewTabPageManager to notify when the logo is pressed.
+     * Sets the {@link Delegate} to notify when the logo is pressed.
      */
-    public void setMananger(NewTabPageManager manager) {
-        mManager = manager;
+    public void setDelegate(Delegate delegate) {
+        mDelegate = delegate;
     }
 
     /**
-     * Jumps to the end of the current logo animation, if any.
+     * Jumps to the end of the logo cross-fading animation, if any.
      */
-    public void endAnimation() {
-        if (mAnimation != null) {
-            mAnimation.end();
-            mAnimation = null;
+    public void endFadeAnimation() {
+        if (mFadeAnimation != null) {
+            mFadeAnimation.end();
+            mFadeAnimation = null;
         }
+    }
+
+    /**
+     * @return True after we receive an animated logo from the server.
+     */
+    private boolean isAnimatedLogoShowing() {
+        return mAnimatedLogoDrawable != null;
+    }
+
+    /**
+     * Starts playing the given animated GIF logo.
+     */
+    public void playAnimatedLogo(BaseGifImage gifImage) {
+        mLoadingView.hideLoadingUI();
+        mAnimatedLogoDrawable = new BaseGifDrawable(gifImage, Config.ARGB_8888);
+        mAnimatedLogoMatrix = new Matrix();
+        setMatrix(mAnimatedLogoDrawable.getIntrinsicWidth(),
+                mAnimatedLogoDrawable.getIntrinsicHeight(), mAnimatedLogoMatrix, false);
+        // Set callback here to ensure #invalidateDrawable() is called.
+        mAnimatedLogoDrawable.setCallback(this);
+        mAnimatedLogoDrawable.start();
+    }
+
+    /**
+     * Lets logo view show a spinning progressbar.
+     */
+    public void showLoadingView() {
+        mLoadingView.showLoadingUI();
     }
 
     /**
@@ -124,16 +197,16 @@ public class LogoView extends View implements OnClickListener {
     }
 
     private void updateLogo(Bitmap logo, final String contentDescription, boolean isDefaultLogo) {
-        if (mAnimation != null) mAnimation.end();
+        if (mFadeAnimation != null) mFadeAnimation.end();
 
         mNewLogo = logo;
         mNewLogoMatrix = new Matrix();
         mNewLogoIsDefault = isDefaultLogo;
-        setMatrix(mNewLogo, mNewLogoMatrix, mNewLogoIsDefault);
+        setMatrix(mNewLogo.getWidth(), mNewLogo.getHeight(), mNewLogoMatrix, mNewLogoIsDefault);
 
-        mAnimation = ObjectAnimator.ofFloat(this, mTransitionProperty, 0f, 1f);
-        mAnimation.setDuration(LOGO_TRANSITION_TIME_MS);
-        mAnimation.addListener(new Animator.AnimatorListener() {
+        mFadeAnimation = ObjectAnimator.ofFloat(this, mTransitionProperty, 0f, 1f);
+        mFadeAnimation.setDuration(LOGO_TRANSITION_TIME_MS);
+        mFadeAnimation.addListener(new Animator.AnimatorListener() {
             @Override
             public void onAnimationStart(Animator animation) {
             }
@@ -150,7 +223,7 @@ public class LogoView extends View implements OnClickListener {
                 mNewLogo = null;
                 mNewLogoMatrix = null;
                 mTransitionAmount = 0f;
-                mAnimation = null;
+                mFadeAnimation = null;
                 setContentDescription(contentDescription);
                 setClickable(!mNewLogoIsDefault);
             }
@@ -161,7 +234,7 @@ public class LogoView extends View implements OnClickListener {
                 invalidate();
             }
         });
-        mAnimation.start();
+        mFadeAnimation.start();
     }
 
     /**
@@ -178,11 +251,10 @@ public class LogoView extends View implements OnClickListener {
      * @param preventUpscaling Whether the image should not be scaled up. If true, the image might
      *                         not fill the entire view but will still be centered.
      */
-    private void setMatrix(Bitmap image, Matrix matrix, boolean preventUpscaling) {
+    private void setMatrix(int imageWidth, int imageHeight, Matrix matrix,
+            boolean preventUpscaling) {
         int width = getWidth();
         int height = getHeight();
-        int imageWidth = image.getWidth();
-        int imageHeight = image.getHeight();
 
         float scale = Math.min((float) width / imageWidth, (float) height / imageHeight);
         if (preventUpscaling) scale = Math.min(1.0f, scale);
@@ -207,36 +279,72 @@ public class LogoView extends View implements OnClickListener {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
-        if (mLogo != null && mTransitionAmount < 0.5f) {
-            mPaint.setAlpha((int) (255 * 2 * (0.5f - mTransitionAmount)));
-            canvas.save();
-            canvas.concat(mLogoMatrix);
-            canvas.drawBitmap(mLogo, 0, 0, mPaint);
-            canvas.restore();
-        }
+    protected boolean verifyDrawable(Drawable who) {
+        return (who == mAnimatedLogoDrawable) || super.verifyDrawable(who);
+    }
 
-        if (mNewLogo != null && mTransitionAmount > 0.5f) {
-            mPaint.setAlpha((int) (255 * 2 * (mTransitionAmount - 0.5f)));
+    @Override
+    public void invalidateDrawable(Drawable drawable) {
+        // mAnimatedLogoDrawable doesn't actually know its bounds, so super.invalidateDrawable()
+        // doesn't invalidate the right area. Instead invalidate the entire view; the drawable takes
+        // up most of the view anyway so this is just as efficient.
+        // @see ImageView#invalidateDrawable().
+        if (drawable == mAnimatedLogoDrawable) invalidate();
+        else super.invalidateDrawable(drawable);
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        if (isAnimatedLogoShowing()) {
+            if (mFadeAnimation != null) mFadeAnimation.cancel();
+            // Free the old bitmaps to allow them to be GC'd.
+            mLogo = null;
+            mNewLogo = null;
+
             canvas.save();
-            canvas.concat(mNewLogoMatrix);
-            canvas.drawBitmap(mNewLogo, 0, 0, mPaint);
+            canvas.concat(mAnimatedLogoMatrix);
+            mAnimatedLogoDrawable.draw(canvas);
             canvas.restore();
+        } else {
+            if (mLogo != null && mTransitionAmount < 0.5f) {
+                mPaint.setAlpha((int) (255 * 2 * (0.5f - mTransitionAmount)));
+                canvas.save();
+                canvas.concat(mLogoMatrix);
+                canvas.drawBitmap(mLogo, 0, 0, mPaint);
+                canvas.restore();
+            }
+
+            if (mNewLogo != null && mTransitionAmount > 0.5f) {
+                mPaint.setAlpha((int) (255 * 2 * (mTransitionAmount - 0.5f)));
+                canvas.save();
+                canvas.concat(mNewLogoMatrix);
+                canvas.drawBitmap(mNewLogo, 0, 0, mPaint);
+                canvas.restore();
+            }
         }
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         if (w != oldw || h != oldh) {
-            if (mLogo != null) setMatrix(mLogo, mLogoMatrix, mLogoIsDefault);
-            if (mNewLogo != null) setMatrix(mNewLogo, mNewLogoMatrix, mNewLogoIsDefault);
+            if (mAnimatedLogoDrawable != null) {
+                setMatrix(mAnimatedLogoDrawable.getIntrinsicWidth(),
+                        mAnimatedLogoDrawable.getIntrinsicHeight(), mAnimatedLogoMatrix, false);
+            }
+            if (mLogo != null) {
+                setMatrix(mLogo.getWidth(), mLogo.getHeight(), mLogoMatrix, mLogoIsDefault);
+            }
+            if (mNewLogo != null) {
+                setMatrix(mNewLogo.getWidth(), mNewLogo.getHeight(), mNewLogoMatrix,
+                        mNewLogoIsDefault);
+            }
         }
     }
 
     @Override
     public void onClick(View view) {
-        if (view == this && mManager != null && !isTransitioning()) {
-            mManager.openLogoLink();
+        if (view == this && mDelegate != null && !isTransitioning()) {
+            mDelegate.onLogoClicked(isAnimatedLogoShowing());
         }
     }
 }

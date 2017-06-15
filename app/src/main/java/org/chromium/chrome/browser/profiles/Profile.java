@@ -6,10 +6,12 @@ package org.chromium.chrome.browser.profiles;
 
 import android.content.Context;
 
-import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.chrome.browser.cookies.CookiesFetcher;
+import org.chromium.content.browser.BrowserStartupController;
 
 /**
  * Wrapper that allows passing a Profile reference around in the Java layer.
@@ -28,6 +30,11 @@ public class Profile {
     }
 
     public static Profile getLastUsedProfile() {
+        // TODO(crbug.com/704025): turn this into an assert once the bug is fixed
+        if (!BrowserStartupController.get(LibraryProcessType.PROCESS_BROWSER)
+                        .isStartupSuccessfullyCompleted()) {
+            throw new IllegalStateException("Browser hasn't finished initialization yet!");
+        }
         return (Profile) nativeGetLastUsedProfile();
     }
 
@@ -57,6 +64,13 @@ public class Profile {
     }
 
     /**
+     * @return Whether the profile is signed in to a child account.
+     */
+    public boolean isChild() {
+        return nativeIsChild(mNativeProfileAndroid);
+    }
+
+    /**
      * @return Whether or not the native side profile exists.
      */
     @VisibleForTesting
@@ -74,7 +88,7 @@ public class Profile {
         mNativeProfileAndroid = 0;
 
         if (mIsOffTheRecord) {
-            Context context = ApplicationStatus.getApplicationContext();
+            Context context = ContextUtils.getApplicationContext();
             CookiesFetcher.deleteCookiesIfNecessary(context);
         }
     }
@@ -90,4 +104,5 @@ public class Profile {
     private native Object nativeGetOffTheRecordProfile(long nativeProfileAndroid);
     private native boolean nativeHasOffTheRecordProfile(long nativeProfileAndroid);
     private native boolean nativeIsOffTheRecord(long nativeProfileAndroid);
+    private native boolean nativeIsChild(long nativeProfileAndroid);
 }

@@ -10,4 +10,4 @@
     android:layout_height="wrap_content"
     android:contentDescription="@string/webstorage_clear_data_dialog_title"
     android:src="@drawable/btn_trash"
-    chrome:tint="@color/blue_mode_tint"/>
+    chrome:chrometint="@color/blue_mode_tint"/>

@@ -14,12 +14,8 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
 
-import org.chromium.base.CommandLine;
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.PasswordUIView;
 import org.chromium.chrome.browser.PasswordUIView.PasswordListObserver;
@@ -29,7 +25,8 @@ import org.chromium.chrome.browser.preferences.ChromeSwitchPreference;
 import org.chromium.chrome.browser.preferences.ManagedPreferenceDelegate;
 import org.chromium.chrome.browser.preferences.PrefServiceBridge;
 import org.chromium.chrome.browser.preferences.Preferences;
-import org.chromium.content.common.ContentSwitches;
+import org.chromium.chrome.browser.preferences.PreferencesLauncher;
+import org.chromium.chrome.browser.preferences.TextMessagePreference;
 import org.chromium.ui.text.SpanApplier;
 
 /**
@@ -47,62 +44,46 @@ public class SavePasswordsPreferences extends PreferenceFragment
     // Used to pass the password id into a new activity.
     public static final String PASSWORD_LIST_ID = "id";
 
-    public static final String DELETED_ITEM_IS_EXCEPTION = "is_exception";
-    public static final String PASSWORD_LIST_DELETED_ID = "deleted_id";
-
     public static final String PREF_SAVE_PASSWORDS_SWITCH = "save_passwords_switch";
     public static final String PREF_AUTOSIGNIN_SWITCH = "autosignin_switch";
 
     private static final String PREF_CATEGORY_SAVED_PASSWORDS = "saved_passwords";
     private static final String PREF_CATEGORY_EXCEPTIONS = "exceptions";
     private static final String PREF_MANAGE_ACCOUNT_LINK = "manage_account_link";
+    private static final String PREF_CATEGORY_SAVED_PASSWORDS_NO_TEXT = "saved_passwords_no_text";
 
     private static final int ORDER_SWITCH = 0;
     private static final int ORDER_AUTO_SIGNIN_CHECKBOX = 1;
     private static final int ORDER_MANAGE_ACCOUNT_LINK = 2;
     private static final int ORDER_SAVED_PASSWORDS = 3;
     private static final int ORDER_EXCEPTIONS = 4;
-
-    public static final int RESULT_DELETE_PASSWORD = 1;
+    private static final int ORDER_SAVED_PASSWORDS_NO_TEXT = 5;
 
     private final PasswordUIView mPasswordManagerHandler = new PasswordUIView();
-    private TextView mEmptyView;
     private boolean mNoPasswords;
     private boolean mNoPasswordExceptions;
     private Preference mLinkPref;
     private ChromeSwitchPreference mSavePasswordsSwitch;
     private ChromeBaseCheckBoxPreference mAutoSignInSwitch;
+    private TextMessagePreference mEmptyView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (PasswordUIView.shouldUseSmartLockBranding()) {
-            getActivity().setTitle(R.string.prefs_smart_lock_for_passwords);
-        } else {
-            getActivity().setTitle(R.string.prefs_saved_passwords);
-        }
+        getActivity().setTitle(R.string.prefs_saved_passwords);
         setPreferenceScreen(getPreferenceManager().createPreferenceScreen(getActivity()));
         mPasswordManagerHandler.addObserver(this);
-
-        mEmptyView = new TextView(getActivity(), null);
-        mEmptyView.setText(R.string.saved_passwords_none_text);
-        mEmptyView.setGravity(Gravity.CENTER);
-        mEmptyView.setVisibility(View.GONE);
-    }
-
-    @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        ((ViewGroup) getActivity().findViewById(android.R.id.content)).addView(mEmptyView);
     }
 
     /**
      * Empty screen message when no passwords or exceptions are stored.
      */
     private void displayEmptyScreenMessage() {
-        if (mEmptyView != null) {
-            mEmptyView.setVisibility(View.VISIBLE);
-        }
+        mEmptyView = new TextMessagePreference(getActivity(), null);
+        mEmptyView.setSummary(R.string.saved_passwords_none_text);
+        mEmptyView.setKey(PREF_CATEGORY_SAVED_PASSWORDS_NO_TEXT);
+        mEmptyView.setOrder(ORDER_SAVED_PASSWORDS_NO_TEXT);
+        getPreferenceScreen().addPreference(mEmptyView);
     }
 
     @Override
@@ -115,7 +96,6 @@ public class SavePasswordsPreferences extends PreferenceFragment
         mNoPasswords = false;
         mNoPasswordExceptions = false;
         getPreferenceScreen().removeAll();
-        mEmptyView.setVisibility(View.GONE);
         createSavePasswordsSwitch();
         createAutoSignInCheckbox();
         mPasswordManagerHandler.updatePasswordLists();
@@ -128,13 +108,13 @@ public class SavePasswordsPreferences extends PreferenceFragment
             profileCategory.removeAll();
             getPreferenceScreen().removePreference(profileCategory);
         }
-
-        mEmptyView.setVisibility(View.GONE);
     }
 
     @Override
     public void passwordListAvailable(int count) {
         resetList(PREF_CATEGORY_SAVED_PASSWORDS);
+        resetList(PREF_CATEGORY_SAVED_PASSWORDS_NO_TEXT);
+
         mNoPasswords = count == 0;
         if (mNoPasswords) {
             if (mNoPasswordExceptions) displayEmptyScreenMessage();
@@ -168,6 +148,8 @@ public class SavePasswordsPreferences extends PreferenceFragment
     @Override
     public void passwordExceptionListAvailable(int count) {
         resetList(PREF_CATEGORY_EXCEPTIONS);
+        resetList(PREF_CATEGORY_SAVED_PASSWORDS_NO_TEXT);
+
         mNoPasswordExceptions = count == 0;
         if (mNoPasswordExceptions) {
             if (mNoPasswords) displayEmptyScreenMessage();
@@ -220,38 +202,13 @@ public class SavePasswordsPreferences extends PreferenceFragment
         } else {
             // Launch preference activity with PasswordEntryEditor fragment with
             // intent extras specifying the object.
-            Intent intent = new Intent();
-            intent.setClassName(getActivity(), getActivity().getClass().getName());
-            intent.putExtra(Preferences.EXTRA_SHOW_FRAGMENT,
+            Intent intent = PreferencesLauncher.createIntentForSettingsPage(getActivity(),
                     PasswordEntryEditor.class.getName());
             intent.putExtra(Preferences.EXTRA_SHOW_FRAGMENT_ARGUMENTS,
                     preference.getExtras());
-            startActivityForResult(intent, RESULT_DELETE_PASSWORD);
+            startActivity(intent);
         }
         return true;
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == RESULT_DELETE_PASSWORD && data != null) {
-            deletePassword(data);
-        }
-    }
-
-    /**
-     * Called when a Password is deleted from PasswordEntryEditor.
-     * @param data Intent with extras containing the index of deleted password.
-     */
-    private void deletePassword(Intent data) {
-        if (data != null && data.hasExtra(PASSWORD_LIST_DELETED_ID)) {
-            int deletedId = data.getIntExtra(PASSWORD_LIST_DELETED_ID, -1);
-            boolean isException = data.getBooleanExtra(DELETED_ITEM_IS_EXCEPTION, false);
-            if (isException) {
-                mPasswordManagerHandler.removeSavedPasswordException(deletedId);
-            } else {
-                mPasswordManagerHandler.removeSavedPasswordEntry(deletedId);
-            }
-        }
     }
 
     private void createSavePasswordsSwitch() {
@@ -285,9 +242,6 @@ public class SavePasswordsPreferences extends PreferenceFragment
     }
 
     private void createAutoSignInCheckbox() {
-        if (!CommandLine.getInstance().hasSwitch(ContentSwitches.ENABLE_CREDENTIAL_MANAGER_API)) {
-            return;
-        }
         mAutoSignInSwitch = new ChromeBaseCheckBoxPreference(getActivity(), null);
         mAutoSignInSwitch.setKey(PREF_AUTOSIGNIN_SWITCH);
         mAutoSignInSwitch.setTitle(R.string.passwords_auto_signin_title);
@@ -313,12 +267,10 @@ public class SavePasswordsPreferences extends PreferenceFragment
     }
 
     private void displayManageAccountLink() {
-        boolean shouldDisplayLink = PasswordUIView.shouldDisplayManageAccountLink();
-        if (shouldDisplayLink
-                && getPreferenceScreen().findPreference(PREF_MANAGE_ACCOUNT_LINK) == null) {
+        if (getPreferenceScreen().findPreference(PREF_MANAGE_ACCOUNT_LINK) == null) {
             if (mLinkPref == null) {
                 ForegroundColorSpan colorSpan = new ForegroundColorSpan(
-                        getResources().getColor(R.color.pref_accent_color));
+                        ApiCompatibilityUtils.getColor(getResources(), R.color.pref_accent_color));
                 SpannableString title = SpanApplier.applySpans(
                         getString(R.string.manage_passwords_text),
                         new SpanApplier.SpanInfo("<link>", "</link>", colorSpan));
@@ -330,8 +282,5 @@ public class SavePasswordsPreferences extends PreferenceFragment
             }
             getPreferenceScreen().addPreference(mLinkPref);
         }
-        // Draw a divider only if the preference after mSavePasswordsSwitch is not selectable,
-        // in which case the ListView itself doesn't draw a divider.
-        mSavePasswordsSwitch.setDrawDivider(!shouldDisplayLink && mAutoSignInSwitch == null);
     }
 }

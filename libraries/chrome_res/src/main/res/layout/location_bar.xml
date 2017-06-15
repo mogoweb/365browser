@@ -2,41 +2,30 @@
 <!-- Copyright 2015 The Chromium Authors. All rights reserved.
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
-<!-- The location bar also know as URL bar -->
-<merge xmlns:android="http://schemas.android.com/apk/res/android">
-  
-    
-  <ImageView android:contentDescription="@null" android:id="@+id/incognito_badge" android:layout_height="match_parent" android:layout_width="wrap_content" android:scaleType="center" android:src="@drawable/ic_omnibox_incognito_badge" android:visibility="gone" style="@style/LocationBarButton"/>
-  
-    
-  <FrameLayout android:id="@+id/location_bar_icon" android:layout_height="match_parent" android:layout_width="@dimen/location_bar_icon_width" android:visibility="gone">
-    
-        
-    <ImageView android:contentDescription="@string/accessibility_toolbar_btn_site_info" android:id="@+id/navigation_button" android:layout_gravity="center" android:layout_height="match_parent" android:layout_width="match_parent" android:scaleType="center" style="@style/LocationBarButton"/>
-    
-        
-    <ImageButton android:alpha="0" android:contentDescription="@string/accessibility_toolbar_btn_site_info" android:id="@+id/security_button" android:layout_gravity="center" android:layout_height="match_parent" android:layout_width="match_parent" android:scaleType="center" android:visibility="invisible" style="@style/LocationBarButton"/>
-    
-    
-  </FrameLayout>
-  
-    
-  <include android:id="@+id/url_container" android:layout_gravity="center_vertical" android:layout_height="match_parent" android:layout_marginBottom="3dp" android:layout_marginLeft="@dimen/location_bar_icon_width" android:layout_marginTop="3dp" android:layout_width="match_parent" android:nextFocusForward="@+id/tab_switcher_button" layout="@layout/url_container"/>
-  
-    
-  <FrameLayout android:id="@+id/url_action_container" android:layout_gravity="end|center_vertical" android:layout_height="@dimen/toolbar_height_no_shadow" android:layout_width="@dimen/location_bar_icon_width" android:visibility="gone">
-    
-        
-    <org.chromium.chrome.browser.widget.TintedImageButton android:contentDescription="@string/accessibility_toolbar_btn_menu" android:id="@+id/document_menu_button" android:layoutDirection="locale" android:layout_height="match_parent" android:layout_width="match_parent" android:src="@drawable/btn_menu" style="@style/LocationBarButton"/>
-    
-        
-    <org.chromium.chrome.browser.widget.TintedImageButton android:contentDescription="@string/accessibility_toolbar_btn_delete_url" android:id="@+id/delete_button" android:layout_height="match_parent" android:layout_width="match_parent" android:scaleType="center" android:src="@drawable/btn_delete_url" android:visibility="invisible" style="@style/LocationBarButton"/>
-    
-        
-    <org.chromium.chrome.browser.widget.TintedImageButton android:contentDescription="@string/accessibility_toolbar_btn_mic" android:id="@+id/mic_button" android:layout_height="match_parent" android:layout_width="match_parent" android:scaleType="center" android:src="@drawable/btn_mic" android:visibility="invisible" style="@style/LocationBarButton"/>
-    
-    
-  </FrameLayout>
-  
 
+<!-- Layout for the control group representing ChromeTabbedActivity's URL bar on small devices.
+     This file is overridden for tablets via Android's resource framework; check /layout-sw600dp.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The container for the Google G is kept at a fixed width to make the horizonal translation
+         calculations work. The contents are end-aligned, so when the location bar expands,
+         the space in the start margin will be pushed out, creating the effect of both margins
+         shrinking simultaneously. -->
+    <FrameLayout android:id="@+id/google_g_container"
+        android:layout_width="@dimen/location_bar_google_g_container_width"
+        android:layout_height="match_parent" >
+
+        <ImageView android:id="@+id/google_g"
+            style="@style/LocationBarButton"
+            android:layout_width="@dimen/location_bar_google_g_width"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="@dimen/location_bar_google_g_margin"
+            android:layout_gravity="end"
+            android:scaleType="fitCenter"
+            android:src="@drawable/googleg"
+            android:contentDescription="@null" />
+
+    </FrameLayout>
+
+    <include layout="@layout/location_bar_base" />
 </merge>

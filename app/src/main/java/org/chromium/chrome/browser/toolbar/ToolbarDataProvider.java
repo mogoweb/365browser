@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.toolbar;
 
 import org.chromium.chrome.browser.ntp.NewTabPage;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 
 /**
@@ -17,6 +18,11 @@ public interface ToolbarDataProvider {
     Tab getTab();
 
     /**
+     * @return The current url for the current tab.
+     */
+    String getCurrentUrl();
+
+    /**
      * @return The NewTabPage shown for the current Tab or null if one is not being shown.
      */
     NewTabPage getNewTabPageForCurrentTab();
@@ -27,19 +33,14 @@ public interface ToolbarDataProvider {
     boolean isIncognito();
 
     /**
-     * @return The chip text from the search URL.
+     * @return The current {@link Profile}.
      */
-    String getCorpusChipText();
+    Profile getProfile();
 
     /**
      * @return The formatted text (URL or search terms) for display.
      */
     String getText();
-
-    /**
-     * @return Whether the text to display is a search query replacing the URL.
-     */
-    boolean wouldReplaceURL();
 
     /**
      * @return The primary color to use for the background drawable.

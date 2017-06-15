@@ -11,14 +11,15 @@ import android.net.Uri;
 import android.provider.Browser;
 import android.text.TextUtils;
 
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.SuppressFBWarnings;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.ChromeApplication;
+import org.chromium.chrome.browser.AppHooks;
 import org.chromium.chrome.browser.UrlConstants;
-import org.chromium.chrome.browser.UrlUtilities;
 import org.chromium.chrome.browser.feedback.FeedbackCollector;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.util.UrlUtilities;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 public class HelpAndFeedback {
     protected static final String FALLBACK_SUPPORT_URL =
             "https://support.google.com/chrome/topic/6069782";
+    private static final String TAG = "cr_HelpAndFeedback";
 
     private static HelpAndFeedback sInstance;
 
@@ -39,8 +41,7 @@ public class HelpAndFeedback {
     public static HelpAndFeedback getInstance(Context context) {
         ThreadUtils.assertOnUiThread();
         if (sInstance == null) {
-            sInstance = ((ChromeApplication) context.getApplicationContext())
-                    .createHelpAndFeedback();
+            sInstance = AppHooks.get().createHelpAndFeedback();
         }
         return sInstance;
     }
@@ -56,6 +57,19 @@ public class HelpAndFeedback {
      */
     protected void show(
             Activity activity, String helpContext, @Nonnull FeedbackCollector collector) {
+        Log.d(TAG, "Feedback data: " + collector.getBundle());
+        launchFallbackSupportUri(activity);
+    }
+
+    /**
+     * Starts an activity prompting the user to enter feedback.
+     *
+     * @param activity The activity to use for starting the feedback activity and to take a
+     *                 screenshot of.
+     * @param collector the {@link FeedbackCollector} to use for extra data. Must not be null.
+     */
+    protected void showFeedback(Activity activity, @Nonnull FeedbackCollector collector) {
+        Log.d(TAG, "Feedback data: " + collector.getBundle());
         launchFallbackSupportUri(activity);
     }
 
@@ -71,12 +85,36 @@ public class HelpAndFeedback {
      */
     public void show(final Activity activity, final String helpContext, Profile profile,
             @Nullable String url) {
-        FeedbackCollector.create(activity, profile, url, new FeedbackCollector.FeedbackResult() {
-            @Override
-            public void onResult(FeedbackCollector collector) {
-                show(activity, helpContext, collector);
-            }
-        });
+        FeedbackCollector.create(activity, profile, url, true /* takeScreenshot */,
+                new FeedbackCollector.FeedbackResult() {
+                    @Override
+                    public void onResult(FeedbackCollector collector) {
+                        show(activity, helpContext, collector);
+                    }
+                });
+    }
+
+    /**
+     * Starts an activity prompting the user to enter feedback.
+     *
+     * @param activity The activity to use for starting the feedback activity and to take a
+     *                 screenshot of.
+     * @param profile the current profile.
+     * @param url the current URL. May be null.
+     * @param categoryTag The category that this feedback report falls under.
+     */
+    public void showFeedback(final Activity activity, Profile profile, @Nullable String url,
+            @Nullable final String categoryTag) {
+        FeedbackCollector.create(activity, profile, url, false /* takeScreenshot */,
+                new FeedbackCollector.FeedbackResult() {
+                    @Override
+                    public void onResult(FeedbackCollector collector) {
+                        if (categoryTag != null) {
+                            collector.setCategoryTag(categoryTag);
+                        }
+                        showFeedback(activity, collector);
+                    }
+                });
     }
 
     /**

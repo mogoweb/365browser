@@ -6,8 +6,8 @@ android {
             storeFile file('/home/alex/github/365browser/keystore')
         }
     }
-    compileSdkVersion 23
-    buildToolsVersion "23.0.0"
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
     enforceUniquePackageName false
     defaultConfig {
         applicationId "com.mogoweb"
@@ -18,6 +18,17 @@ android {
 
         multiDexEnabled true
     }
+
+    sourceSets {
+        main {
+            java.filter.exclude(
+                    "com/google/protobuf/*.java",
+                    "com/google/protobuf/micro/*.java",
+                    "org/chromium/chrome/browser/MonochromeApplication.java",
+            )
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -36,15 +47,32 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
-    compile 'com.android.support:support-annotations:23.1.0'
-    compile 'com.android.support:appcompat-v7:23.0.1'
-    compile 'com.android.support:recyclerview-v7:23.1.0'
-    compile 'com.android.support:design:23.0.1'
-    compile 'com.android.support:support-v13:23.1.0'
+    compile 'com.android.support:support-annotations:25.3.1'
+    compile 'com.android.support:appcompat-v7:25.3.1'
+    compile 'com.android.support:recyclerview-v7:25.3.1'
+    compile 'com.android.support:design:25.3.1'
+    compile 'com.android.support:gridlayout-v7:25.3.1'
+    compile 'com.android.support:support-v13:25.3.1'
     compile 'com.android.support:multidex:1.0.0'
-    compile 'com.google.android.gms:play-services-cast:8.1.0'
-    compile 'com.google.android.gms:play-services-gcm:8.1.0'
     compile project(':libraries:chrome_res')
     compile project(':libraries:ui_res')
     compile project(':libraries:content_res')
+    compile project(":libraries:delegate_res")
+    compile project(":libraries:gms_res")
+    compile project(':libraries:autofill_res')
+    compile project(':libraries:media_res')
+}
+
+afterEvaluate {
+    def tasksToDisable = tasks.findAll {
+        return (it.name.equals('generateDebugSources')  // causes unwanted AndroidManifest.java
+                || it.name.equals('generateReleaseSources')
+                || it.name.endsWith('BuildConfig')  // causes unwanted BuildConfig.java
+                || it.name.endsWith('Aidl')
+                || it.name.endsWith('Renderscript')
+                || it.name.endsWith('Shaders'))
+    }
+    tasksToDisable.each { Task task ->
+        task.enabled = false
+    }
 }

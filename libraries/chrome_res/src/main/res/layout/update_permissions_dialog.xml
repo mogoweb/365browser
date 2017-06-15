@@ -3,13 +3,22 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file.
 -->
-<FrameLayout android:gravity="start" style="@style/AlertDialogContent" xmlns:android="http://schemas.android.com/apk/res/android">
-  
-    
-  <ImageView android:contentDescription="@null" android:id="@+id/icon" android:layout_height="32dp" android:layout_marginTop="10dp" android:layout_width="32dp" android:src="@drawable/exclamation_triangle"/>
-  
-    
-  <TextView android:id="@+id/text" android:layout_height="wrap_content" android:layout_marginLeft="48dp" android:layout_marginTop="10dp" android:layout_width="match_parent" android:paddingTop="0dp" android:textSize="18sp"/>
-  
-
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="start"
+    style="@style/AlertDialogContent" >
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginTop="10dp"
+        android:src="@drawable/exclamation_triangle"
+        android:contentDescription="@null" />
+    <TextView
+        android:id="@+id/text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:paddingTop="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="48dp" />
 </FrameLayout>

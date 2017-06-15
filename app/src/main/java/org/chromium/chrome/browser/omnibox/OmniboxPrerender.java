@@ -17,7 +17,7 @@ import org.chromium.chrome.browser.tab.Tab;
  *
  */
 public class OmniboxPrerender {
-    private long mNativeOmniboxPrerender = 0;
+    private long mNativeOmniboxPrerender;
 
     /**
      * Constructor for creating a OmniboxPrerender instanace.

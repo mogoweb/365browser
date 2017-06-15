@@ -31,11 +31,11 @@ public class StaticResourcePreloads {
     private static int[] sEmptyList = new int[] {};
 
     public static int[] getSynchronousResources(Context context) {
-        return DeviceFormFactor.isTablet(context) ? sSynchronousResources : sEmptyList;
+        return DeviceFormFactor.isTablet() ? sSynchronousResources : sEmptyList;
     }
 
     @SuppressFBWarnings("MS_EXPOSE_REP")
     public static int[] getAsynchronousResources(Context context) {
-        return DeviceFormFactor.isTablet(context) ? sAsynchronousResources : sEmptyList;
+        return DeviceFormFactor.isTablet() ? sAsynchronousResources : sEmptyList;
     }
 }

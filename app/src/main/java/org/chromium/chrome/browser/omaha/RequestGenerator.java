@@ -8,9 +8,10 @@ import android.content.Context;
 import android.os.Build;
 import android.util.Xml;
 
+import org.xmlpull.v1.XmlSerializer;
+
 import org.chromium.base.BuildInfo;
 import org.chromium.base.VisibleForTesting;
-import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -47,7 +48,7 @@ public abstract class RequestGenerator {
 
     /**
      * Generates the XML for the current request.
-     * Follows the format laid out at http://code.google.com/p/omaha/wiki/ServerProtocol
+     * Follows the format laid out at https://github.com/google/omaha/blob/wiki/ServerProtocolV3.md
      * with some additional dummy values supplied.
      */
     public String generateXML(String sessionID, String versionName, long installAge,
@@ -150,8 +151,7 @@ public abstract class RequestGenerator {
      * these strings when building their own custom Android ROMs.
      */
     public String getAdditionalParameters() {
-        String applicationLabel =
-                StringSanitizer.sanitize(BuildInfo.getPackageLabel(mApplicationContext));
+        String applicationLabel = StringSanitizer.sanitize(BuildInfo.getPackageLabel());
         String brand = StringSanitizer.sanitize(Build.BRAND);
         String model = StringSanitizer.sanitize(Build.MODEL);
         return applicationLabel + ";" + brand + ";" + model;

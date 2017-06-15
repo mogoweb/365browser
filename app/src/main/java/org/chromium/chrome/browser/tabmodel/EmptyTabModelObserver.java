@@ -14,49 +14,39 @@ import java.util.List;
  * An empty base implementation of the TabModelObserver interface.
  */
 public class EmptyTabModelObserver implements TabModelObserver {
+    @Override
+    public void didSelectTab(Tab tab, TabSelectionType type, int lastId) {}
 
     @Override
-    public void didSelectTab(Tab tab, TabSelectionType type, int lastId) {
-    }
+    public void willCloseTab(Tab tab, boolean animate) {}
 
     @Override
-    public void willCloseTab(Tab tab, boolean animate) {
-    }
+    public void didCloseTab(int tabId, boolean incognito) {}
 
     @Override
-    public void didCloseTab(Tab tab) {
-    }
+    public void willAddTab(Tab tab, TabLaunchType type) {}
 
     @Override
-    public void willAddTab(Tab tab, TabLaunchType type) {
-    }
+    public void didAddTab(Tab tab, TabLaunchType type) {}
 
     @Override
-    public void didAddTab(Tab tab, TabLaunchType type) {
-    }
+    public void didMoveTab(Tab tab, int newIndex, int curIndex) {}
 
     @Override
-    public void didMoveTab(Tab tab, int newIndex, int curIndex) {
-    }
+    public void tabPendingClosure(Tab tab) {}
 
     @Override
-    public void tabPendingClosure(Tab tab) {
-    }
+    public void tabClosureUndone(Tab tab) {}
 
     @Override
-    public void tabClosureUndone(Tab tab) {
-    }
+    public void tabClosureCommitted(Tab tab) {}
 
     @Override
-    public void tabClosureCommitted(Tab tab) {
-    }
+    public void allTabsPendingClosure(List<Tab> tabs) {}
 
     @Override
-    public void allTabsPendingClosure(List<Integer> tabIds) {
-    }
+    public void allTabsClosureCommitted() {}
 
     @Override
-    public void allTabsClosureCommitted() {
-    }
-
+    public void tabRemoved(Tab tab) {}
 }

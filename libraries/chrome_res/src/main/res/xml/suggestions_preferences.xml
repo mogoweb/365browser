@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2017 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto" >
+
+    <!-- The summaryOn text can vary depending on whether notifications are enabled.
+         So it is set programmatically. -->
+    <org.chromium.chrome.browser.preferences.ChromeSwitchPreference
+        android:key="suggestions_switch"
+        android:title="@string/suggestions_feature_switch_title"
+        android:summaryOff="@string/text_off"
+        chrome:drawDivider="true" />
+
+    <org.chromium.chrome.browser.preferences.ChromeSwitchPreference
+        android:key="suggestions_notifications_switch"
+        android:title="@string/suggestions_notifications_switch_title"
+        chrome:drawDivider="true" />
+
+    <org.chromium.chrome.browser.preferences.TextMessagePreference
+        android:key="suggestions_caveats"
+        android:title="@string/suggestions_caveats_description" />
+    <org.chromium.chrome.browser.preferences.LearnMorePreference
+        android:key="suggestions_learn_more"
+        chrome:helpContext="@string/help_context_suggestions" />
+</PreferenceScreen>

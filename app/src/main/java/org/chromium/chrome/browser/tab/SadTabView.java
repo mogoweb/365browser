@@ -36,22 +36,22 @@ public class SadTabView extends ScrollView {
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
 
-        final ButtonCompat mReloadButton = (ButtonCompat) findViewById(R.id.sad_tab_reload_button);
+        final ButtonCompat mButton = (ButtonCompat) findViewById(R.id.sad_tab_button);
 
-        final LinearLayout.LayoutParams mReloadButtonParams =
-                (LinearLayout.LayoutParams) mReloadButton.getLayoutParams();
+        final LinearLayout.LayoutParams mButtonParams =
+                (LinearLayout.LayoutParams) mButton.getLayoutParams();
 
-        if ((width > height || width > mThresholdPx) && mReloadButton.getWidth() <= width) {
+        if ((width > height || width > mThresholdPx) && mButton.getWidth() <= width) {
             // Orientation is landscape
-            mReloadButtonParams.width = LinearLayout.LayoutParams.WRAP_CONTENT;
-            mReloadButtonParams.gravity = Gravity.END;
+            mButtonParams.width = LinearLayout.LayoutParams.WRAP_CONTENT;
+            mButtonParams.gravity = Gravity.END;
         } else {
             // Orientation is portrait
-            mReloadButtonParams.width = LinearLayout.LayoutParams.MATCH_PARENT;
-            mReloadButtonParams.gravity = Gravity.FILL_HORIZONTAL;
+            mButtonParams.width = LinearLayout.LayoutParams.MATCH_PARENT;
+            mButtonParams.gravity = Gravity.FILL_HORIZONTAL;
         }
 
-        mReloadButton.setLayoutParams(mReloadButtonParams);
+        mButton.setLayoutParams(mButtonParams);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 }

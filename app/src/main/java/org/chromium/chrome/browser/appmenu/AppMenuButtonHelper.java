@@ -5,9 +5,14 @@
 package org.chromium.chrome.browser.appmenu;
 
 import android.annotation.SuppressLint;
+import android.os.Bundle;
 import android.view.MotionEvent;
+import android.view.SoundEffectConstants;
 import android.view.View;
+import android.view.View.AccessibilityDelegate;
 import android.view.View.OnTouchListener;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import org.chromium.base.metrics.RecordUserAction;
 
@@ -18,7 +23,7 @@ import org.chromium.base.metrics.RecordUserAction;
  * Simply construct this class and pass the class instance to a menu button as TouchListener.
  * Then this class will handle everything regarding showing app menu for you.
  */
-public class AppMenuButtonHelper implements OnTouchListener {
+public class AppMenuButtonHelper extends AccessibilityDelegate implements OnTouchListener {
     private final AppMenuHandler mMenuHandler;
     private Runnable mOnAppMenuShownListener;
     private boolean mIsTouchEventsBeingProcessed;
@@ -105,5 +110,20 @@ public class AppMenuButtonHelper implements OnTouchListener {
             isTouchEventConsumed |= dragHelper.handleDragging(event, view);
         }
         return isTouchEventConsumed;
+    }
+
+    @Override
+    public boolean performAccessibilityAction(View host, int action, Bundle args) {
+        if (action == AccessibilityNodeInfo.ACTION_CLICK) {
+            if (!mMenuHandler.isAppMenuShowing()) {
+                showAppMenu(host, false);
+            } else {
+                mMenuHandler.hideAppMenu();
+            }
+            host.playSoundEffect(SoundEffectConstants.CLICK);
+            host.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED);
+            return true;
+        }
+        return super.performAccessibilityAction(host, action, args);
     }
 }

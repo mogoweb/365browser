@@ -2,16 +2,49 @@
 <!-- Copyright 2015 The Chromium Authors. All rights reserved.
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
-<LinearLayout android:background="#282C32" android:layout_height="wrap_content" android:layout_width="match_parent" android:minHeight="@dimen/snackbar_min_height" android:orientation="horizontal" xmlns:android="http://schemas.android.com/apk/res/android">
-  
 
-    
-  <org.chromium.chrome.browser.snackbar.TemplatePreservingTextView android:id="@+id/snackbar_message" android:layout_gravity="start|center_vertical" android:layout_height="wrap_content" android:layout_marginBottom="14dp" android:layout_marginLeft="24dp" android:layout_marginTop="14dp" android:layout_weight="1" android:layout_width="0dp" android:textAlignment="viewStart" android:textColor="@android:color/white" android:textSize="14sp"/>
-  
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/snackbar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|start"
+    android:minHeight="@dimen/snackbar_min_height"
+    android:orientation="horizontal" >
 
-    
-  <Button android:fontFamily="sans-serif-medium" android:id="@+id/snackbar_button" android:layout_gravity="center_vertical" android:layout_height="@dimen/snackbar_min_height" android:layout_width="wrap_content" android:paddingLeft="24dp" android:paddingRight="24dp" android:textAllCaps="true" android:textColor="@color/snackbar_button_color" android:textSize="14sp" style="@style/ButtonCompatBorderless"/>
-  
+    <ImageView android:id="@+id/snackbar_profile_image"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="-12dp"
+        android:scaleType="fitCenter"
+        android:visibility="visible"
+        android:contentDescription="@null"/>
 
+    <org.chromium.chrome.browser.snackbar.TemplatePreservingTextView
+        android:id="@+id/snackbar_message"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp"
+        android:layout_weight="1"
+        android:textAlignment="viewStart"
+        android:textColor="@android:color/white"
+        android:textSize="14sp" />
+
+    <Button
+        android:id="@+id/snackbar_button"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/snackbar_min_height"
+        android:layout_gravity="center_vertical"
+        android:paddingEnd="24dp"
+        android:paddingStart="24dp"
+        android:fontFamily="sans-serif-medium"
+        android:textAllCaps="true"
+        android:textColor="@color/snackbar_button_color"
+        android:textSize="14sp"
+        style="@style/ButtonCompatBorderless" />
 
 </LinearLayout>

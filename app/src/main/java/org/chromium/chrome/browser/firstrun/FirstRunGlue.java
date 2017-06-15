@@ -18,36 +18,10 @@ public interface FirstRunGlue {
     boolean didAcceptTermsOfService(Context appContext);
 
     /**
-     * @return Whether the "upload crash dump" setting is set to "NEVER".
-     * @param appContext An application context.
-     */
-    boolean isNeverUploadCrashDump(Context appContext);
-
-    /**
      * Sets the EULA/Terms of Services state as "ACCEPTED".
-     * @param appContext An application context.
      * @param allowCrashUpload True if the user allows to upload crash dumps and collect stats.
      */
-    void acceptTermsOfService(Context appContext, boolean allowCrashUpload);
-
-    /**
-     * @return Whether the application is eligible for the Document mode.
-     * @param appContext An application context.
-     */
-    boolean isDocumentModeEligible(Context appContext);
-
-    /**
-     * @return Whether a given account name is the default (first) Android account name.
-     * @param appContext An application context.
-     * @param accountName An account name.
-     */
-    boolean isDefaultAccountName(Context appContext, String accountName);
-
-    /**
-     * @return Number of available accounts on the device.
-     * @param appContext An application context.
-     */
-    int numberOfAccounts(Context appContext);
+    void acceptTermsOfService(boolean allowCrashUpload);
 
     /**
      * Opens the Android account adder UI.

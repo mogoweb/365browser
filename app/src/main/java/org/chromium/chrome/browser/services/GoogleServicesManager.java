@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.services;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.util.Log;
 
@@ -16,7 +17,7 @@ import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.signin.SigninHelper;
 import org.chromium.chrome.browser.signin.SigninManager;
 import org.chromium.chrome.browser.sync.SyncController;
-import org.chromium.sync.signin.ChromeSigninController;
+import org.chromium.components.signin.ChromeSigninController;
 
 /**
  * Starts and monitors various sync and Google services related tasks.
@@ -37,6 +38,7 @@ public class GoogleServicesManager implements ApplicationStateListener {
     @VisibleForTesting
     public static final String SESSION_TAG_PREFIX = "session_sync";
 
+    @SuppressLint("StaticFieldLeak")
     private static GoogleServicesManager sGoogleServicesManager;
 
     @VisibleForTesting
@@ -70,7 +72,7 @@ public class GoogleServicesManager implements ApplicationStateListener {
             // us.
             mContext = context.getApplicationContext();
 
-            mChromeSigninController = ChromeSigninController.get(mContext);
+            mChromeSigninController = ChromeSigninController.get();
             mSigninHelper = SigninHelper.get(mContext);
 
             // The sign out flow starts by clearing the signed in user in the ChromeSigninController
@@ -81,7 +83,7 @@ public class GoogleServicesManager implements ApplicationStateListener {
             SigninManager signinManager = SigninManager.get(mContext);
             if (!mChromeSigninController.isSignedIn() && signinManager.isSignedInOnNative()) {
                 Log.w(TAG, "Signed in state got out of sync, forcing native sign out");
-                signinManager.signOut(null, null);
+                signinManager.signOut();
             }
 
             // Initialize sync.

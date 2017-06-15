@@ -6,27 +6,38 @@ package org.chromium.chrome.browser.firstrun;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.app.PendingIntent;
+import android.app.PendingIntent.CanceledException;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v4.view.ViewPager;
-import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
-import android.util.Log;
 
+import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ApplicationStatus.ActivityStateListener;
+import org.chromium.base.Log;
 import org.chromium.base.VisibleForTesting;
-import org.chromium.base.library_loader.ProcessInitException;
-import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.metrics.CachedMetrics.EnumeratedHistogramSample;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeApplication;
-import org.chromium.chrome.browser.EmbedContentViewActivity;
+import org.chromium.chrome.browser.customtabs.CustomTabActivity;
+import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
+import org.chromium.chrome.browser.document.ChromeLauncherActivity;
+import org.chromium.chrome.browser.init.AsyncInitializationActivity;
+import org.chromium.chrome.browser.metrics.UmaUtils;
+import org.chromium.chrome.browser.net.spdyproxy.DataReductionProxySettings;
+import org.chromium.chrome.browser.preferences.datareduction.DataReductionPromoUtils;
+import org.chromium.chrome.browser.preferences.datareduction.DataReductionProxyUma;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.searchwidget.SearchWidgetProvider;
+import org.chromium.chrome.browser.util.IntentUtils;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -37,54 +48,100 @@ import java.util.concurrent.Callable;
  *   [Sign-in page]
  * The activity might be run more than once, e.g. 1) for ToS and sign-in, and 2) for intro.
  */
-public class FirstRunActivity extends AppCompatActivity implements FirstRunPageDelegate {
+public class FirstRunActivity extends AsyncInitializationActivity implements FirstRunPageDelegate {
+    /** Alerted about various events when FirstRunActivity performs them. */
+    public interface FirstRunActivityObserver {
+        /** See {@link #onFlowIsKnown}. */
+        void onFlowIsKnown(Bundle freProperties);
+
+        /** See {@link #acceptTermsOfService}. */
+        void onAcceptTermsOfService();
+
+        /** See {@link #jumpToPage}. */
+        void onJumpToPage(int position);
+
+        /** Called when First Run is completed. */
+        void onUpdateCachedEngineName();
+
+        /** See {@link #abortFirstRunExperience}. */
+        void onAbortFirstRunExperience();
+    }
+
     protected static final String TAG = "FirstRunActivity";
 
     // Incoming parameters:
-    public static final String ORIGINAL_INTENT = "OriginalIntent";
-    public static final String FIRE_ORIGINAL_INTENT = "FireOriginalIntent";
-    public static final String COMING_FROM_CHROME_ICON = "ComingFromChromeIcon";
-    public static final String USE_FRE_FLOW_SEQUENCER = "UseFreFlowSequencer";
+    public static final String EXTRA_COMING_FROM_CHROME_ICON = "Extra.ComingFromChromeIcon";
+    public static final String EXTRA_USE_FRE_FLOW_SEQUENCER = "Extra.UseFreFlowSequencer";
+    public static final String EXTRA_START_LIGHTWEIGHT_FRE = "Extra.StartLightweightFRE";
+    public static final String EXTRA_CHROME_LAUNCH_INTENT = "Extra.FreChromeLaunchIntent";
+    public static final String EXTRA_FINISH_ON_TOUCH_OUTSIDE = "Extra.FreFinishOnTouchOutside";
 
-    public static final String SHOW_WELCOME_PAGE = "ShowWelcome";
-    public static final String SKIP_WELCOME_PAGE_IF_ACCEPTED_TOS = "SkipWelcomePageIfAcceptedToS";
-    public static final String SHOW_SIGNIN_PAGE = "ShowSignIn";
+    static final String SHOW_WELCOME_PAGE = "ShowWelcome";
+    static final String SHOW_DATA_REDUCTION_PAGE = "ShowDataReduction";
+    static final String SHOW_SEARCH_ENGINE_PAGE = "ShowSearchEnginePage";
+    static final String SHOW_SIGNIN_PAGE = "ShowSignIn";
 
-    // Outcoming results:
+    static final String POST_NATIVE_SETUP_NEEDED = "PostNativeSetupNeeded";
+
+    // Outgoing results:
     public static final String RESULT_CLOSE_APP = "Close App";
     public static final String RESULT_SIGNIN_ACCOUNT_NAME = "ResultSignInTo";
-    public static final String RESULT_SHOW_SYNC_SETTINGS = "ResultShowSyncSettings";
+    public static final String RESULT_SHOW_SIGNIN_SETTINGS = "ResultShowSignInSettings";
+    public static final String EXTRA_FIRST_RUN_ACTIVITY_RESULT = "Extra.FreActivityResult";
+    public static final String EXTRA_FIRST_RUN_COMPLETE = "Extra.FreComplete";
+
+    public static final boolean DEFAULT_METRICS_AND_CRASH_REPORTING = true;
 
     // UMA constants.
-    private static final String UMA_SIGNIN_CHOICE = "MobileFre.SignInChoice";
-    private static final String UMA_SIGNIN_CHOICE_ENTRY_MAIN_INTENT = ".MainIntent";
-    private static final String UMA_SIGNIN_CHOICE_ENTRY_VIEW_INTENT = ".ViewIntent";
-    private static final String UMA_SIGNIN_CHOICE_ZERO_ACCOUNTS = ".ZeroAccounts";
-    private static final String UMA_SIGNIN_CHOICE_ONE_ACCOUNT = ".OneAccount";
-    private static final String UMA_SIGNIN_CHOICE_MANY_ACCOUNTS = ".ManyAccounts";
     private static final int SIGNIN_SETTINGS_DEFAULT_ACCOUNT = 0;
     private static final int SIGNIN_SETTINGS_ANOTHER_ACCOUNT = 1;
     private static final int SIGNIN_ACCEPT_DEFAULT_ACCOUNT = 2;
     private static final int SIGNIN_ACCEPT_ANOTHER_ACCOUNT = 3;
     private static final int SIGNIN_NO_THANKS = 4;
-    private static final int SIGNIN_OPTION_COUNT = 5;
+    private static final int SIGNIN_MAX = 5;
+    private static final EnumeratedHistogramSample sSigninChoiceHistogram =
+            new EnumeratedHistogramSample("MobileFre.SignInChoice", SIGNIN_MAX);
+
+    private static final int FRE_PROGRESS_STARTED = 0;
+    private static final int FRE_PROGRESS_WELCOME_SHOWN = 1;
+    private static final int FRE_PROGRESS_DATA_SAVER_SHOWN = 2;
+    private static final int FRE_PROGRESS_SIGNIN_SHOWN = 3;
+    private static final int FRE_PROGRESS_COMPLETED_SIGNED_IN = 4;
+    private static final int FRE_PROGRESS_COMPLETED_NOT_SIGNED_IN = 5;
+    private static final int FRE_PROGRESS_DEFAULT_SEARCH_ENGINE_SHOWN = 6;
+    private static final int FRE_PROGRESS_MAX = 7;
+    private static final EnumeratedHistogramSample sMobileFreProgressMainIntentHistogram =
+            new EnumeratedHistogramSample("MobileFre.Progress.MainIntent", FRE_PROGRESS_MAX);
+    private static final EnumeratedHistogramSample sMobileFreProgressViewIntentHistogram =
+            new EnumeratedHistogramSample("MobileFre.Progress.ViewIntent", FRE_PROGRESS_MAX);
 
     @VisibleForTesting
     static FirstRunGlue sGlue = new FirstRunGlueImpl();
 
+    private static FirstRunActivityObserver sObserver;
+
     private boolean mShowWelcomePage = true;
 
     private String mResultSignInAccountName;
-    private boolean mResultShowSyncSettings;
+    private boolean mResultIsDefaultAccount;
+    private boolean mResultShowSignInSettings;
 
+    private boolean mFlowIsKnown;
+    private boolean mPostNativePageSequenceCreated;
     private boolean mNativeSideIsInitialized;
+    private Set<FirstRunPage> mPagesToNotifyOfNativeInit;
+    private boolean mDeferredCompleteFRE;
 
     private ProfileDataCache mProfileDataCache;
-    private ViewPager mPager;
+    private FirstRunViewPager mPager;
 
-    private Bundle mFreProperties;
+    private FirstRunFlowSequencer mFirstRunFlowSequencer;
+
+    protected Bundle mFreProperties;
 
     private List<Callable<FirstRunPage>> mPages;
+
+    private List<Integer> mFreProgressStates;
 
     /**
      * The pager adapter, which provides the pages to the view pager widget.
@@ -96,25 +153,72 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
      */
     private void createPageSequence() {
         mPages = new ArrayList<Callable<FirstRunPage>>();
+        mFreProgressStates = new ArrayList<Integer>();
 
         // An optional welcome page.
-        if (mShowWelcomePage) mPages.add(pageOf(ToSAndUMAFirstRunFragment.class));
+        if (mShowWelcomePage) {
+            mPages.add(pageOf(ToSAndUMAFirstRunFragment.class));
+            mFreProgressStates.add(FRE_PROGRESS_WELCOME_SHOWN);
+        }
+
+        // Other pages will be created by createPostNativePageSequence() after
+        // native has been initialized.
+    }
+
+    private void createPostNativePageSequence() {
+        // Note: Can't just use POST_NATIVE_SETUP_NEEDED for the early return, because this
+        // populates |mPages| which needs to be done even even if onNativeInitialized() was
+        // performed in a previous session.
+        if (mPostNativePageSequenceCreated) return;
+        mFirstRunFlowSequencer.onNativeInitialized(mFreProperties);
+
+        boolean notifyAdapter = false;
+        // An optional Data Saver page.
+        if (mFreProperties.getBoolean(SHOW_DATA_REDUCTION_PAGE)) {
+            mPages.add(pageOf(DataReductionProxyFirstRunFragment.class));
+            mFreProgressStates.add(FRE_PROGRESS_DATA_SAVER_SHOWN);
+            notifyAdapter = true;
+        }
+
+        // An optional page to select a default search engine.
+        if (mFreProperties.getBoolean(SHOW_SEARCH_ENGINE_PAGE)) {
+            mPages.add(pageOf(DefaultSearchEngineFirstRunFragment.class));
+            mFreProgressStates.add(FRE_PROGRESS_DEFAULT_SEARCH_ENGINE_SHOWN);
+            notifyAdapter = true;
+        }
 
         // An optional sign-in page.
         if (mFreProperties.getBoolean(SHOW_SIGNIN_PAGE)) {
             mPages.add(pageOf(AccountFirstRunFragment.class));
+            mFreProgressStates.add(FRE_PROGRESS_SIGNIN_SHOWN);
+            notifyAdapter = true;
         }
+
+        if (notifyAdapter && mPagerAdapter != null) {
+            mPagerAdapter.notifyDataSetChanged();
+        }
+        mPostNativePageSequenceCreated = true;
     }
 
-    // Activity:
+    @Override
+    protected boolean requiresFirstRunToBeCompleted(Intent intent) {
+        // The user is already in First Run.
+        return false;
+    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        initializeBrowserProcess();
+    protected Bundle transformSavedInstanceStateForOnCreate(Bundle savedInstanceState) {
+        // We pass null to Activity.onCreate() so that it doesn't automatically restore
+        // the FragmentManager state - as that may cause fragments to be loaded that have
+        // dependencies on native before native has been loaded (and then crash). Instead,
+        // these fragments will be recreated manually by us and their progression restored
+        // from |mFreProperties| which we still get from getSavedInstanceState() below.
+        return null;
+    }
 
-        super.onCreate(savedInstanceState);
-        setFinishOnTouchOutside(false);
-
+    @Override
+    public void setContentView() {
+        Bundle savedInstanceState = getSavedInstanceState();
         if (savedInstanceState != null) {
             mFreProperties = savedInstanceState;
         } else if (getIntent() != null) {
@@ -123,15 +227,22 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
             mFreProperties = new Bundle();
         }
 
-        mPager = new ViewPager(this);
+        setFinishOnTouchOutside(
+                mFreProperties.getBoolean(FirstRunActivity.EXTRA_FINISH_ON_TOUCH_OUTSIDE));
+
+        // Skip creating content view if it is to start a lightweight First Run Experience.
+        if (mFreProperties.getBoolean(FirstRunActivity.EXTRA_START_LIGHTWEIGHT_FRE)) {
+            return;
+        }
+
+        mPager = new FirstRunViewPager(this);
         mPager.setId(R.id.fre_pager);
         setContentView(mPager);
 
-        mProfileDataCache = new ProfileDataCache(FirstRunActivity.this, null);
-        mProfileDataCache.setProfile(Profile.getLastUsedProfile());
-        new FirstRunFlowSequencer(this, mFreProperties) {
+        mFirstRunFlowSequencer = new FirstRunFlowSequencer(this, mFreProperties) {
             @Override
-            public void onFlowIsKnown(Activity activity, Bundle freProperties) {
+            public void onFlowIsKnown(Bundle freProperties) {
+                mFlowIsKnown = true;
                 if (freProperties == null) {
                     completeFirstRunExperience();
                     return;
@@ -139,15 +250,14 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
 
                 mFreProperties = freProperties;
                 mShowWelcomePage = mFreProperties.getBoolean(SHOW_WELCOME_PAGE);
-                if (mShowWelcomePage
-                        && mFreProperties.getBoolean(SKIP_WELCOME_PAGE_IF_ACCEPTED_TOS)) {
-                    mShowWelcomePage = !sGlue.didAcceptTermsOfService(getApplicationContext());
-                }
-                createPageSequence();
-
                 if (TextUtils.isEmpty(mResultSignInAccountName)) {
                     mResultSignInAccountName = mFreProperties.getString(
                             AccountFirstRunFragment.FORCE_SIGNIN_ACCOUNT_TO);
+                }
+
+                createPageSequence();
+                if (mNativeSideIsInitialized) {
+                    createPostNativePageSequence();
                 }
 
                 if (mPages.size() == 0) {
@@ -160,9 +270,61 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
                 stopProgressionIfNotAcceptedTermsOfService();
                 mPager.setAdapter(mPagerAdapter);
 
-                skipPagesIfNecessary();
+                if (mNativeSideIsInitialized) {
+                    skipPagesIfNecessary();
+                }
+
+                if (sObserver != null) sObserver.onFlowIsKnown(mFreProperties);
+                recordFreProgressHistogram(mFreProgressStates.get(0));
             }
-        }.start();
+        };
+        mFirstRunFlowSequencer.start();
+
+        recordFreProgressHistogram(FRE_PROGRESS_STARTED);
+    }
+
+    @Override
+    public void finishNativeInitialization() {
+        super.finishNativeInitialization();
+        mNativeSideIsInitialized = true;
+        if (mDeferredCompleteFRE) {
+            completeFirstRunExperience();
+            mDeferredCompleteFRE = false;
+        } else if (mFlowIsKnown) {
+            // Note: If mFlowIsKnown is false, then we're not ready to create the post native page
+            // sequence - in that case this will be done when onFlowIsKnown() gets called.
+            createPostNativePageSequence();
+            if (mPagesToNotifyOfNativeInit != null) {
+                for (FirstRunPage page : mPagesToNotifyOfNativeInit) {
+                    page.onNativeInitialized();
+                }
+            }
+            mPagesToNotifyOfNativeInit = null;
+            skipPagesIfNecessary();
+        }
+    }
+
+    @Override
+    public boolean shouldStartGpuProcess() {
+        return true;
+    }
+
+    // Activity:
+
+    @Override
+    public void onAttachFragment(Fragment fragment) {
+        if (!(fragment instanceof FirstRunPage)) return;
+
+        FirstRunPage page = (FirstRunPage) fragment;
+        if (mNativeSideIsInitialized) {
+            page.onNativeInitialized();
+            return;
+        }
+
+        if (mPagesToNotifyOfNativeInit == null) {
+            mPagesToNotifyOfNativeInit = new HashSet<FirstRunPage>();
+        }
+        mPagesToNotifyOfNativeInit.add(page);
     }
 
     @Override
@@ -172,7 +334,18 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
     }
 
     @Override
-    protected void onPause() {
+    public void onRestoreInstanceState(Bundle state) {
+        // Don't automatically restore state here. This is a counterpart to the override
+        // of transformSavedInstanceStateForOnCreate() as the two need to be consistent.
+        // The default implementation of this would restore the state of the views, which
+        // would otherwise cause a crash in ViewPager used to manage fragments - as it
+        // expects consistency between the states restored by onCreate() and this method.
+        // Activity doesn't check for null on the parameter, so pass an empty bundle.
+        super.onRestoreInstanceState(new Bundle());
+    }
+
+    @Override
+    public void onPause() {
         super.onPause();
         flushPersistentData();
     }
@@ -180,15 +353,21 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mProfileDataCache.destroy();
+        if (mProfileDataCache != null) mProfileDataCache.destroy();
     }
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
+        // Since the FRE may be shown before any tab is shown, mark that this is the point at
+        // which Chrome went to foreground. This is needed as otherwise an assert will be hit
+        // in UmaUtils.getForegroundStartTime() when recording the time taken to load the first
+        // page (which happens after native has been initialized possibly while FRE is still
+        // active).
+        UmaUtils.recordForegroundStartTime();
         stopProgressionIfNotAcceptedTermsOfService();
-        if (!mFreProperties.getBoolean(USE_FRE_FLOW_SEQUENCER)) {
-            if (FirstRunStatus.getFirstRunFlowComplete(this)) {
+        if (!mFreProperties.getBoolean(EXTRA_USE_FRE_FLOW_SEQUENCER)) {
+            if (FirstRunStatus.getFirstRunFlowComplete()) {
                 // This is a parallel flow that needs to be refreshed/re-fired.
                 // Signal the FRE flow completion and re-launch the original intent.
                 completeFirstRunExperience();
@@ -213,7 +392,7 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
         if (mPager.getCurrentItem() == 0) {
             abortFirstRunExperience();
         } else {
-            mPager.setCurrentItem(mPager.getCurrentItem() - 1);
+            mPager.setCurrentItem(mPager.getCurrentItem() - 1, false);
         }
     }
 
@@ -221,12 +400,16 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
 
     @Override
     public ProfileDataCache getProfileDataCache() {
+        if (mProfileDataCache == null) {
+            mProfileDataCache =
+                    new ProfileDataCache(FirstRunActivity.this, Profile.getLastUsedProfile());
+        }
         return mProfileDataCache;
     }
 
     @Override
     public void advanceToNextPage() {
-        jumpToPage(mPager.getCurrentItem() + 1, true);
+        jumpToPage(mPager.getCurrentItem() + 1);
     }
 
     @Override
@@ -239,99 +422,106 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
         Intent intent = new Intent();
         if (mFreProperties != null) intent.putExtras(mFreProperties);
         intent.putExtra(RESULT_CLOSE_APP, true);
-        finishAllFREActivities(Activity.RESULT_CANCELED, intent);
+        finishAllTheActivities(getLocalClassName(), Activity.RESULT_CANCELED, intent);
+
+        sendPendingIntentIfNecessary(false);
+        if (sObserver != null) sObserver.onAbortFirstRunExperience();
     }
 
     @Override
     public void completeFirstRunExperience() {
+        if (!mNativeSideIsInitialized) {
+            mDeferredCompleteFRE = true;
+            return;
+        }
         if (!TextUtils.isEmpty(mResultSignInAccountName)) {
-            boolean defaultAccountName =
-                    sGlue.isDefaultAccountName(getApplicationContext(), mResultSignInAccountName);
-            int choice;
-            if (mResultShowSyncSettings) {
-                if (defaultAccountName) {
-                    choice = SIGNIN_SETTINGS_DEFAULT_ACCOUNT;
-                } else {
-                    choice = SIGNIN_SETTINGS_ANOTHER_ACCOUNT;
-                }
+            final int choice;
+            if (mResultShowSignInSettings) {
+                choice = mResultIsDefaultAccount ? SIGNIN_SETTINGS_DEFAULT_ACCOUNT
+                                                 : SIGNIN_SETTINGS_ANOTHER_ACCOUNT;
             } else {
-                if (defaultAccountName) {
-                    choice = SIGNIN_ACCEPT_DEFAULT_ACCOUNT;
-                } else {
-                    choice = SIGNIN_ACCEPT_ANOTHER_ACCOUNT;
-                }
+                choice = mResultIsDefaultAccount ? SIGNIN_ACCEPT_DEFAULT_ACCOUNT
+                                                 : SIGNIN_ACCEPT_ANOTHER_ACCOUNT;
             }
-            RecordHistogram.recordEnumeratedHistogram(
-                    UMA_SIGNIN_CHOICE, choice, SIGNIN_OPTION_COUNT);
-
-            String entryType = mFreProperties.getBoolean(FirstRunActivity.COMING_FROM_CHROME_ICON)
-                    ? UMA_SIGNIN_CHOICE_ENTRY_MAIN_INTENT : UMA_SIGNIN_CHOICE_ENTRY_VIEW_INTENT;
-            int numAccounts = sGlue.numberOfAccounts(getApplicationContext());
-            String numAccountsString;
-            if (numAccounts == 0) {
-                numAccountsString = UMA_SIGNIN_CHOICE_ZERO_ACCOUNTS;
-            } else if (numAccounts == 1) {
-                numAccountsString = UMA_SIGNIN_CHOICE_ONE_ACCOUNT;
-            } else {
-                numAccountsString = UMA_SIGNIN_CHOICE_MANY_ACCOUNTS;
-            }
-            RecordHistogram.recordEnumeratedHistogram(
-                    UMA_SIGNIN_CHOICE + entryType + numAccountsString, choice, SIGNIN_OPTION_COUNT);
+            sSigninChoiceHistogram.record(choice);
+            recordFreProgressHistogram(FRE_PROGRESS_COMPLETED_SIGNED_IN);
+        } else {
+            recordFreProgressHistogram(FRE_PROGRESS_COMPLETED_NOT_SIGNED_IN);
         }
 
         mFreProperties.putString(RESULT_SIGNIN_ACCOUNT_NAME, mResultSignInAccountName);
-        mFreProperties.putBoolean(RESULT_SHOW_SYNC_SETTINGS, mResultShowSyncSettings);
+        mFreProperties.putBoolean(RESULT_SHOW_SIGNIN_SETTINGS, mResultShowSignInSettings);
         FirstRunFlowSequencer.markFlowAsCompleted(this, mFreProperties);
 
-        if (mFreProperties.getBoolean(FirstRunActivity.FIRE_ORIGINAL_INTENT)) {
-            Intent originalIntent = mFreProperties.getParcelable(FirstRunActivity.ORIGINAL_INTENT);
-            startActivity(originalIntent);
+        if (DataReductionPromoUtils.getDisplayedFreOrSecondRunPromo()) {
+            if (DataReductionProxySettings.getInstance().isDataReductionProxyEnabled()) {
+                DataReductionProxyUma
+                        .dataReductionProxyUIAction(DataReductionProxyUma.ACTION_FRE_ENABLED);
+                DataReductionPromoUtils.saveFrePromoOptOut(false);
+            } else {
+                DataReductionProxyUma
+                        .dataReductionProxyUIAction(DataReductionProxyUma.ACTION_FRE_DISABLED);
+                DataReductionPromoUtils.saveFrePromoOptOut(true);
+            }
         }
 
-        Intent resultData = new Intent();
-        resultData.putExtras(mFreProperties);
-        finishAllFREActivities(Activity.RESULT_OK, resultData);
-    }
+        // Update the search engine name cached by the widget.
+        SearchWidgetProvider.updateCachedEngineName();
+        if (sObserver != null) sObserver.onUpdateCachedEngineName();
 
-    @Override
-    public void onSigninDialogShown() {
-        RecordUserAction.record("MobileFre.SignInShown");
+        if (!sendPendingIntentIfNecessary(true)) {
+            Intent resultData = new Intent();
+            resultData.putExtras(mFreProperties);
+            finishAllTheActivities(getLocalClassName(), Activity.RESULT_OK, resultData);
+        } else {
+            ApplicationStatus.registerStateListenerForActivity(new ActivityStateListener() {
+                @Override
+                public void onActivityStateChange(Activity activity, int newState) {
+                    if (newState == ActivityState.STOPPED || newState == ActivityState.DESTROYED) {
+                        Intent resultData = new Intent();
+                        resultData.putExtras(mFreProperties);
+                        finishAllTheActivities(getLocalClassName(), Activity.RESULT_OK, resultData);
+                        ApplicationStatus.unregisterActivityStateListener(this);
+                    }
+                }
+            }, this);
+        }
     }
 
     @Override
     public void refuseSignIn() {
-        RecordHistogram.recordEnumeratedHistogram(
-                UMA_SIGNIN_CHOICE, SIGNIN_NO_THANKS, SIGNIN_OPTION_COUNT);
+        sSigninChoiceHistogram.record(SIGNIN_NO_THANKS);
         mResultSignInAccountName = null;
-        mResultShowSyncSettings = false;
+        mResultShowSignInSettings = false;
     }
 
     @Override
-    public void acceptSignIn(String accountName) {
+    public void acceptSignIn(String accountName, boolean isDefaultAccount) {
         mResultSignInAccountName = accountName;
+        mResultIsDefaultAccount = isDefaultAccount;
     }
 
     @Override
-    public void askToOpenSyncSettings() {
-        mResultShowSyncSettings = true;
+    public void askToOpenSignInSettings() {
+        mResultShowSignInSettings = true;
     }
 
     @Override
     public boolean didAcceptTermsOfService() {
-        return sGlue.didAcceptTermsOfService(getApplicationContext());
-    }
-
-    @Override
-    public boolean isNeverUploadCrashDump() {
-        return sGlue.isNeverUploadCrashDump(getApplicationContext());
+        boolean result = sGlue.didAcceptTermsOfService(getApplicationContext());
+        if (sObserver != null) sObserver.onAcceptTermsOfService();
+        return result;
     }
 
     @Override
     public void acceptTermsOfService(boolean allowCrashUpload) {
-        sGlue.acceptTermsOfService(getApplicationContext(), allowCrashUpload);
+        // If default is true then it corresponds to opt-out and false corresponds to opt-in.
+        UmaUtils.recordMetricsReportingDefaultOptIn(!DEFAULT_METRICS_AND_CRASH_REPORTING);
+        sGlue.acceptTermsOfService(allowCrashUpload);
+        FirstRunStatus.setSkipWelcomePage(true);
         flushPersistentData();
         stopProgressionIfNotAcceptedTermsOfService();
-        jumpToPage(mPager.getCurrentItem() + 1, true);
+        jumpToPage(mPager.getCurrentItem() + 1);
     }
 
     @Override
@@ -343,25 +533,70 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
         if (mNativeSideIsInitialized) ChromeApplication.flushPersistentData();
     }
 
-    private static void finishAllFREActivities(int result, Intent data) {
+    /**
+    * Finish all the instances of the given Activity.
+    * @param targetActivity The class name of the target Activity.
+    * @param result The result code to propagate back to the originating activity.
+    * @param data The data to propagate back to the originating activity.
+    */
+    protected static void finishAllTheActivities(String targetActivity, int result, Intent data) {
         List<WeakReference<Activity>> activities = ApplicationStatus.getRunningActivities();
         for (WeakReference<Activity> weakActivity : activities) {
             Activity activity = weakActivity.get();
-            if (activity instanceof FirstRunActivity) {
+            if (activity != null && activity.getLocalClassName().equals(targetActivity)) {
                 activity.setResult(result, data);
                 activity.finish();
             }
         }
     }
 
+    /**
+     * Sends the PendingIntent included with the CHROME_LAUNCH_INTENT extra if it exists.
+     * @param complete Whether first run completed successfully.
+     * @return Whether a pending intent was sent.
+     */
+    protected final boolean sendPendingIntentIfNecessary(final boolean complete) {
+        PendingIntent pendingIntent = IntentUtils.safeGetParcelableExtra(getIntent(),
+                EXTRA_CHROME_LAUNCH_INTENT);
+        if (pendingIntent == null) return false;
+
+        Intent extraDataIntent = new Intent();
+        extraDataIntent.putExtra(FirstRunActivity.EXTRA_FIRST_RUN_ACTIVITY_RESULT, true);
+        extraDataIntent.putExtra(FirstRunActivity.EXTRA_FIRST_RUN_COMPLETE, complete);
+
+        try {
+            // After the PendingIntent has been sent, send a first run callback to custom tabs if
+            // necessary.
+            PendingIntent.OnFinished onFinished = new PendingIntent.OnFinished() {
+                @Override
+                public void onSendFinished(PendingIntent pendingIntent, Intent intent,
+                        int resultCode, String resultData, Bundle resultExtras) {
+                    if (ChromeLauncherActivity.isCustomTabIntent(intent)) {
+                        CustomTabsConnection.getInstance(
+                                getApplication()).sendFirstRunCallbackIfNecessary(intent, complete);
+                    }
+                }
+            };
+
+            // Use the PendingIntent to send the intent that originally launched Chrome. The intent
+            // will go back to the ChromeLauncherActivity, which will route it accordingly.
+            pendingIntent.send(this, complete ? Activity.RESULT_OK : Activity.RESULT_CANCELED,
+                    extraDataIntent, onFinished, null);
+            return true;
+        } catch (CanceledException e) {
+            Log.e(TAG, "Unable to send PendingIntent.", e);
+        }
+        return false;
+    }
 
     /**
      * Transitions to a given page.
      * @return Whether the transition to a given page was allowed.
      * @param position A page index to transition to.
-     * @param smooth   Whether the transition should be smooth.
      */
-    private boolean jumpToPage(int position, boolean smooth) {
+    private boolean jumpToPage(int position) {
+        if (sObserver != null) sObserver.onJumpToPage(position);
+
         if (mShowWelcomePage && !didAcceptTermsOfService()) {
             return position == 0;
         }
@@ -369,7 +604,8 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
             completeFirstRunExperience();
             return false;
         }
-        mPager.setCurrentItem(position, smooth);
+        mPager.setCurrentItem(position, false);
+        recordFreProgressHistogram(mFreProgressStates.get(position));
         return true;
     }
 
@@ -385,25 +621,16 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
         while (currentPageIndex < mPagerAdapter.getCount()) {
             FirstRunPage currentPage = (FirstRunPage) mPagerAdapter.getItem(currentPageIndex);
             if (!currentPage.shouldSkipPageOnCreate(getApplicationContext())) return;
-            if (!jumpToPage(currentPageIndex + 1, false)) return;
+            if (!jumpToPage(currentPageIndex + 1)) return;
             currentPageIndex = mPager.getCurrentItem();
         }
     }
 
-    private void initializeBrowserProcess() {
-        // The Chrome browser process must be started here because this Activity
-        // may be started explicitly for tests cases, from Android notifications or
-        // when the application is restoring a FRE fragment after Chrome being killed.
-        // This should happen before super.onCreate() because it might recreate a fragment,
-        // and a fragment might depend on the native library.
-        try {
-            ((ChromeApplication) getApplication())
-                    .startBrowserProcessesAndLoadLibrariesSync(true);
-            mNativeSideIsInitialized = true;
-        } catch (ProcessInitException e) {
-            Log.e(TAG, "Unable to load native library.", e);
-            abortFirstRunExperience();
-            return;
+    private void recordFreProgressHistogram(int state) {
+        if (mFreProperties.getBoolean(FirstRunActivity.EXTRA_COMING_FROM_CHROME_ICON)) {
+            sMobileFreProgressMainIntentHistogram.record(state);
+        } else {
+            sMobileFreProgressViewIntentHistogram.record(state);
         }
     }
 
@@ -423,7 +650,13 @@ public class FirstRunActivity extends AppCompatActivity implements FirstRunPageD
     }
 
     @Override
-    public void showEmbedContentViewActivity(int title, int url) {
-        EmbedContentViewActivity.show(this, title, url);
+    public void showInfoPage(int url) {
+        CustomTabActivity.showInfoPage(this, getString(url));
+    }
+
+    @VisibleForTesting
+    public static void setObserverForTest(FirstRunActivityObserver observer) {
+        assert sObserver == null;
+        sObserver = observer;
     }
 }

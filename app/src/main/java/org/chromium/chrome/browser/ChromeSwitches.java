@@ -12,22 +12,12 @@ public abstract class ChromeSwitches {
     // Switches used from Java.  Please continue switch style used Chrome where
     // options-have-hypens and are_not_split_with_underscores.
 
-    /** Testing: pretend that the switch value is the name of a child account. */
-    public static final String CHILD_ACCOUNT = "child-account";
-
     /** Mimic a low end device */
     public static final String ENABLE_ACCESSIBILITY_TAB_SWITCHER =
             "enable-accessibility-tab-switcher";
 
     /** Whether fullscreen support is disabled (auto hiding controls, etc...). */
     public static final String DISABLE_FULLSCREEN = "disable-fullscreen";
-
-    /** Show the undo bar for high end UI devices. */
-    public static final String ENABLE_HIGH_END_UI_UNDO = "enable-high-end-ui-undo";
-
-    /** Enable toolbar swipe to change tabs in document mode */
-    public static final String ENABLE_TOOLBAR_SWIPE_IN_DOCUMENT_MODE =
-            "enable-toolbar-swipe-in-document-mode";
 
     /** Whether instant is disabled. */
     public static final String DISABLE_INSTANT = "disable-instant";
@@ -41,38 +31,21 @@ public abstract class ChromeSwitches {
     /** Disable the First Run Experience. */
     public static final String DISABLE_FIRST_RUN_EXPERIENCE = "disable-fre";
 
+    /** Enable the Lightweight First Run Experience. */
+    public static final String ENABLE_LIGHTWEIGHT_FIRST_RUN_EXPERIENCE = "enable-lightweight-fre";
+
     /** Force the crash dump to be uploaded regardless of preferences. */
     public static final String FORCE_CRASH_DUMP_UPLOAD = "force-dump-upload";
-
-    /** Enable debug logs for the video casting feature. */
-    public static final String ENABLE_CAST_DEBUG_LOGS = "enable-cast-debug";
-
-    /** Prevent automatic reconnection to current Cast video when Chrome restarts. */
-    public static final String DISABLE_CAST_RECONNECTION = "disable-cast-reconnection";
-
-    /** Whether or not to enable the experimental tablet tab stack. */
-    public static final String ENABLE_TABLET_TAB_STACK = "enable-tablet-tab-stack";
 
     /** Never forward URL requests to external intents. */
     public static final String DISABLE_EXTERNAL_INTENT_REQUESTS =
             "disable-external-intent-requests";
-
-    /** Disable document mode. */
-    public static final String DISABLE_DOCUMENT_MODE = "disable-document-mode";
 
     /** Disable Contextual Search. */
     public static final String DISABLE_CONTEXTUAL_SEARCH = "disable-contextual-search";
 
     /** Enable Contextual Search. */
     public static final String ENABLE_CONTEXTUAL_SEARCH = "enable-contextual-search";
-
-    /** Enable Contextual Search for instrumentation testing. Not exposed to user. */
-    public static final String ENABLE_CONTEXTUAL_SEARCH_FOR_TESTING =
-            "enable-contextual-search-for-testing";
-
-    /** Enable new Website Settings UI, which does not have controls for editing settings */
-    public static final String DISABLE_READ_ONLY_WEBSITE_SETTINGS_POPUP =
-            "disable-read-only-website-settings-popup";
 
     // How many thumbnails should we allow in the cache (per tab stack)?
     public static final String THUMBNAILS = "thumbnails";
@@ -86,35 +59,37 @@ public abstract class ChromeSwitches {
      */
     public static final String DISABLE_READER_MODE_BOTTOM_BAR = "disable-reader-mode-bottom-bar";
 
+    /**
+     * Disable Lo-Fi snackbar.
+     */
+    public static final String DISABLE_LOFI_SNACKBAR = "disable-lo-fi-snackbar";
+
+    /**
+     * Forces the update menu item to show.
+     */
+    public static final String FORCE_SHOW_UPDATE_MENU_ITEM = "force-show-update-menu-item";
+
+    /**
+     * Forces the update menu badge to show.
+     */
+    public static final String FORCE_SHOW_UPDATE_MENU_BADGE = "force-show-update-menu-badge";
+
+    /**
+     * Sets the market URL for Chrome for use in testing.
+     */
+    public static final String MARKET_URL_FOR_TESTING = "market-url-for-testing";
+
+    /**
+     * Disable multiwindow tab merging for testing.
+     */
+    public static final String DISABLE_TAB_MERGING_FOR_TESTING = "disable-tab-merging";
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Native Switches
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * Sets the max number of render processes to use.
-     * Native switch - content_switches::kRendererProcessLimit.
-     */
-    public static final String RENDER_PROCESS_LIMIT = "renderer-process-limit";
-
-    /**
-     * Enable enhanced bookmarks feature.
-     * Native switch - switches::kEnhancedBookmarksExperiment
-     */
-    public static final String ENABLE_ENHANCED_BOOKMARKS = "enhanced-bookmarks-experiment";
-
     /** Enable the DOM Distiller. */
     public static final String ENABLE_DOM_DISTILLER = "enable-dom-distiller";
-
-    /** Enable experimental web-platform features, such as Push Messaging. */
-    public static final String EXPERIMENTAL_WEB_PLAFTORM_FEATURES =
-            "enable-experimental-web-platform-features";
-
-    /** Enable Reader Mode button animation. */
-    public static final String ENABLE_READER_MODE_BUTTON_ANIMATION =
-            "enable-dom-distiller-button-animation";
-
-    /** Enable the native app banners. */
-    public static final String ENABLE_APP_INSTALL_ALERTS = "enable-app-install-alerts";
 
     /**
      * Use sandbox Wallet environment for requestAutocomplete.
@@ -129,52 +104,10 @@ public abstract class ChromeSwitches {
     public static final String GOOGLE_BASE_URL = "google-base-url";
 
     /**
-     * Use fake device for Media Stream to replace actual camera and microphone.
-     * Native switch - switches::kUseFakeDeviceForMediaStream.
-     */
-    public static final String USE_FAKE_DEVICE_FOR_MEDIA_STREAM =
-            "use-fake-device-for-media-stream";
-
-    /**
-     * Disables the new icon-centric NTP design.
-     * Native switch - switches::kDisableIconNtp
-     */
-    public static final String DISABLE_ICON_NTP = "disable-icon-ntp";
-
-    /**
-     * Enables the new icon-centric NTP design.
-     * Native switch - switches::kEnableIconNtp
-     */
-    public static final String ENABLE_ICON_NTP = "enable-icon-ntp";
-
-    /**
-     * Enable Reader Mode button.
-     * Native switch - switches::kEnableReaderModeToolbarIcon
-     */
-    public static final String ENABLE_READER_MODE_BUTTON = "enable-reader-mode-toolbar-icon";
-
-    /**
      * Disable domain reliability
      * Native switch - switches::kDisableDomainReliability
      */
     public static final String DISABLE_DOMAIN_RELIABILITY = "disable-domain-reliability";
-
-    /**
-     * Enable use of Android's built-in spellchecker.
-     * Native switch - switches::kEnableAndroidSpellChecker
-     */
-    public static final String ENABLE_ANDROID_SPELLCHECKER = "enable-android-spellchecker";
-
-    /**
-     * Enable the menu trimming that removes "Bookmarks" and "Recent tabs" menu items.
-     */
-    public static final String ENABLE_MENU_TRIMMING = "enable-menu-trimming";
-
-    /**
-     * Disable speculative TCP/IP preconnection.
-     * Native switch - switches::kDisablePreconnect
-     */
-    public static final String DISABLE_PRECONNECT = "disable-preconnect";
 
     /**
      * Specifies Android phone page loading progress bar animation.
@@ -183,9 +116,74 @@ public abstract class ChromeSwitches {
     public static final String PROGRESS_BAR_ANIMATION = "progress-bar-animation";
 
     /**
-     * Enable offline pages.
+     * Specifies Android NTP behaviour on clicking a Most{Visited/Likely} tile.
+     * Specifically whether to refocus an existing tab with the same url or host or to load the url
+     * in the current tab.
+     * Native switch - switches::kNtpSwitchToExistingTab
      */
-    public static final String ENABLE_OFFLINE_PAGES = "enable-offline-pages";
+    public static final String NTP_SWITCH_TO_EXISTING_TAB = "ntp-switch-to-existing-tab";
+
+    /**
+     * Enables overscroll of the on screen keyboard. With this flag on, the OSK will only resize the
+     * visual viewport.
+     * Native switch - switches::kEnableOSKOverscroll
+     */
+    public static final String ENABLE_OSK_OVERSCROLL = "enable-osk-overscroll";
+
+    /**
+     * Enables hung renderer InfoBar activation for unresponsive web content.
+     * Native switch - switches::kEnableHungRendererInfoBar
+     */
+    public static final String ENABLE_HUNG_RENDERER_INFOBAR = "enable-hung-renderer-infobar";
+
+    /**
+     * Enables Web Notification custom layouts.
+     * Native switch - switches::kEnableWebNotificationCustomLayouts
+     */
+    public static final String ENABLE_WEB_NOTIFICATION_CUSTOM_LAYOUTS =
+            "enable-web-notification-custom-layouts";
+
+    /**
+     * Disables Web Notification custom layouts.
+     * Native switch - switches::kDisableWebNotificationCustomLayouts
+     */
+    public static final String DISABLE_WEB_NOTIFICATION_CUSTOM_LAYOUTS =
+            "disable-web-notification-custom-layouts";
+
+    /**
+     * Determines which of the Herb prototypes is being tested.
+     * See about:flags for descriptions.
+     */
+    public static final String HERB_FLAVOR_DISABLED_SWITCH =
+            "tab-management-experiment-type-disabled";
+    public static final String HERB_FLAVOR_ELDERBERRY_SWITCH =
+            "tab-management-experiment-type-elderberry";
+
+    public static final String HERB_FLAVOR_DEFAULT = "Default";
+    public static final String HERB_FLAVOR_CONTROL = "Control";
+    public static final String HERB_FLAVOR_DISABLED = "Disabled";
+    public static final String HERB_FLAVOR_ELDERBERRY = "Elderberry";
+
+    /**
+     * Set the partner-defined homepage URL, for testing.
+     */
+    public static final String PARTNER_HOMEPAGE_FOR_TESTING = "partner-homepage-for-testing";
+
+    /**
+     * Forces the WebAPK runtime dex to be extracted each time that Chrome is started.
+     */
+    public static final String ALWAYS_EXTRACT_WEBAPK_RUNTIME_DEX_ON_STARTUP =
+            "always-extract-webapk-dex-on-startup";
+
+    /**
+     * Forces a check for whether the WebAPK's Web Manifest has changed each time that a WebAPK is
+     * launched.
+     */
+    public static final String CHECK_FOR_WEB_MANIFEST_UPDATE_ON_STARTUP =
+            "check-for-web-manifest-update-on-startup";
+
+    /** Enable Vr Shell development environment. */
+    public static final String ENABLE_VR_SHELL_DEV = "enable-vr-shell-dev";
 
     // Prevent instantiation.
     private ChromeSwitches() {}

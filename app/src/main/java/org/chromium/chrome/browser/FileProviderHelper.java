@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.support.v4.content.FileProvider;
 
 import org.chromium.base.ContentUriUtils;
+import org.chromium.base.ContextUtils;
 
 import java.io.File;
 
@@ -20,8 +21,9 @@ public class FileProviderHelper implements ContentUriUtils.FileProviderUtil {
     private static final String API_AUTHORITY_SUFFIX = ".FileProvider";
 
     @Override
-    public Uri getContentUriFromFile(Context context, File file) {
-        return FileProvider.getUriForFile(context,
-                context.getPackageName() + API_AUTHORITY_SUFFIX, file);
+    public Uri getContentUriFromFile(File file) {
+        Context appContext = ContextUtils.getApplicationContext();
+        return FileProvider.getUriForFile(
+                appContext, appContext.getPackageName() + API_AUTHORITY_SUFFIX, file);
     }
 }

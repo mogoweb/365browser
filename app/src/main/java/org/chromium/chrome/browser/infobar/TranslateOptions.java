@@ -4,16 +4,60 @@
 
 package org.chromium.chrome.browser.infobar;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import android.text.TextUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A class that keeps the state of the different translation options and
  * languages.
  */
 public class TranslateOptions {
+    /**
+     * A container for Language Code and it's translated representation and it's native UMA
+     * specific hashcode.
+     * For example for Spanish when viewed from a French locale, this will contain es, Espagnol,
+     * 114573335
+     **/
+    public static class TranslateLanguageData {
+        public final String mLanguageCode;
+        public final String mLanguageRepresentation;
+        public final Integer mLanguageUMAHashCode;
+
+        public TranslateLanguageData(
+                String languageCode, String languageRepresentation, Integer uMAhashCode) {
+            assert languageCode != null;
+            assert languageRepresentation != null;
+            mLanguageCode = languageCode;
+            mLanguageRepresentation = languageRepresentation;
+            mLanguageUMAHashCode = uMAhashCode;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof TranslateLanguageData)) {
+                return false;
+            }
+            TranslateLanguageData other = (TranslateLanguageData) obj;
+            return this.mLanguageCode.equals(other.mLanguageCode)
+                    && this.mLanguageRepresentation.equals(other.mLanguageRepresentation)
+                    && this.mLanguageUMAHashCode.equals(other.mLanguageUMAHashCode);
+        }
+
+        @Override
+        public int hashCode() {
+            return (mLanguageCode + mLanguageRepresentation).hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "mLanguageCode:" + mLanguageCode + " - mlanguageRepresentation "
+                    + mLanguageRepresentation + " - mLanguageUMAHashCode " + mLanguageUMAHashCode;
+        }
+    }
 
     // This would be an enum but they are not good for mobile.
     // The checkBoundaries method below needs to be updated if new options are added.
@@ -21,31 +65,35 @@ public class TranslateOptions {
     private static final int NEVER_DOMAIN = 1;
     private static final int ALWAYS_LANGUAGE = 2;
 
-    private final String[] mAllLanguages;
+    private String mSourceLanguageCode;
+    private String mTargetLanguageCode;
+
+    private final ArrayList<TranslateLanguageData> mAllLanguages;
+
+    // language code to translated language name map
+    // Conceptually final
+    private Map<String, String> mCodeToRepresentation;
+
+    // Langage code to its UMA hashcode representation.
+    private Map<String, Integer> mCodeToUMAHashCode;
 
     // Will reflect the state before the object was ever modified
     private final boolean[] mOriginalOptions;
-    private final int mOriginalSourceLanguageIndex;
-    private final int mOriginalTargetLanguageIndex;
 
-    private final boolean[] mOptions;
-    private int mSourceLanguageIndex;
-    private int mTargetLanguageIndex;
+    private final String mOriginalSourceLanguageCode;
+    private final String mOriginalTargetLanguageCode;
     private final boolean mTriggeredFromMenu;
 
-    private TranslateOptions(int sourceLanguageCode, int targetLanguageCode, String[] allLanguages,
-            boolean neverLanguage, boolean neverDomain, boolean alwaysLanguage,
-            boolean triggeredFromMenu, boolean[] originalOptions) {
-        mAllLanguages = allLanguages;
-        mSourceLanguageIndex = sourceLanguageCode;
-        mTargetLanguageIndex = targetLanguageCode;
-        mTriggeredFromMenu = triggeredFromMenu;
+    private final boolean[] mOptions;
 
+    private TranslateOptions(String sourceLanguageCode, String targetLanguageCode,
+            ArrayList<TranslateLanguageData> allLanguages, boolean neverLanguage,
+            boolean neverDomain, boolean alwaysLanguage, boolean triggeredFromMenu,
+            boolean[] originalOptions) {
         mOptions = new boolean[3];
         mOptions[NEVER_LANGUAGE] = neverLanguage;
         mOptions[NEVER_DOMAIN] = neverDomain;
         mOptions[ALWAYS_LANGUAGE] = alwaysLanguage;
-
 
         if (originalOptions == null) {
             mOriginalOptions = mOptions.clone();
@@ -53,46 +101,65 @@ public class TranslateOptions {
             mOriginalOptions = originalOptions.clone();
         }
 
-        mOriginalSourceLanguageIndex = mSourceLanguageIndex;
-        mOriginalTargetLanguageIndex = mTargetLanguageIndex;
-    }
+        mSourceLanguageCode = sourceLanguageCode;
+        mTargetLanguageCode = targetLanguageCode;
+        mOriginalSourceLanguageCode = mSourceLanguageCode;
+        mOriginalTargetLanguageCode = mTargetLanguageCode;
+        mTriggeredFromMenu = triggeredFromMenu;
 
-    public TranslateOptions(int sourceLanguageCode, int targetLanguageCode, String[] allLanguages,
-            boolean alwaysTranslate, boolean triggeredFromMenu) {
-        this(sourceLanguageCode, targetLanguageCode, allLanguages, false, false, alwaysTranslate,
-                triggeredFromMenu, null);
+        mAllLanguages = allLanguages;
+        mCodeToRepresentation = new HashMap<String, String>();
+        mCodeToUMAHashCode = new HashMap<String, Integer>();
+        for (TranslateLanguageData language : allLanguages) {
+            mCodeToRepresentation.put(language.mLanguageCode, language.mLanguageRepresentation);
+            mCodeToUMAHashCode.put(language.mLanguageCode, language.mLanguageUMAHashCode);
+        }
     }
 
     /**
-     * Copy constructor
+     * Creates a TranslateOptions by the given data.
      */
-    public TranslateOptions(TranslateOptions other) {
-        this(other.mSourceLanguageIndex, other.mTargetLanguageIndex, other.mAllLanguages,
-                other.mOptions[NEVER_LANGUAGE], other.mOptions[NEVER_DOMAIN],
-                other.mOptions[ALWAYS_LANGUAGE], other.mTriggeredFromMenu,
-                other.mOriginalOptions);
-    }
+    public static TranslateOptions create(String sourceLanguageCode, String targetLanguageCode,
+            String[] languages, String[] codes, boolean alwaysTranslate, boolean triggeredFromMenu,
+            int[] hashCodes) {
+        assert languages.length == codes.length;
 
-    public String sourceLanguage() {
-        if (checkLanguageBoundaries(mSourceLanguageIndex)) {
-            return mAllLanguages[mSourceLanguageIndex];
+        ArrayList<TranslateLanguageData> languageList = new ArrayList<TranslateLanguageData>();
+        for (int i = 0; i < languages.length; ++i) {
+            Integer hashCode = null;
+            if (hashCodes != null) {
+                hashCode = Integer.valueOf(hashCodes[i]);
+            }
+
+            languageList.add(new TranslateLanguageData(codes[i], languages[i], hashCode));
         }
-        return "";
+        return new TranslateOptions(sourceLanguageCode, targetLanguageCode, languageList, false,
+                false, alwaysTranslate, triggeredFromMenu, null);
     }
 
-    public String targetLanguage() {
-        if (checkLanguageBoundaries(mTargetLanguageIndex)) {
-            return mAllLanguages[mTargetLanguageIndex];
-        }
-        return "";
+    /**
+     * Returns a copy of the current instance.
+     */
+    TranslateOptions copy() {
+        return new TranslateOptions(mSourceLanguageCode, mTargetLanguageCode, mAllLanguages,
+                mOptions[NEVER_LANGUAGE], mOptions[NEVER_DOMAIN], mOptions[ALWAYS_LANGUAGE],
+                mTriggeredFromMenu, mOriginalOptions);
     }
 
-    public int sourceLanguageIndex() {
-        return checkLanguageBoundaries(mSourceLanguageIndex) ? mSourceLanguageIndex : 0;
+    public String sourceLanguageName() {
+        return getRepresentationFromCode(mSourceLanguageCode);
     }
 
-    public int targetLanguageIndex() {
-        return checkLanguageBoundaries(mTargetLanguageIndex) ? mTargetLanguageIndex : 0;
+    public String targetLanguageName() {
+        return getRepresentationFromCode(mTargetLanguageCode);
+    }
+
+    public String sourceLanguageCode() {
+        return mSourceLanguageCode;
+    }
+
+    public String targetLanguageCode() {
+        return mTargetLanguageCode;
     }
 
     public boolean triggeredFromMenu() {
@@ -100,16 +167,15 @@ public class TranslateOptions {
     }
 
     public boolean optionsChanged() {
-        return (mSourceLanguageIndex != mOriginalSourceLanguageIndex)
-                || (mTargetLanguageIndex != mOriginalTargetLanguageIndex)
+        return (!mSourceLanguageCode.equals(mOriginalSourceLanguageCode))
+                || (!mTargetLanguageCode.equals(mOriginalTargetLanguageCode))
                 || (mOptions[NEVER_LANGUAGE] != mOriginalOptions[NEVER_LANGUAGE])
                 || (mOptions[NEVER_DOMAIN] != mOriginalOptions[NEVER_DOMAIN])
                 || (mOptions[ALWAYS_LANGUAGE] != mOriginalOptions[ALWAYS_LANGUAGE]);
     }
 
-
-    public List<String> allLanguages() {
-        return Collections.unmodifiableList(Arrays.asList(mAllLanguages));
+    public List<TranslateLanguageData> allLanguages() {
+        return mAllLanguages;
     }
 
     public boolean neverTranslateLanguageState() {
@@ -124,18 +190,18 @@ public class TranslateOptions {
         return mOptions[NEVER_DOMAIN];
     }
 
-    public boolean setSourceLanguage(int languageIndex) {
-        boolean canSet = canSetLanguage(languageIndex, mTargetLanguageIndex);
+    public boolean setSourceLanguage(String languageCode) {
+        boolean canSet = canSetLanguage(languageCode, mTargetLanguageCode);
         if (canSet) {
-            mSourceLanguageIndex = languageIndex;
+            mSourceLanguageCode = languageCode;
         }
         return canSet;
     }
 
-    public boolean setTargetLanguage(int languageIndex) {
-        boolean canSet = canSetLanguage(mSourceLanguageIndex, languageIndex);
+    public boolean setTargetLanguage(String languageCode) {
+        boolean canSet = canSetLanguage(mSourceLanguageCode, languageCode);
         if (canSet) {
-            mTargetLanguageIndex = languageIndex;
+            mTargetLanguageCode = languageCode;
         }
         return canSet;
     }
@@ -176,6 +242,30 @@ public class TranslateOptions {
         return toggleState(ALWAYS_LANGUAGE, value);
     }
 
+    /**
+     * Gets the language's translated representation from a given language code.
+     * @param languageCode ISO code for the language
+     * @return The translated representation of the language, or "" if not found.
+     */
+    public String getRepresentationFromCode(String languageCode) {
+        if (isValidLanguageCode(languageCode)) {
+            return mCodeToRepresentation.get(languageCode);
+        }
+        return "";
+    }
+
+    /**
+     * Gets the language's UMA hashcode representation from a given language code.
+     * @param languageCode ISO code for the language
+     * @return The UMA hashcode representation of the language, or null if not found.
+     */
+    public Integer getUMAHashCodeFromCode(String languageCode) {
+        if (isValidLanguageUMAHashCode(languageCode)) {
+            return mCodeToUMAHashCode.get(languageCode);
+        }
+        return null;
+    }
+
     private boolean toggleState(int element, boolean newValue) {
         if (!checkElementBoundaries(element)) return false;
 
@@ -183,16 +273,18 @@ public class TranslateOptions {
         return true;
     }
 
-
-    private boolean checkLanguageBoundaries(int index) {
-        return index >= 0 && index < mAllLanguages.length;
+    private boolean isValidLanguageCode(String languageCode) {
+        return !TextUtils.isEmpty(languageCode) && mCodeToRepresentation.containsKey(languageCode);
     }
 
-    private boolean canSetLanguage(int sourceIndex, int targetIndex) {
-        if (sourceIndex == targetIndex) return false;
-        return checkLanguageBoundaries(sourceIndex) && checkLanguageBoundaries(targetIndex);
+    private boolean isValidLanguageUMAHashCode(String languageCode) {
+        return !TextUtils.isEmpty(languageCode) && mCodeToUMAHashCode.containsKey(languageCode);
     }
 
+    private boolean canSetLanguage(String sourceCode, String targetCode) {
+        return isValidLanguageCode(sourceCode) && isValidLanguageCode(targetCode)
+                && !sourceCode.equals(targetCode);
+    }
 
     private static boolean checkElementBoundaries(int element) {
         return element >= NEVER_LANGUAGE && element <= ALWAYS_LANGUAGE;
@@ -201,9 +293,9 @@ public class TranslateOptions {
     @Override
     public String toString() {
         return new StringBuilder()
-                .append(sourceLanguage())
+                .append(sourceLanguageCode())
                 .append(" -> ")
-                .append(targetLanguage())
+                .append(targetLanguageCode())
                 .append(" - ")
                 .append("Never Language:")
                 .append(mOptions[NEVER_LANGUAGE])

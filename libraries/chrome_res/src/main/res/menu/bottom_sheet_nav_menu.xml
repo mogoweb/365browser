@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2017 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_home"
+         android:title="@string/accessibility_toolbar_btn_home"
+         android:icon="@drawable/ic_home_grey600_24dp" />
+    <item android:id="@+id/action_downloads"
+         android:title="@string/menu_downloads"
+         android:icon="@drawable/ic_file_download_white_24dp" />
+    <item android:id="@+id/action_bookmarks"
+         android:title="@string/menu_bookmarks"
+         android:icon="@drawable/btn_star_filled" />
+    <item android:id="@+id/action_history"
+         android:title="@string/menu_history"
+         android:icon="@drawable/ic_history_grey600_24dp" />
+</menu>

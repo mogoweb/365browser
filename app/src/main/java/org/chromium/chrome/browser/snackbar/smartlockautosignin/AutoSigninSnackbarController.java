@@ -4,8 +4,11 @@
 
 package org.chromium.chrome.browser.snackbar.smartlockautosignin;
 
-import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.snackbar.Snackbar;
@@ -27,17 +30,22 @@ public class AutoSigninSnackbarController
 
     /**
      * Displays Auto sign-in snackbar, which communicates to the users that they
-     * were signed in to the web site. Displays the |username| in the message.
+     * were signed in to the web site.
      */
     @CalledByNative
-    private static void showSnackbar(Tab tab, String username) {
+    private static void showSnackbar(Tab tab, String text) {
         SnackbarManager snackbarManager = tab.getSnackbarManager();
         if (snackbarManager == null) return;
-        AutoSigninSnackbarController snackbar =
+        AutoSigninSnackbarController snackbarController =
                 new AutoSigninSnackbarController(snackbarManager, tab);
-        Context context = tab.getWindowAndroid().getApplicationContext();
-        String text = context.getString(R.string.passwords_auto_signin_message);
-        snackbarManager.showSnackbar(Snackbar.make(username, snackbar).setTemplateText(text));
+        Snackbar snackbar = Snackbar.make(text, snackbarController, Snackbar.TYPE_NOTIFICATION,
+                Snackbar.UMA_AUTO_LOGIN);
+        Resources resources = tab.getWindowAndroid().getActivity().get().getResources();
+        int backgroundColor = ApiCompatibilityUtils.getColor(resources, R.color.light_active_color);
+        Bitmap icon = BitmapFactory.decodeResource(
+                resources, R.drawable.account_management_no_picture);
+        snackbar.setSingleLine(false).setBackgroundColor(backgroundColor).setProfileImage(icon);
+        snackbarManager.showSnackbar(snackbar);
     }
 
     /**
@@ -71,7 +79,7 @@ public class AutoSigninSnackbarController
      */
     public void dismissAutoSigninSnackbar() {
         if (mSnackbarManager.isShowing()) {
-            mSnackbarManager.removeMatchingSnackbars(this);
+            mSnackbarManager.dismissSnackbars(this);
         }
     }
 
@@ -79,10 +87,7 @@ public class AutoSigninSnackbarController
     public void onAction(Object actionData) {}
 
     @Override
-    public void onDismissNoAction(Object actionData) {}
-
-    @Override
-    public void onDismissForEachType(boolean isTimeout) {
+    public void onDismissNoAction(Object actionData) {
         mTab.removeObserver(mTabObserver);
     }
 }

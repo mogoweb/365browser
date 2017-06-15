@@ -4,22 +4,15 @@
 
 package org.chromium.chrome.browser.toolbar;
 
+import android.os.Build;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 /**
  * A custom ActionMode.Callback that handles copy, paste selection in omnibox and toolbar.
  */
 public class ToolbarActionModeCallback implements ActionMode.Callback {
-
-    private static boolean sInitializedTypeMethods;
-    private static Method sGetTypeMethod;
-    private static int sTypeFloating;
 
     private ActionModeController mActionModeController;
 
@@ -53,58 +46,9 @@ public class ToolbarActionModeCallback implements ActionMode.Callback {
         return false;
     }
 
-    // TODO(tedchoc): Delete this method and replace with just getType() when a public M SDK is
-    //                available.
     private static boolean isFloatingActionMode(ActionMode mode) {
-        initializeGetTypeMethods();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false;
 
-        if (sGetTypeMethod == null) return false;
-
-        Object retVal = null;
-        try {
-            retVal = sGetTypeMethod.invoke(mode);
-        } catch (IllegalAccessException e) {
-            return false;
-        } catch (IllegalArgumentException e) {
-            return false;
-        } catch (InvocationTargetException e) {
-            return false;
-        }
-        if (!(retVal instanceof Integer)) return false;
-
-        return ((Integer) retVal).intValue() == sTypeFloating;
-    }
-
-    private static void initializeGetTypeMethods() {
-        if (sInitializedTypeMethods) return;
-        sInitializedTypeMethods = true;
-
-        Method getType = null;
-        int typeFloating = -1;
-        try {
-            getType = ActionMode.class.getMethod("getType");
-        } catch (NoSuchMethodException e) {
-            return;
-        }
-
-        try {
-            Field field = ActionMode.class.getField("TYPE_FLOATING");
-            Object value = field.get(null);
-
-            if (value instanceof Integer) {
-                typeFloating = (Integer) value;
-            } else {
-                return;
-            }
-        } catch (NoSuchFieldException e) {
-            return;
-        } catch (IllegalAccessException e) {
-            return;
-        } catch (IllegalArgumentException e) {
-            return;
-        }
-
-        sGetTypeMethod = getType;
-        sTypeFloating = typeFloating;
+        return mode.getType() == ActionMode.TYPE_FLOATING;
     }
 }

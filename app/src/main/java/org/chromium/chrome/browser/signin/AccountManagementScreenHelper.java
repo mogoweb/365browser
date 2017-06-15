@@ -4,10 +4,10 @@
 
 package org.chromium.chrome.browser.signin;
 
-import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -23,31 +23,36 @@ public class AccountManagementScreenHelper {
      * Enum for the Gaia service types, must match GAIAServiceType in
      * signin_header_helper.h
      */
+    /**
+     * The signin::GAIAServiceType value used in openAccountManagementScreen when the dialog
+     * hasn't been triggered from the content area.
+     */
+    public static final int GAIA_SERVICE_TYPE_NONE = 0;
+    /**
+     * The signin::GAIAServiceType value used when openAndroidAccountCreationScreen is triggered by
+     * the GAIA service to create a new account
+     */
     public static final int GAIA_SERVICE_TYPE_SIGNUP = 5;
 
     private static final String EXTRA_ACCOUNT_TYPES = "account_types";
     private static final String EXTRA_VALUE_GOOGLE_ACCOUNTS = "com.google";
 
     @CalledByNative
-    private static void openAccountManagementScreen(
-            Context applicationContext, Profile profile, int gaiaServiceType) {
+    private static void openAccountManagementScreen(Profile profile, int gaiaServiceType) {
         ThreadUtils.assertOnUiThread();
 
         if (gaiaServiceType == GAIA_SERVICE_TYPE_SIGNUP) {
-            openAndroidAccountCreationScreen(applicationContext);
+            openAndroidAccountCreationScreen();
             return;
         }
 
-        AccountManagementFragment.openAccountManagementScreen(
-                applicationContext, profile, gaiaServiceType);
+        AccountManagementFragment.openAccountManagementScreen(gaiaServiceType);
     }
 
     /**
      * Opens the Android account manager for adding or creating a Google account.
-     * @param applicationContext
      */
-    private static void openAndroidAccountCreationScreen(
-            Context applicationContext) {
+    private static void openAndroidAccountCreationScreen() {
         logEvent(ProfileAccountManagementMetrics.DIRECT_ADD_ACCOUNT, GAIA_SERVICE_TYPE_SIGNUP);
 
         Intent createAccountIntent = new Intent(Settings.ACTION_ADD_ACCOUNT);
@@ -57,7 +62,7 @@ public class AccountManagementScreenHelper {
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-        applicationContext.startActivity(createAccountIntent);
+        ContextUtils.getApplicationContext().startActivity(createAccountIntent);
     }
 
     /**

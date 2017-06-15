@@ -37,7 +37,7 @@ class WebsitePreference extends Preference implements FaviconImageCallback {
     private FaviconHelper mFaviconHelper;
 
     // Whether the favicon has been fetched already.
-    private boolean mFaviconFetched = false;
+    private boolean mFaviconFetched;
 
     // Metrics for favicon processing.
     private static final int FAVICON_CORNER_RADIUS_DP = 2;
@@ -98,10 +98,6 @@ class WebsitePreference extends Preference implements FaviconImageCallback {
      */
     private String faviconUrl() {
         String origin = mSite.getAddress().getOrigin();
-        if (origin == null) {
-            return "http://" + mSite.getAddress().getHost();
-        }
-
         Uri uri = Uri.parse(origin);
         if (uri.getPort() != -1) {
             // Remove the port.

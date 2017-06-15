@@ -4,7 +4,10 @@
 
 package org.chromium.chrome.browser.widget.findinpage;
 
+import android.animation.Animator;
 import android.annotation.SuppressLint;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Handler;
@@ -13,24 +16,27 @@ import android.provider.Settings;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.text.Editable;
 import android.text.InputType;
+import android.text.Selection;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.view.ActionMode;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.View.OnKeyListener;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.ChromeWebContentsDelegateAndroid;
 import org.chromium.chrome.browser.findinpage.FindInPageBridge;
 import org.chromium.chrome.browser.findinpage.FindMatchRectsDetails;
 import org.chromium.chrome.browser.findinpage.FindNotificationDetails;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.chrome.browser.tab.TabWebContentsDelegateAndroid;
 import org.chromium.chrome.browser.tabmodel.EmptyTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.EmptyTabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -41,11 +47,12 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.widget.TintedImageButton;
 import org.chromium.chrome.browser.widget.VerticallyFixedEditText;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.base.WindowAndroid;
 
 /** A toolbar providing find in page functionality. */
 public class FindToolbar extends LinearLayout
-        implements ChromeWebContentsDelegateAndroid.FindResultListener,
-                   ChromeWebContentsDelegateAndroid.FindMatchRectsListener {
+        implements TabWebContentsDelegateAndroid.FindResultListener,
+                   TabWebContentsDelegateAndroid.FindMatchRectsListener {
     private static final long ACCESSIBLE_ANNOUNCEMENT_DELAY_MILLIS = 500;
 
     // Toolbar UI
@@ -55,13 +62,14 @@ public class FindToolbar extends LinearLayout
     protected TintedImageButton mFindPrevButton;
     protected TintedImageButton mFindNextButton;
 
-    private FindResultBar mResultBar = null;
+    private FindResultBar mResultBar;
 
-    protected TabModelSelector mTabModelSelector;
+    private TabModelSelector mTabModelSelector;
     private final TabModelSelectorObserver mTabModelSelectorObserver;
     private final TabModelObserver mTabModelObserver;
     private Tab mCurrentTab;
     private final TabObserver mTabObserver;
+    private WindowAndroid mWindowAndroid;
     private FindInPageBridge mFindInPageBridge;
     private FindToolbarObserver mObserver;
 
@@ -69,12 +77,15 @@ public class FindToolbar extends LinearLayout
     private String mLastUserSearch = "";
 
     /** Whether toolbar text is being set automatically (not typed by user). */
-    private boolean mSettingFindTextProgrammatically = false;
+    private boolean mSettingFindTextProgrammatically;
 
     /** Whether the search key should trigger a new search. */
-    private boolean mSearchKeyShouldTriggerSearch = false;
+    private boolean mSearchKeyShouldTriggerSearch;
 
-    private boolean mActive = false;
+    /** Whether startFinding() should also hide the keyboard. **/
+    private boolean mHideKeyboardWhileFinding;
+
+    private boolean mActive;
 
     private Handler mHandler = new Handler();
     private Runnable mAccessibleAnnouncementRunnable;
@@ -82,11 +93,12 @@ public class FindToolbar extends LinearLayout
 
     /** Subclasses EditText in order to intercept BACK key presses. */
     @SuppressLint("Instantiatable")
-    static class FindQuery extends VerticallyFixedEditText {
+    static class FindQuery extends VerticallyFixedEditText implements OnKeyListener {
         private FindToolbar mFindToolbar;
 
         public FindQuery(Context context, AttributeSet attrs) {
             super(context, attrs);
+            setOnKeyListener(this);
         }
 
         void setFindToolbar(FindToolbar findToolbar) {
@@ -94,10 +106,9 @@ public class FindToolbar extends LinearLayout
         }
 
         @Override
-        public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+        public boolean onKey(View v, int keyCode, KeyEvent event) {
             if (keyCode == KeyEvent.KEYCODE_BACK) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN
-                        && event.getRepeatCount() == 0) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                     // Tell the framework to start tracking this event.
                     getKeyDispatcherState().startTracking(event, this);
                     return true;
@@ -109,17 +120,50 @@ public class FindToolbar extends LinearLayout
                     }
                 }
             }
-            return super.onKeyPreIme(keyCode, event);
+            return false;
         }
 
         @Override
         public boolean onKeyDown(int keyCode, KeyEvent event) {
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_F3
                     || (keyCode == KeyEvent.KEYCODE_G && event.isCtrlPressed())) {
-                mFindToolbar.hideKeyboardAndStartFinding(!event.isShiftPressed());
+                mFindToolbar.startFinding(!event.isShiftPressed());
                 return true;
             }
             return super.onKeyDown(keyCode, event);
+        }
+
+        @Override
+        public boolean onTextContextMenuItem(int id) {
+            if (id == android.R.id.paste) {
+                ClipboardManager clipboard = (ClipboardManager) getContext()
+                        .getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clipData = clipboard.getPrimaryClip();
+                if (clipData != null) {
+                    // Convert the clip data to a simple string
+                    StringBuilder builder = new StringBuilder();
+                    for (int i = 0; i < clipData.getItemCount(); i++) {
+                        builder.append(clipData.getItemAt(i).coerceToText(getContext()));
+                    }
+
+                    // Identify how much of the original text should be replaced
+                    int min = 0;
+                    int max = getText().length();
+
+                    if (isFocused()) {
+                        final int selStart = getSelectionStart();
+                        final int selEnd = getSelectionEnd();
+
+                        min = Math.max(0, Math.min(selStart, selEnd));
+                        max = Math.max(0, Math.max(selStart, selEnd));
+                    }
+
+                    Selection.setSelection(getText(), max);
+                    getText().replace(min, max, builder.toString());
+                    return true;
+                }
+            }
+            return super.onTextContextMenuItem(id);
         }
     }
 
@@ -156,17 +200,27 @@ public class FindToolbar extends LinearLayout
             public void didSelectTab(Tab tab, TabSelectionType type, int lastId) {
                 deactivate();
             }
+
+            @Override
+            public void tabRemoved(Tab tab) {
+                if (tab != mCurrentTab) return;
+                deactivate();
+            }
         };
+
+        mHideKeyboardWhileFinding = true;
     }
 
     @Override
     public void onFinishInflate() {
+        super.onFinishInflate();
+
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
 
         mFindQuery = (FindQuery) findViewById(R.id.find_query);
         mFindQuery.setFindToolbar(this);
-        mFindQuery.setInputType(InputType.TYPE_TEXT_VARIATION_FILTER);
+        mFindQuery.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_FILTER);
         mFindQuery.setSelectAllOnFocus(true);
         mFindQuery.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
@@ -183,8 +237,9 @@ public class FindToolbar extends LinearLayout
         mFindQuery.addTextChangedListener(new TextWatcher() {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (mFindInPageBridge == null) return;
+
                 mAccessibilityDidActivateResult = false;
-                setPrevNextEnabled(s.length() > 0);
 
                 if (mSettingFindTextProgrammatically) return;
 
@@ -201,7 +256,8 @@ public class FindToolbar extends LinearLayout
                     mFindInPageBridge.startFinding(s.toString(), true, false);
                 } else {
                     clearResults();
-                    mFindInPageBridge.stopFinding();
+                    mFindInPageBridge.stopFinding(true);
+                    setPrevNextEnabled(false);
                 }
 
                 if (!mCurrentTab.isIncognito()) {
@@ -223,11 +279,13 @@ public class FindToolbar extends LinearLayout
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (event != null && event.getAction() == KeyEvent.ACTION_UP) return false;
 
+                if (mFindInPageBridge == null) return false;
+
                 // Only trigger a new find if the text was set programmatically.
                 // Otherwise just revisit the current active match.
                 if (mSearchKeyShouldTriggerSearch) {
                     mSearchKeyShouldTriggerSearch = false;
-                    hideKeyboardAndStartFinding(true);
+                    startFinding(true);
                 } else {
                     UiUtils.hideKeyboard(mFindQuery);
                     mFindInPageBridge.activateFindInPageResultForAccessibility();
@@ -243,7 +301,7 @@ public class FindToolbar extends LinearLayout
         mFindPrevButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                hideKeyboardAndStartFinding(false);
+                startFinding(false);
             }
         });
 
@@ -251,7 +309,7 @@ public class FindToolbar extends LinearLayout
         mFindNextButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                hideKeyboardAndStartFinding(true);
+                startFinding(true);
             }
         });
 
@@ -270,17 +328,19 @@ public class FindToolbar extends LinearLayout
     protected void findResultSelected(Rect rect) {
     }
 
-    private void hideKeyboardAndStartFinding(boolean forward) {
+    private void startFinding(boolean forward) {
+        if (mFindInPageBridge == null) return;
+
         final String findQuery = mFindQuery.getText().toString();
         if (findQuery.length() == 0) return;
 
-        UiUtils.hideKeyboard(mFindQuery);
+        if (mHideKeyboardWhileFinding) UiUtils.hideKeyboard(mFindQuery);
         mFindInPageBridge.startFinding(findQuery, forward, false);
         mFindInPageBridge.activateFindInPageResultForAccessibility();
         mAccessibilityDidActivateResult = true;
     }
 
-    private boolean mShowKeyboardOnceWindowIsFocused = false;
+    private boolean mShowKeyboardOnceWindowIsFocused;
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
@@ -333,6 +393,8 @@ public class FindToolbar extends LinearLayout
     public void onFindResult(FindNotificationDetails result) {
         if (mResultBar != null) mResultBar.mWaitingForActivateAck = false;
 
+        assert mFindInPageBridge != null;
+
         if ((result.activeMatchOrdinal == -1 || result.numberOfMatches == 1)
                 && !result.finalUpdate) {
             // Wait until activeMatchOrdinal has been determined (is no longer
@@ -372,6 +434,8 @@ public class FindToolbar extends LinearLayout
                 Math.max(result.activeMatchOrdinal, 0),
                 result.numberOfMatches);
         setStatus(text, result.numberOfMatches == 0);
+
+        setPrevNextEnabled(result.numberOfMatches > 0);
 
         // The accessible version will be something like "Result 1 of 9".
         String accessibleText = getAccessibleStatusText(
@@ -436,6 +500,20 @@ public class FindToolbar extends LinearLayout
     }
 
     /**
+     * Sets the WindowAndroid in which the find toolbar will be shown. Needed for animations.
+     */
+    public void setWindowAndroid(WindowAndroid windowAndroid) {
+        mWindowAndroid = windowAndroid;
+    }
+
+    /**
+     * By default the keyboard is hidden when the user arrows through results. Calling this method
+     * will disable keyboard hiding while finding.
+     */
+    public void disableHideKeyboardWhileFinding() {
+        mHideKeyboardWhileFinding = false;
+    }
+    /**
      * Handles updating any visual elements of the find toolbar based on changes to the tab model.
      * @param isIncognito Whether the current tab model is incognito or not.
      */
@@ -485,8 +563,8 @@ public class FindToolbar extends LinearLayout
         mCurrentTab = mTabModelSelector.getCurrentTab();
         mCurrentTab.addObserver(mTabObserver);
         mFindInPageBridge = new FindInPageBridge(mCurrentTab.getWebContents());
-        mCurrentTab.getChromeWebContentsDelegateAndroid().setFindResultListener(this);
-        mCurrentTab.getChromeWebContentsDelegateAndroid().setFindMatchRectsListener(this);
+        mCurrentTab.getTabWebContentsDelegateAndroid().setFindResultListener(this);
+        mCurrentTab.getTabWebContentsDelegateAndroid().setFindMatchRectsListener(this);
         initializeFindText();
         mFindQuery.requestFocus();
         // The keyboard doesn't show itself automatically.
@@ -500,8 +578,18 @@ public class FindToolbar extends LinearLayout
         if (mObserver != null) mObserver.onFindToolbarShown();
     }
 
-    /** Call this just before closing the find toolbar. */
+    /**
+     * Call this just before closing the find toolbar. The selection on the page will be cleared.
+     */
     public void deactivate() {
+        deactivate(true);
+    }
+
+    /**
+     * Call this just before closing the find toolbar.
+     * @param clearSelection Whether the selection on the page should be cleared.
+     */
+    public void deactivate(boolean clearSelection) {
         if (!mActive) return;
 
         if (mObserver != null) mObserver.onFindToolbarHidden();
@@ -513,17 +601,23 @@ public class FindToolbar extends LinearLayout
             model.removeObserver(mTabModelObserver);
         }
 
-        mCurrentTab.getChromeWebContentsDelegateAndroid().setFindResultListener(null);
-        mCurrentTab.getChromeWebContentsDelegateAndroid().setFindMatchRectsListener(null);
+        TabWebContentsDelegateAndroid delegate = mCurrentTab.getTabWebContentsDelegateAndroid();
+        if (delegate != null) {
+            delegate.setFindResultListener(null);
+            delegate.setFindMatchRectsListener(null);
+        }
+
         mCurrentTab.removeObserver(mTabObserver);
 
         UiUtils.hideKeyboard(mFindQuery);
         if (mFindQuery.getText().length() > 0) {
             clearResults();
-            mFindInPageBridge.stopFinding();
+            mFindInPageBridge.stopFinding(clearSelection);
         }
 
         mFindInPageBridge.destroy();
+        mFindInPageBridge = null;
+        mCurrentTab = null;
         mActive = false;
     }
 
@@ -539,6 +633,13 @@ public class FindToolbar extends LinearLayout
     protected void onHideAnimationStart() {
         // We do this because hiding the bar after the animation ends doesn't look good.
         setResultsBarVisibility(false);
+    }
+
+    /**
+     * @see WindowAndroid#startAnimationOverContent(Animator)
+     */
+    protected void startAnimationOverContent(Animator animation) {
+        mWindowAndroid.startAnimationOverContent(animation);
     }
 
     @VisibleForTesting
@@ -558,6 +659,8 @@ public class FindToolbar extends LinearLayout
      * Restores the last text searched in this tab, or the global last search.
      */
     private void initializeFindText() {
+        assert mFindInPageBridge != null;
+
         mSettingFindTextProgrammatically = true;
         String findText = null;
         if (mSettingFindTextProgrammatically) {
@@ -584,6 +687,8 @@ public class FindToolbar extends LinearLayout
     private void setResultsBarVisibility(boolean visibility) {
         if (visibility && mResultBar == null && mCurrentTab != null
                 && mCurrentTab.getContentViewCore() != null) {
+            assert mFindInPageBridge != null;
+
             mResultBar = new FindResultBar(getContext(), mCurrentTab, mFindInPageBridge);
         } else if (!visibility) {
             if (mResultBar != null) {
@@ -608,7 +713,7 @@ public class FindToolbar extends LinearLayout
     protected int getStatusColor(boolean failed, boolean incognito) {
         int colorResourceId = failed ? R.color.find_in_page_failed_results_status_color
                 : R.color.find_in_page_results_status_color;
-        return getContext().getResources().getColor(colorResourceId);
+        return ApiCompatibilityUtils.getColor(getContext().getResources(), colorResourceId);
     }
 
     protected void setPrevNextEnabled(boolean enable) {

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.identity;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.provider.Settings;
 
@@ -39,6 +40,7 @@ public class SettingsSecureBasedIdentificationGenerator implements UniqueIdentif
         return md5Hash == null ? "" : md5Hash;
     }
 
+    @SuppressLint("HardwareIds")
     @VisibleForTesting
     String getAndroidId() {
         return Settings.Secure.getString(mContext.getContentResolver(), Settings.Secure.ANDROID_ID);

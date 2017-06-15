@@ -14,24 +14,6 @@ import android.os.Bundle;
 public class FirstRunPage extends Fragment {
     private Bundle mProperties = new Bundle();
 
-    // FRE properties:
-    private static final String LAST_PAGE_NUMBER = "LastPageNumber";
-
-    // Per-page properties:
-    private static final String THIS_PAGE_NUMBER = "ThisPageNumber";
-
-    /**
-     * Appends page-specific properties to the page instance bundle.
-     * @param props Instance properties.
-     * @param pageNumber This page number in the First Run sequence.
-     * @param lastPageNumber Last page number in the First Run sequence.
-     * @return Instance properties with the page-specific properties added.
-     */
-    public static Bundle addProperties(Bundle props, int pageNumber, int lastPageNumber) {
-        props.putInt(THIS_PAGE_NUMBER, pageNumber);
-        return props;
-    }
-
     /**
      * @return Whether this page should be skipped on the FRE creation.
      * @param appContext An application context.
@@ -67,6 +49,13 @@ public class FirstRunPage extends Fragment {
     }
 
     /**
+     * @return Whether the page should be re-created when notifyDataSetChanged() fires.
+     */
+    public boolean shouldRecreatePageOnDataChange() {
+        return true;
+    }
+
+    /**
      * @return Passed arguments if any, or saved instance state if any, or an empty bundle.
      */
     protected Bundle getProperties() {
@@ -81,16 +70,14 @@ public class FirstRunPage extends Fragment {
     }
 
     /**
-     * @return Whether this page is the last page of the FRE.
-     */
-    protected boolean isLastPage() {
-        return getProperties().getInt(THIS_PAGE_NUMBER) == getProperties().getInt(LAST_PAGE_NUMBER);
-    }
-
-    /**
      * Advances to the next FRE page.
      */
     protected void advanceToNextPage() {
         getPageDelegate().advanceToNextPage();
     }
+
+    /**
+     * Notifies this page that native has been initialized.
+     */
+    protected void onNativeInitialized() {}
 }

@@ -16,8 +16,8 @@ public class BlackHoleEventFilter extends EventFilter {
      * @param context A {@link Context} instance.
      * @param host    A {@link EventFilterHost} instance.
      */
-    public BlackHoleEventFilter(Context context, EventFilterHost host) {
-        super(context, host);
+    public BlackHoleEventFilter(Context context) {
+        super(context);
     }
 
     @Override

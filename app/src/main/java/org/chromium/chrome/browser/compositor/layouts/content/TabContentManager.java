@@ -11,18 +11,14 @@ import android.util.SparseArray;
 import android.view.View;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.PathUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeSwitches;
 import org.chromium.chrome.browser.NativePage;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +26,7 @@ import java.util.List;
  * The TabContentManager is responsible for serving tab contents to the UI components. Contents
  * could be live or static thumbnails.
  */
-@JNINamespace("chrome::android")
+@JNINamespace("android")
 public class TabContentManager {
     private final Context mContext;
     private final float mThumbnailScale;
@@ -115,7 +111,7 @@ public class TabContentManager {
         float thumbnailScale = 1.f;
         boolean useApproximationThumbnails;
         float deviceDensity = mContext.getResources().getDisplayMetrics().density;
-        if (DeviceFormFactor.isTablet(mContext)) {
+        if (DeviceFormFactor.isTablet()) {
             // Scale all tablets to MDPI.
             thumbnailScale = 1.f / deviceDensity;
             useApproximationThumbnails = false;
@@ -187,7 +183,7 @@ public class TabContentManager {
             }
         }
 
-        int overlayTranslateY = mContentOffsetProvider.getOverlayTranslateY();
+        float overlayTranslateY = mContentOffsetProvider.getOverlayTranslateY();
 
         try {
             bitmap = Bitmap.createBitmap(
@@ -233,8 +229,8 @@ public class TabContentManager {
                         mThumbnailScale);
                 nativePageBitmap.recycle();
             } else {
-                nativeCacheTab(mNativeTabContentManager, tab, tab.getContentViewCore(),
-                        mThumbnailScale);
+                if (tab.getWebContents() == null) return;
+                nativeCacheTab(mNativeTabContentManager, tab, mThumbnailScale);
             }
         }
     }
@@ -285,7 +281,7 @@ public class TabContentManager {
      * Update the priority-ordered list of visible tabs.
      * @param priority The list of tab ids ordered in terms of priority.
      */
-    public void updateVisibleIds(List<Integer> priority) {
+    public void updateVisibleIds(List<Integer> priority, int primaryTabId) {
         if (mNativeTabContentManager != 0) {
             int idsSize = Math.min(mFullResThumbnailsMaxSize, priority.size());
 
@@ -296,7 +292,7 @@ public class TabContentManager {
             for (int i = 0; i < idsSize; i++) {
                 mPriorityTabIds[i] = priority.get(i);
             }
-            nativeUpdateVisibleIds(mNativeTabContentManager, mPriorityTabIds);
+            nativeUpdateVisibleIds(mNativeTabContentManager, mPriorityTabIds, primaryTabId);
         }
     }
 
@@ -311,49 +307,6 @@ public class TabContentManager {
         }
     }
 
-    /**
-     * Clean up any on-disk thumbnail at and above a given tab id.
-     * @param minForbiddenId The Id by which all tab thumbnails with ids greater and equal to it
-     *                       will be removed from disk.
-     */
-    public void cleanupPersistentDataAtAndAboveId(int minForbiddenId) {
-        if (mNativeTabContentManager != 0) {
-            nativeRemoveTabThumbnailFromDiskAtAndAboveId(mNativeTabContentManager, minForbiddenId);
-        }
-    }
-
-    /**
-     * Remove on-disk thumbnails that are no longer needed.
-     * @param modelSelector The selector that answers whether a tab is currently present.
-     */
-    public void cleanupPersistentData(TabModelSelector modelSelector) {
-        if (mNativeTabContentManager == 0) return;
-        File[] files = PathUtils.getThumbnailCacheDirectory(mContext).listFiles();
-        if (files == null) return;
-
-        for (File file : files) {
-            try {
-                int id = Integer.parseInt(file.getName());
-                if (TabModelUtils.getTabById(modelSelector.getModel(false), id) == null
-                        && TabModelUtils.getTabById(modelSelector.getModel(true), id) == null) {
-                    nativeRemoveTabThumbnail(mNativeTabContentManager, id);
-                }
-            } catch (NumberFormatException expected) {
-                // This is an unknown file name, we'll leave it there.
-            }
-        }
-    }
-
-    /**
-     * Set the UI resource provider to be used by this {@link TabContentManager} on the native side.
-     * @param resourceProviderNativePtr The pointer to the UI resource provider to be used.
-     */
-    public void setUIResourceProvider(long resourceProviderNativePtr) {
-        if (mNativeTabContentManager == 0 || resourceProviderNativePtr == 0) return;
-
-        nativeSetUIResourceProvider(mNativeTabContentManager, resourceProviderNativePtr);
-    }
-
     @CalledByNative
     protected void notifyListenersOfThumbnailChange(int tabId) {
         for (ThumbnailChangeListener listener : mListeners) {
@@ -365,18 +318,15 @@ public class TabContentManager {
     private native long nativeInit(int defaultCacheSize, int approximationCacheSize,
             int compressionQueueMaxSize, int writeQueueMaxSize, boolean useApproximationThumbnail);
     private native boolean nativeHasFullCachedThumbnail(long nativeTabContentManager, int tabId);
-    private native void nativeCacheTab(long nativeTabContentManager, Object tab,
-            Object contentViewCore, float thumbnailScale);
+    private native void nativeCacheTab(
+            long nativeTabContentManager, Object tab, float thumbnailScale);
     private native void nativeCacheTabWithBitmap(long nativeTabContentManager, Object tab,
             Object bitmap, float thumbnailScale);
     private native void nativeInvalidateIfChanged(long nativeTabContentManager, int tabId,
             String url);
-    private native void nativeUpdateVisibleIds(long nativeTabContentManager, int[] priority);
+    private native void nativeUpdateVisibleIds(
+            long nativeTabContentManager, int[] priority, int primaryTabId);
     private native void nativeRemoveTabThumbnail(long nativeTabContentManager, int tabId);
-    private native void nativeRemoveTabThumbnailFromDiskAtAndAboveId(long nativeTabContentManager,
-            int minForbiddenId);
-    private native void nativeSetUIResourceProvider(long nativeTabContentManager,
-            long resourceProviderNativePtr);
     private native void nativeGetDecompressedThumbnail(long nativeTabContentManager, int tabId);
     private static native void nativeDestroy(long nativeTabContentManager);
 }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="low_memory_error">"Предишната операция не можа да завърши поради недостиг на памет"</string>
+<string name="opening_file_error">"Файлът не можа да се отвори"</string>
+<string name="copy_to_clipboard_failure_message">"Копирането в буферната памет не бе успешно"</string>
+<string name="accessibility_date_picker_month">"Месец"</string>
+<string name="accessibility_date_picker_year">"Година"</string>
+<string name="date_picker_dialog_set">"Задаване"</string>
+<string name="month_picker_dialog_title">"Задаване на месеца"</string>
+<string name="accessibility_date_picker_week">"Седмица"</string>
+<string name="week_picker_dialog_title">"Задаване на седмицата"</string>
+<string name="time_picker_dialog_am">"AM"</string>
+<string name="time_picker_dialog_pm">"PM"</string>
+<string name="time_picker_dialog_title">"Задаване на часа"</string>
+<string name="accessibility_time_picker_hour">"Час"</string>
+<string name="accessibility_time_picker_minute">"Mинута"</string>
+<string name="accessibility_time_picker_second">"Секунда"</string>
+<string name="accessibility_time_picker_milli">"Милисекунда"</string>
+<string name="accessibility_time_picker_ampm">"AM/PM"</string>
+<string name="time_picker_dialog_hour_minute_separator">":"</string>
+<string name="time_picker_dialog_minute_second_separator">":"</string>
+<string name="time_picker_dialog_second_subsecond_separator">"."</string>
+<string name="date_time_picker_dialog_title">"Задаване на датата и часа"</string>
+<string name="accessibility_datetime_picker_date">"Дата"</string>
+<string name="accessibility_datetime_picker_time">"Време"</string>
+<string name="date_picker_dialog_other_button_label">"Друго"</string>
+<string name="date_picker_dialog_title">"Задаване на датата"</string>
+<string name="date_picker_dialog_clear">"Изчистване"</string>
+<string name="photo_picker_select_images">"Избиране на изображения"</string>
+<string name="photo_picker_camera">"Камера"</string>
+<string name="photo_picker_browse">"Сърфиране"</string>
+<string name="autofill_popup_content_description">"Изскачащият прозорец за автоматично попълване е показан"</string>
+<string name="password_generation_popup_content_description">"Изскачащият прозорец за генериране на пароли е показан"</string>
+<string name="autofill_keyboard_accessory_content_description">"Налице са предложения"</string>
+<string name="updating_chrome">"Chrome се актуализира…"</string>
+</resources>

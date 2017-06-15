@@ -22,7 +22,7 @@ public class GestureEventFilter extends EventFilter {
     private boolean mSingleInput = true;
     private boolean mInLongPress;
     private boolean mSeenFirstScrollEvent;
-    private int mButtons = 0;
+    private int mButtons;
     private LongPressRunnable mLongPressRunnable = new LongPressRunnable();
     private Handler mLongPressHandler = new Handler();
 
@@ -63,16 +63,15 @@ public class GestureEventFilter extends EventFilter {
     /**
      * Creates a {@link GestureEventFilter} with offset touch events.
      */
-    public GestureEventFilter(Context context, EventFilterHost host, GestureHandler handler) {
-        this(context, host, handler, true);
+    public GestureEventFilter(Context context, GestureHandler handler) {
+        this(context, handler, true);
     }
 
     /**
      * Creates a {@link GestureEventFilter} with default long press behavior.
      */
-    public GestureEventFilter(Context context, EventFilterHost host, GestureHandler handler,
-            boolean autoOffset) {
-        this(context, host, handler, autoOffset, true);
+    public GestureEventFilter(Context context, GestureHandler handler, boolean autoOffset) {
+        this(context, handler, autoOffset, true);
     }
 
     /**
@@ -81,9 +80,10 @@ public class GestureEventFilter extends EventFilter {
      *                            any more events after a long press. If false, use a custom
      *                            implementation that will send events after a long press.
      */
-    public GestureEventFilter(Context context, EventFilterHost host, GestureHandler handler,
-            boolean autoOffset, boolean useDefaultLongPress) {
-        super(context, host, autoOffset);
+    public GestureEventFilter(Context context, GestureHandler handler, boolean autoOffset,
+            boolean useDefaultLongPress) {
+        super(context, autoOffset);
+        assert handler != null;
         mScaledTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mLongPressTimeoutMs = ViewConfiguration.getLongPressTimeout();
         mUseDefaultLongPress = useDefaultLongPress;
@@ -112,7 +112,7 @@ public class GestureEventFilter extends EventFilter {
                         distanceY *= ratio;
                     }
                 }
-                if (mHandler != null && mSingleInput) {
+                if (mSingleInput) {
                     // distanceX/Y only represent the distance since the last event, not the total
                     // distance for the full scroll.  Calculate the total distance here.
                     float totalX = e2.getX() - mOnScrollBeginX;
@@ -130,7 +130,7 @@ public class GestureEventFilter extends EventFilter {
                  * during long press, so we need to explicitly not call handler.click if a
                  * long press has been detected.
                  */
-                if (mHandler != null && mSingleInput && !mInLongPress) {
+                if (mSingleInput && !mInLongPress) {
                     mHandler.click(e.getX() * mPxToDp, e.getY() * mPxToDp,
                                    e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE,
                                    mButtons);
@@ -141,7 +141,7 @@ public class GestureEventFilter extends EventFilter {
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2,
                     float velocityX, float velocityY) {
-                if (mHandler != null && mSingleInput) {
+                if (mSingleInput) {
                     mHandler.fling(e1.getX() * mPxToDp, e1.getY() * mPxToDp,
                             velocityX * mPxToDp, velocityY * mPxToDp);
                 }
@@ -153,7 +153,7 @@ public class GestureEventFilter extends EventFilter {
                 mButtons = e.getButtonState();
                 mInLongPress = false;
                 mSeenFirstScrollEvent = false;
-                if (mHandler != null && mSingleInput) {
+                if (mSingleInput) {
                     mHandler.onDown(e.getX() * mPxToDp,
                                     e.getY() * mPxToDp,
                                     e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE,
@@ -172,7 +172,7 @@ public class GestureEventFilter extends EventFilter {
     }
 
     private void longPress(MotionEvent e) {
-        if (mHandler != null && mSingleInput) {
+        if (mSingleInput) {
             mInLongPress = true;
             mHandler.onLongPress(e.getX() * mPxToDp, e.getY() * mPxToDp);
         }
@@ -180,7 +180,7 @@ public class GestureEventFilter extends EventFilter {
 
     @Override
     public boolean onInterceptTouchEventInternal(MotionEvent e, boolean isKeyboardShowing) {
-        return mHandler != null;
+        return true;
     }
 
     private void cancelLongPress() {

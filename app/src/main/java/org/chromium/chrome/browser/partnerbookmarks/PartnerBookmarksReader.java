@@ -19,8 +19,8 @@ import java.util.LinkedHashMap;
 public class PartnerBookmarksReader {
     private static final String TAG = "PartnerBookmarksReader";
 
-    private static boolean sInitialized = false;
-    private static boolean sForceDisableEditing = false;
+    private static boolean sInitialized;
+    private static boolean sForceDisableEditing;
 
     /** Root bookmark id reserved for the implied root of the bookmarks */
     static final long ROOT_FOLDER_ID = 0;
@@ -29,7 +29,7 @@ public class PartnerBookmarksReader {
     static final long INVALID_BOOKMARK_ID = -1;
 
     // JNI c++ pointer
-    private long mNativePartnerBookmarksReader = 0;
+    private long mNativePartnerBookmarksReader;
 
     /** The context (used to get a ContentResolver) */
     protected Context mContext;

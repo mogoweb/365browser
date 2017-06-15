@@ -1,0 +1,5 @@
+set noparent
+
+file://chrome/android/java/src/org/chromium/chrome/browser/vr_shell/VR_JAVA_OWNERS
+
+# COMPONENT: UI>Browser>VR

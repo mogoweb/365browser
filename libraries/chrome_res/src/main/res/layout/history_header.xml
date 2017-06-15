@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2016 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="8dp" >
+
+    <LinearLayout
+        android:id="@+id/privacy_disclaimers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" >
+
+        <org.chromium.ui.widget.TextViewWithClickableSpans
+            android:id="@+id/signed_in_not_synced"
+            style="@style/PrivacyDisclaimerText" />
+
+       <org.chromium.ui.widget.TextViewWithClickableSpans
+            android:id="@+id/signed_in_synced"
+            style="@style/PrivacyDisclaimerText" />
+
+       <org.chromium.ui.widget.TextViewWithClickableSpans
+            android:id="@+id/other_forms_of_browsing_history"
+            style="@style/PrivacyDisclaimerText" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/list_item_single" >
+
+        <!-- TODO(twellington): change start/end padding back to 16dp
+                                when new assets with correct built in padding
+                                are available. -->
+        <Button
+            android:id="@+id/clear_browsing_data_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            style="@style/ButtonCompatBorderless"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:paddingStart="17dp"
+            android:paddingEnd="17dp"
+            android:gravity="center_vertical|start"
+            android:text="@string/open_clear_browsing_data_dialog_button"
+            android:textAllCaps="true"
+            android:textColor="@color/blue_when_enabled"
+            android:textSize="14sp" />
+
+    </FrameLayout>
+</LinearLayout>

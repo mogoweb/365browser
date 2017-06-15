@@ -4,13 +4,17 @@
 
 package org.chromium.chrome.browser.omnibox.geo;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Process;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
 import org.chromium.base.annotations.SuppressFBWarnings;
@@ -24,8 +28,11 @@ import org.chromium.base.annotations.SuppressFBWarnings;
 class GeolocationTracker {
 
     private static SelfCancelingListener sListener;
-    private static Location sLocationForTesting;
+    private static Location sNetworkLocationForTesting;
+    private static Location sGpsLocationForTesting;
     private static boolean sUseLocationForTesting;
+    private static long sLocationAgeForTesting;
+    private static boolean sUseLocationAgeForTesting;
 
     private static class SelfCancelingListener implements LocationListener {
 
@@ -73,18 +80,43 @@ class GeolocationTracker {
      * created. If the apparent age is negative, Long.MAX_VALUE will be returned.
      */
     static long getLocationAge(Location location) {
+        if (sUseLocationAgeForTesting) return sLocationAgeForTesting;
         long age = System.currentTimeMillis() - location.getTime();
         return age >= 0 ? age : Long.MAX_VALUE;
     }
 
     /**
-     * Returns the last known location from the network provider or null if none is available.
+     * Returns the last known location or null if none is available.
+     *
+     * @param includeGpsFallback Whether the gps provider should also be used as a fallback.
+     *        Otherwise only the network provider will be used.
      */
-    static Location getLastKnownLocation(Context context) {
-        if (sUseLocationForTesting) return sLocationForTesting;
+    static Location getLastKnownLocation(Context context, boolean includeGpsFallback) {
+        if (sUseLocationForTesting) {
+            return chooseLocation(
+                    sNetworkLocationForTesting, sGpsLocationForTesting, includeGpsFallback);
+        }
+
+        if (!hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            // Do not call location manager without permissions
+            return null;
+        }
+
         LocationManager locationManager =
                 (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        return locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        Location networkLocation =
+                locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        // If no GPS location has been request, just return the network location. For efficiency,
+        // don't even get the GPS location.
+        if (!includeGpsFallback) {
+            return networkLocation;
+        }
+        Location gpsLocation = null;
+        if (hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) {
+            // Only try to get GPS location when ACCESS_FINE_LOCATION is granted.
+            gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        }
+        return chooseLocation(networkLocation, gpsLocation, includeGpsFallback);
     }
 
     /**
@@ -95,6 +127,10 @@ class GeolocationTracker {
     @SuppressFBWarnings("LI_LAZY_INIT_UPDATE_STATIC")
     static void refreshLastKnownLocation(Context context, long maxAge) {
         ThreadUtils.assertOnUiThread();
+
+        if (!hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            return;
+        }
 
         // We're still waiting for a location update.
         if (sListener != null) return;
@@ -112,8 +148,40 @@ class GeolocationTracker {
     }
 
     @VisibleForTesting
-    static void setLocationForTesting(Location location) {
-        sLocationForTesting = location;
+    static void setLocationForTesting(
+            Location networkLocationForTesting, Location gpsLocationForTesting) {
+        sNetworkLocationForTesting = networkLocationForTesting;
+        sGpsLocationForTesting = gpsLocationForTesting;
         sUseLocationForTesting = true;
+    }
+
+    @VisibleForTesting
+    static void setLocationAgeForTesting(Long locationAgeForTesting) {
+        if (locationAgeForTesting == null) {
+            sUseLocationAgeForTesting = false;
+            return;
+        }
+        sLocationAgeForTesting = locationAgeForTesting;
+        sUseLocationAgeForTesting = true;
+    }
+
+    private static boolean hasPermission(Context context, String permission) {
+        return ApiCompatibilityUtils.checkPermission(
+                       context, permission, Process.myPid(), Process.myUid())
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private static Location chooseLocation(
+            Location networkLocation, Location gpsLocation, boolean includeGpsFallback) {
+        if (!includeGpsFallback || gpsLocation == null) {
+            return networkLocation;
+        }
+
+        if (networkLocation == null) {
+            return gpsLocation;
+        }
+
+        // Both are not null, take the younger one.
+        return networkLocation.getTime() > gpsLocation.getTime() ? networkLocation : gpsLocation;
     }
 }

@@ -65,7 +65,7 @@ public class AddExceptionPreference extends Preference implements OnPreferenceCl
 
         setKey(key);
         Resources resources = getContext().getResources();
-        mPrefAccentColor = resources.getColor(R.color.pref_accent_color);
+        mPrefAccentColor = ApiCompatibilityUtils.getColor(resources, R.color.pref_accent_color);
 
         Drawable plusIcon = ApiCompatibilityUtils.getDrawable(resources, R.drawable.plus);
         plusIcon.mutate();

@@ -12,6 +12,12 @@
     android:orientation="horizontal" >
 
     <!-- These layout params are overwritten in DropdownAdapter.java -->
+    <ImageView
+        android:id="@+id/start_dropdown_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/dropdown_icon_margin"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:id="@+id/dropdown_label_wrapper"
@@ -25,31 +31,31 @@
             android:id="@+id/dropdown_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
-            android:layout_marginStart="10dp"
+            android:layout_marginEnd="@dimen/dropdown_item_label_margin"
+            android:layout_marginStart="@dimen/dropdown_item_label_margin"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textAlignment="viewStart"
-            android:textColor="#333"
-            android:textSize="18sp" />
+            android:textColor="@drawable/dropdown_label_color"
+            android:textSize="@dimen/dropdown_item_label_font_size" />
 
         <TextView
             android:id="@+id/dropdown_sublabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="10dp"
-            android:layout_marginStart="10dp"
+            android:layout_marginEnd="@dimen/dropdown_item_label_margin"
+            android:layout_marginStart="@dimen/dropdown_item_label_margin"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textAlignment="viewStart"
-            android:textColor="#8b8b8b"
-            android:textSize="14sp" />
+            android:textColor="#646464"
+            android:textSize="@dimen/dropdown_item_sublabel_font_size" />
     </LinearLayout>
 
     <ImageView
-        android:id="@+id/dropdown_icon"
+        android:id="@+id/end_dropdown_icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"

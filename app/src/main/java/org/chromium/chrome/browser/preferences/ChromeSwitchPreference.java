@@ -6,17 +6,15 @@ package org.chromium.chrome.browser.preferences;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
 import android.preference.SwitchPreference;
+import android.support.v7.widget.SwitchCompat;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.TextView;
 
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.widget.ChromeSwitchCompat;
+import org.chromium.ui.HorizontalListDividerDrawable;
 
 /**
  * A super-powered SwitchPreference designed especially for Chrome. Special features:
@@ -71,11 +69,11 @@ public class ChromeSwitchPreference extends SwitchPreference {
             int right = view.getPaddingRight();
             int top = view.getPaddingTop();
             int bottom = view.getPaddingBottom();
-            view.setBackground(DividerDrawable.create(getContext()));
+            view.setBackground(HorizontalListDividerDrawable.create(getContext()));
             view.setPadding(left, top, right, bottom);
         }
 
-        ChromeSwitchCompat switchView = (ChromeSwitchCompat) view.findViewById(R.id.switch_widget);
+        SwitchCompat switchView = (SwitchCompat) view.findViewById(R.id.switch_widget);
         // On BLU Life Play devices SwitchPreference.setWidgetLayoutResource() does nothing. As a
         // result, the user will see a non-material Switch and switchView will be null, hence the
         // null check below. http://crbug.com/451447
@@ -99,32 +97,5 @@ public class ChromeSwitchPreference extends SwitchPreference {
     protected void onClick() {
         if (mManagedPrefDelegate != null && mManagedPrefDelegate.onClickPreference(this)) return;
         super.onClick();
-    }
-
-    /**
-     * Draws a horizontal list divider line at the bottom of its drawing area.
-     *
-     * Because ?android:attr/listDivider may be a 9-patch, there's no way to achieve this drawing
-     * effect with the platform Drawable classes; hence this custom Drawable.
-     */
-    private static class DividerDrawable extends LayerDrawable {
-
-        static DividerDrawable create(Context context) {
-            TypedArray a = context.obtainStyledAttributes(new int[] { android.R.attr.listDivider });
-            Drawable listDivider = a.getDrawable(0);
-            a.recycle();
-            return new DividerDrawable(new Drawable[] { listDivider });
-        }
-
-        private DividerDrawable(Drawable[] layers) {
-            super(layers);
-        }
-
-        @Override
-        protected void onBoundsChange(Rect bounds) {
-            int listDividerHeight = getDrawable(0).getIntrinsicHeight();
-            setLayerInset(0, 0, bounds.height() - listDividerHeight, 0, 0);
-            super.onBoundsChange(bounds);
-        }
     }
 }

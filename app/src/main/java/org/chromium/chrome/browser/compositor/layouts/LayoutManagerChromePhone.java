@@ -8,14 +8,18 @@ import android.content.Context;
 import android.view.ViewGroup;
 
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.layouts.phone.SimpleAnimationLayout;
 import org.chromium.chrome.browser.compositor.overlays.SceneOverlay;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchManagementDelegate;
+import org.chromium.chrome.browser.device.DeviceClassManager;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeManagerDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.util.FeatureUtilities;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
 
 /**
@@ -24,22 +28,19 @@ import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
  */
 public class LayoutManagerChromePhone extends LayoutManagerChrome {
     // Layouts
-    private final Layout mSimpleAnimationLayout;
+    private final SimpleAnimationLayout mSimpleAnimationLayout;
 
     /**
      * Creates an instance of a {@link LayoutManagerChromePhone}.
      * @param host            A {@link LayoutManagerHost} instance.
-     * @param overviewLayoutFactoryDelegate A {@link OverviewLayoutFactoryDelegate} instance.
      */
-    public LayoutManagerChromePhone(
-            LayoutManagerHost host, OverviewLayoutFactoryDelegate overviewLayoutFactoryDelegate) {
-        super(host, overviewLayoutFactoryDelegate);
+    public LayoutManagerChromePhone(LayoutManagerHost host) {
+        super(host, true);
         Context context = host.getContext();
         LayoutRenderHost renderHost = host.getLayoutRenderHost();
 
         // Build Layouts
-        mSimpleAnimationLayout =
-                new SimpleAnimationLayout(context, this, renderHost, mBlackHoleEventFilter);
+        mSimpleAnimationLayout = new SimpleAnimationLayout(context, this, renderHost);
 
         // Set up layout parameters
         mStaticLayout.setLayoutHandlesTabLifecycles(false);
@@ -47,15 +48,21 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
     }
 
     @Override
+    protected ToolbarSwipeHandler createToolbarSwipeHandler(LayoutProvider provider) {
+        return new PhoneToolbarSwipeHandler(provider);
+    }
+
+    @Override
     public void init(TabModelSelector selector, TabCreatorManager creator,
             TabContentManager content, ViewGroup androidContentContainer,
             ContextualSearchManagementDelegate contextualSearchDelegate,
+            ReaderModeManagerDelegate readerModeDelegate,
             DynamicResourceLoader dynamicResourceLoader) {
         // Initialize Layouts
         mSimpleAnimationLayout.setTabModelSelector(selector, content);
 
         super.init(selector, creator, content, androidContentContainer, contextualSearchDelegate,
-                dynamicResourceLoader);
+                readerModeDelegate, dynamicResourceLoader);
     }
 
     @Override
@@ -89,16 +96,17 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             // The user is currently interacting with the {@code LayoutHost}.
             // Allow the foreground layout to animate the tab closing.
             getActiveLayout().onTabClosing(time(), id);
-        } else if (mEnableAnimations) {
+        } else if (animationsEnabled()) {
             startShowing(mSimpleAnimationLayout, false);
             getActiveLayout().onTabClosing(time(), id);
         }
     }
 
     @Override
-    protected void tabClosed(int id, int nextId, boolean incognito) {
+    protected void tabClosed(int id, int nextId, boolean incognito, boolean tabRemoved) {
         boolean showOverview = nextId == Tab.INVALID_TAB_ID;
-        Layout overviewLayout = useAccessibilityLayout() ? mOverviewListLayout : mOverviewLayout;
+        Layout overviewLayout = DeviceClassManager.enableAccessibilityLayout() ? mOverviewListLayout
+                                                                               : mOverviewLayout;
         if (getActiveLayout() != overviewLayout && showOverview) {
             // Since there will be no 'next' tab to display, switch to
             // overview mode when the animation is finished.
@@ -107,7 +115,8 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
         getActiveLayout().onTabClosed(time(), id, nextId, incognito);
         Tab nextTab = getTabById(nextId);
         if (nextTab != null) nextTab.requestFocus();
-        if (getActiveLayout() != overviewLayout && showOverview && !mEnableAnimations) {
+        boolean animate = !tabRemoved && animationsEnabled();
+        if (getActiveLayout() != overviewLayout && showOverview && !animate) {
             startShowing(overviewLayout, false);
         }
     }
@@ -119,7 +128,7 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
             // This check allows us to switch from the StackLayout to the SimpleAnimationLayout
             // smoothly.
             getActiveLayout().onTabCreating(sourceId);
-        } else if (mEnableAnimations) {
+        } else if (animationsEnabled()) {
             if (getActiveLayout() != null && getActiveLayout().isHiding()) {
                 setNextLayout(mSimpleAnimationLayout);
                 // The method Layout#doneHiding() will automatically show the next layout.
@@ -146,5 +155,29 @@ public class LayoutManagerChromePhone extends LayoutManagerChrome {
     public void releaseTabLayout(int id) {
         mTitleCache.remove(id);
         super.releaseTabLayout(id);
+    }
+
+    private class PhoneToolbarSwipeHandler extends ToolbarSwipeHandler {
+        public PhoneToolbarSwipeHandler(LayoutProvider provider) {
+            super(provider);
+        }
+
+        @Override
+        public boolean isSwipeEnabled(ScrollDirection direction) {
+            if (direction == ScrollDirection.DOWN && FeatureUtilities.isChromeHomeEnabled()) {
+                return false;
+            }
+
+            return super.isSwipeEnabled(direction);
+        }
+    }
+
+    /**
+     * Sets whether the foreground tab animation is disabled.
+     * TODO(twellington): Remove this after Chrome Home NTP animations are complete.
+     * @param disabled Whether the foreground tab animation should be disabled.
+     */
+    public void setForegroundTabAnimationDisabled(boolean disabled) {
+        mSimpleAnimationLayout.setForegroundTabAnimationDisabled(disabled);
     }
 }

@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.firstrun;
 
-import android.accounts.Account;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -16,20 +15,21 @@ import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 
+import org.chromium.base.ObserverList;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileDownloader;
-import org.chromium.chrome.browser.profiles.ProfileDownloader.Observer;
-import org.chromium.sync.signin.AccountManagerHelper;
-import org.chromium.ui.gfx.DeviceDisplayInfo;
+import org.chromium.ui.display.DisplayAndroid;
 
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Fetches and caches Google Account profile images and full names for the accounts on the device.
+ * ProfileDataCache doesn't observe account list changes by itself, so account list
+ * should be provided by calling {@link #update(List)}
  */
-public class ProfileDataCache implements Observer {
-
+public class ProfileDataCache implements ProfileDownloader.Observer {
     private static final int PROFILE_IMAGE_SIZE_DP = 136;  // Max size of the user picture.
     private static final int PROFILE_IMAGE_STROKE_DP = 3;
 
@@ -45,56 +45,43 @@ public class ProfileDataCache implements Observer {
         public String givenName;
     }
 
-    private final HashMap<String, CacheEntry> mCacheEntries = new HashMap<String, CacheEntry>();
+    private final HashMap<String, CacheEntry> mCacheEntries = new HashMap<>();
 
     private final Bitmap mPlaceholderImage;
     private final int mImageSizePx;
     private final int mImageStrokePx;
     private final int mImageStrokeColor;
-    private Observer mObserver;
+    private final ObserverList<ProfileDownloader.Observer> mObservers = new ObserverList<>();
 
     private final Context mContext;
     private Profile mProfile;
 
     public ProfileDataCache(Context context, Profile profile) {
-        ProfileDownloader.addObserver(this);
-
         mContext = context;
         mProfile = profile;
 
-        final DeviceDisplayInfo info = DeviceDisplayInfo.create(context);
-        mImageSizePx = (int) Math.ceil(PROFILE_IMAGE_SIZE_DP * info.getDIPScale());
-        mImageStrokePx = (int) Math.ceil(PROFILE_IMAGE_STROKE_DP * info.getDIPScale());
+        // There's no WindowAndroid present at this time, so get the default display.
+        final DisplayAndroid displayAndroid = DisplayAndroid.getNonMultiDisplay(context);
+        mImageSizePx = (int) Math.ceil(PROFILE_IMAGE_SIZE_DP * displayAndroid.getDipScale());
+        mImageStrokePx = (int) Math.ceil(PROFILE_IMAGE_STROKE_DP * displayAndroid.getDipScale());
         mImageStrokeColor = Color.WHITE;
 
         Bitmap placeHolder = BitmapFactory.decodeResource(mContext.getResources(),
                 R.drawable.fre_placeholder);
         mPlaceholderImage = getCroppedBitmap(placeHolder);
 
-        update();
-    }
-
-    /**
-     * Sets the profile to use for the fetcher and triggers the update.
-     * @param profile A profile to use.
-     */
-    public void setProfile(Profile profile) {
-        mProfile = profile;
-        update();
+        ProfileDownloader.addObserver(this);
     }
 
     /**
      * Initiate fetching the user accounts data (images and the full name).
      * Fetched data will be sent to observers of ProfileDownloader.
      */
-    public void update() {
-        if (mProfile == null) return;
-
-        Account[] accounts = AccountManagerHelper.get(mContext).getGoogleAccounts();
-        for (int i = 0; i < accounts.length; i++) {
-            if (mCacheEntries.get(accounts[i].name) == null) {
+    public void update(List<String> accounts) {
+        for (int i = 0; i < accounts.size(); i++) {
+            if (mCacheEntries.get(accounts.get(i)) == null) {
                 ProfileDownloader.startFetchingAccountInfoFor(
-                        mProfile, accounts[i].name, mImageSizePx, true);
+                        mContext, mProfile, accounts.get(i), mImageSizePx, true);
             }
         }
     }
@@ -134,7 +121,21 @@ public class ProfileDataCache implements Observer {
 
     public void destroy() {
         ProfileDownloader.removeObserver(this);
-        mObserver = null;
+        mObservers.clear();
+    }
+
+    /**
+     * @param observer Observer that should be notified when new profile images are available.
+     */
+    public void addObserver(ProfileDownloader.Observer observer) {
+        mObservers.addObserver(observer);
+    }
+
+    /**
+     * @param observer Observer that was added by {@link #addObserver} and should be removed.
+     */
+    public void removeObserver(ProfileDownloader.Observer observer) {
+        mObservers.removeObserver(observer);
     }
 
     @Override
@@ -142,8 +143,9 @@ public class ProfileDataCache implements Observer {
             Bitmap bitmap) {
         bitmap = getCroppedBitmap(bitmap);
         mCacheEntries.put(accountId, new CacheEntry(bitmap, fullName, givenName));
-        if (mObserver != null) mObserver.onProfileDownloaded(accountId, givenName, fullName,
-                bitmap);
+        for (ProfileDownloader.Observer observer : mObservers) {
+            observer.onProfileDownloaded(accountId, fullName, givenName, bitmap);
+        }
     }
 
     private Bitmap getCroppedBitmap(Bitmap bitmap) {
@@ -170,12 +172,5 @@ public class ProfileDataCache implements Observer {
         canvas.drawCircle(bitmap.getWidth() / 2f, bitmap.getHeight() / 2f, radius, paint);
 
         return output;
-    }
-
-    /**
-     * @param observer Observer that should be notified when new profile images are available.
-     */
-    public void setObserver(Observer observer) {
-        mObserver = observer;
     }
 }

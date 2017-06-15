@@ -6,7 +6,9 @@ package org.chromium.chrome.browser.preferences;
 
 import android.preference.Preference;
 import android.view.View;
-import android.view.ViewGroup;
+
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.util.ViewUtils;
 
 /**
  * A delegate that determines whether a Preference is managed by enterprise policy. This is used
@@ -31,18 +33,35 @@ import android.view.ViewGroup;
  */
 public abstract class ManagedPreferenceDelegate {
     /**
-     * Returns whether the given Preference is controlled by a policy.
+     * Returns whether the given Preference is controlled by an enterprise policy.
+     * @param preference the {@link Preference} under consideration.
+     * @return whether the given Preference is controlled by an enterprise policy.
      */
     public abstract boolean isPreferenceControlledByPolicy(Preference preference);
 
     /**
-     * Returns whether clicking on the given Preference is disabled due to a policy. The default
-     * implementation just returns isPreferenceControlledByPolicy(preference). However, some
-     * preferences that are controlled by policy may still be clicked to show an informational
-     * subscreen, in which case this method needs a custom implementation.
+     * Returns whether the given Preference is controlled by the supervised user's custodian.
+     * @param preference the {@link Preference} under consideration.
+     * @return whether the given Preference is controlled by the supervised user's custodian.
      */
+    public boolean isPreferenceControlledByCustodian(Preference preference) {
+        return false;
+    }
+
+    /**
+     * Returns whether clicking on the given Preference is disabled due to a policy. The default
+     * implementation just returns whether the preference is not modifiable by the user.
+     * However, some preferences that are controlled by policy may still be clicked to show an
+     * informational subscreen, in which case this method needs a custom implementation.
+     */
+    // TODO(bauerb): Rename to isPreferenceClickDisabled.
     public boolean isPreferenceClickDisabledByPolicy(Preference preference) {
-        return isPreferenceControlledByPolicy(preference);
+        return !isPreferenceUserModifiable(preference);
+    }
+
+    private boolean isPreferenceUserModifiable(Preference preference) {
+        return !isPreferenceControlledByPolicy(preference)
+                && !isPreferenceControlledByCustodian(preference);
     }
 
     /**
@@ -54,16 +73,18 @@ public abstract class ManagedPreferenceDelegate {
     public void initPreference(Preference preference) {
         if (isPreferenceControlledByPolicy(preference)) {
             preference.setIcon(ManagedPreferencesUtils.getManagedByEnterpriseIconId());
+        } else if (isPreferenceControlledByCustodian(preference)) {
+            preference.setIcon(R.drawable.ic_account_child_grey600_36dp);
+        }
 
-            if (isPreferenceClickDisabledByPolicy(preference)) {
-                // Disable the views and prevent the Preference from mucking with the enabled state.
-                preference.setShouldDisableView(false);
+        if (isPreferenceClickDisabledByPolicy(preference)) {
+            // Disable the views and prevent the Preference from mucking with the enabled state.
+            preference.setShouldDisableView(false);
 
-                // Prevent default click behavior.
-                preference.setFragment(null);
-                preference.setIntent(null);
-                preference.setOnPreferenceClickListener(null);
-            }
+            // Prevent default click behavior.
+            preference.setFragment(null);
+            preference.setIntent(null);
+            preference.setOnPreferenceClickListener(null);
         }
     }
 
@@ -80,12 +101,12 @@ public abstract class ManagedPreferenceDelegate {
      */
     public void onBindViewToPreference(Preference preference, View view) {
         if (isPreferenceClickDisabledByPolicy(preference)) {
-            disableView(view);
+            ViewUtils.setEnabledRecursive(view, false);
         }
     }
 
     /**
-     * Shows the "Managed by your administrator" toast if the given Preference is managed.
+     * Intercepts the click event if the given Preference is managed and shows a toast in that case.
      *
      * This should be called from the Preference's onClick() method.
      *
@@ -94,24 +115,17 @@ public abstract class ManagedPreferenceDelegate {
      *         propagated; false otherwise.
      */
     public boolean onClickPreference(Preference preference) {
-        if (isPreferenceClickDisabledByPolicy(preference)) {
+        if (!isPreferenceClickDisabledByPolicy(preference)) return false;
+
+        if (isPreferenceControlledByPolicy(preference)) {
             ManagedPreferencesUtils.showManagedByAdministratorToast(preference.getContext());
-            return true;
+        } else if (isPreferenceControlledByCustodian(preference)) {
+            ManagedPreferencesUtils.showManagedByParentToast(preference.getContext());
+        } else {
+            // If the preference is disabled, it should be either because it's managed by enterprise
+            // policy or by the custodian.
+            assert false;
         }
-
-        return false;
-    }
-
-    /**
-     * Disables the given View and any subviews, recursively.
-     */
-    private static void disableView(View view) {
-        view.setEnabled(false);
-        if (view instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) view;
-            for (int i = 0; i < group.getChildCount(); i++) {
-                disableView(group.getChildAt(i));
-            }
-        }
+        return true;
     }
 }

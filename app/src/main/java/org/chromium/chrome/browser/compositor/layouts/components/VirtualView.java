@@ -26,4 +26,11 @@ public interface VirtualView {
      * @return Whether or not that click occurred inside of the button + slop area.
      */
     boolean checkClicked(float x, float y);
+
+    /**
+     * Notifies the view to handle the click action.
+     *
+     * @param time The time of the click action.
+     */
+    void handleClick(long time);
 }

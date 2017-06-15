@@ -4,14 +4,15 @@
 
 package org.chromium.chrome.browser.signin;
 
-import android.content.Context;
-
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.chrome.browser.externalauth.ExternalAuthUtils;
+import org.chromium.chrome.browser.externalauth.UserRecoverableErrorHandler;
 
 import java.io.IOException;
 
@@ -30,20 +31,30 @@ public class AccountIdProvider {
 
     /**
      * Returns a stable id for the account associated with the given email address.
-     * If an account wuth the given email address is not installed on the device
+     * If an account with the given email address is not installed on the device
      * then null is returned.
      *
      * This method will throw IllegalStateException if called on the main thread.
      *
      * @param accountName The email address of a Google account.
      */
-    public String getAccountId(Context ctx, String accountName) {
+    public String getAccountId(String accountName) {
         try {
-            return GoogleAuthUtil.getAccountId(ctx, accountName);
+            return GoogleAuthUtil.getAccountId(ContextUtils.getApplicationContext(), accountName);
         } catch (IOException | GoogleAuthException ex) {
             Log.e("cr.AccountIdProvider", "AccountIdProvider.getAccountId", ex);
             return null;
         }
+    }
+
+    /**
+     * Returns whether the AccountIdProvider can be used.
+     * Since the AccountIdProvider queries Google Play services, this basically checks whether
+     * Google Play services is available.
+     */
+    public boolean canBeUsed() {
+        return ExternalAuthUtils.getInstance().canUseGooglePlayServices(
+                ContextUtils.getApplicationContext(), new UserRecoverableErrorHandler.Silent());
     }
 
     /**

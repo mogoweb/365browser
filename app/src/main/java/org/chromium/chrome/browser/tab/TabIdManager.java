@@ -4,12 +4,13 @@
 
 package org.chromium.chrome.browser.tab;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 
-import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.VisibleForTesting;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,14 +34,17 @@ public class TabIdManager {
             "org.chromium.chrome.browser.tab.TabIdManager.NEXT_ID";
 
     private static final Object INSTANCE_LOCK = new Object();
+    @SuppressLint("StaticFieldLeak")
     private static TabIdManager sInstance;
 
     private final Context mContext;
     private final AtomicInteger mIdCounter = new AtomicInteger();
 
+    private SharedPreferences mPreferences;
+
     /** Returns the Singleton instance of the TabIdManager. */
     public static TabIdManager getInstance() {
-        return getInstance(ApplicationStatus.getApplicationContext());
+        return getInstance(ContextUtils.getApplicationContext());
     }
 
     /** Returns the Singleton instance of the TabIdManager. */
@@ -80,14 +84,7 @@ public class TabIdManager {
         // It's possible idCounter has been incremented between the get and the add but that's OK --
         // in the worst case mIdCounter will just be overly incremented.
         mIdCounter.addAndGet(diff);
-        updateSharedPreference();
-    }
-
-    private void updateSharedPreference() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.putInt(PREF_NEXT_ID, mIdCounter.get());
-        editor.apply();
+        mPreferences.edit().putInt(PREF_NEXT_ID, mIdCounter.get()).apply();
     }
 
     private TabIdManager(Context context) {
@@ -96,7 +93,7 @@ public class TabIdManager {
         // Read the shared preference.  This has to be done on the critical path to ensure that the
         // myriad Activities that serve as entries into Chrome are all synchronized on the correct
         // maximum Tab ID.
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-        mIdCounter.set(prefs.getInt(PREF_NEXT_ID, 0));
+        mPreferences = ContextUtils.getAppSharedPreferences();
+        mIdCounter.set(mPreferences.getInt(PREF_NEXT_ID, 0));
     }
 }

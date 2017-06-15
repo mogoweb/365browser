@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.compositor.layouts;
 
 import android.content.Context;
 import android.content.res.Resources;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 
@@ -16,8 +16,9 @@ import org.chromium.chrome.browser.compositor.LayerTitleCache;
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation.Animatable;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.BlackHoleEventFilter;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EventFilter;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.TabListSceneLayer;
 import org.chromium.chrome.browser.fullscreen.ChromeFullscreenManager;
@@ -69,6 +70,7 @@ public class ToolbarSwipeLayout extends Layout implements Animatable<ToolbarSwip
     private final float mSpaceBetweenTabs;
     private final float mCommitDistanceFromEdge;
 
+    private final BlackHoleEventFilter mBlackHoleEventFilter;
     private final TabListSceneLayer mSceneLayer;
 
     private final Interpolator mEdgeInterpolator = new DecelerateInterpolator();
@@ -79,9 +81,10 @@ public class ToolbarSwipeLayout extends Layout implements Animatable<ToolbarSwip
      * @param renderHost          The {@link LayoutRenderHost} view for this layout.
      * @param eventFilter         The {@link EventFilter} that is needed for this view.
      */
-    public ToolbarSwipeLayout(Context context, LayoutUpdateHost updateHost,
-            LayoutRenderHost renderHost, EventFilter eventFilter) {
-        super(context, updateHost, renderHost, eventFilter);
+    public ToolbarSwipeLayout(
+            Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost) {
+        super(context, updateHost, renderHost);
+        mBlackHoleEventFilter = new BlackHoleEventFilter(context);
         Resources res = context.getResources();
         final float pxToDp = 1.0f / res.getDisplayMetrics().density;
         mCommitDistanceFromEdge = res.getDimension(R.dimen.toolbar_swipe_commit_distance) * pxToDp;
@@ -98,9 +101,20 @@ public class ToolbarSwipeLayout extends Layout implements Animatable<ToolbarSwip
     }
 
     @Override
-    public int getSizingFlags() {
-        return mMoveToolbar ? SizingFlags.HELPER_HIDE_TOOLBAR_IMMEDIATE
-                            : SizingFlags.HELPER_NO_FULLSCREEN_SUPPORT;
+    public ViewportMode getViewportMode() {
+        // This seems counter-intuitive, but if the toolbar moves the android view is not showing.
+        // That means the compositor has to draw it and therefore needs the fullscreen viewport.
+        // Likewise, when the android view is showing, the compositor controls do not draw and the
+        // content needs to pretend it does to draw correctly.
+        // TODO(mdjones): Remove toolbar_impact_height from tab_layer.cc so this makes more sense.
+        return mMoveToolbar ? ViewportMode.ALWAYS_FULLSCREEN
+                            : ViewportMode.ALWAYS_SHOWING_BROWSER_CONTROLS;
+    }
+
+    @Override
+    public boolean forceHideBrowserControlsAndroidView() {
+        // If the toolbar moves, the android browser controls need to be hidden.
+        return super.forceHideBrowserControlsAndroidView() || mMoveToolbar;
     }
 
     @Override
@@ -341,18 +355,31 @@ public class ToolbarSwipeLayout extends Layout implements Animatable<ToolbarSwip
     }
 
     @Override
+    public void onPropertyAnimationFinished(Property prop) {}
+
+    @Override
+    protected EventFilter getEventFilter() {
+        return mBlackHoleEventFilter;
+    }
+
+    @Override
     protected SceneLayer getSceneLayer() {
         return mSceneLayer;
     }
 
     @Override
-    protected void updateSceneLayer(Rect viewport, Rect contentViewport,
+    protected void updateSceneLayer(RectF viewport, RectF contentViewport,
             LayerTitleCache layerTitleCache, TabContentManager tabContentManager,
             ResourceManager resourceManager, ChromeFullscreenManager fullscreenManager) {
         super.updateSceneLayer(viewport, contentViewport, layerTitleCache, tabContentManager,
                 resourceManager, fullscreenManager);
+        // Use the default theme colors if the browser controls are at the bottom.
+        if (fullscreenManager.areBrowserControlsAtBottom()) {
+            for (LayoutTab t : mLayoutTabs) t.setForceDefaultThemeColor(true);
+        }
         assert mSceneLayer != null;
-        mSceneLayer.pushLayers(getContext(), viewport, contentViewport, this, layerTitleCache,
-                tabContentManager, resourceManager);
+        // contentViewport is intentionally passed for both parameters below.
+        mSceneLayer.pushLayers(getContext(), contentViewport, contentViewport, this,
+                layerTitleCache, tabContentManager, resourceManager, fullscreenManager);
     }
 }

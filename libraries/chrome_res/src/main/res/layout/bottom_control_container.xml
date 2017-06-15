@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2016 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<org.chromium.chrome.browser.widget.bottomsheet.BottomSheet
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bottom_sheet"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" >
+
+    <org.chromium.chrome.browser.toolbar.ToolbarControlContainer
+        android:id="@+id/control_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/bottom_control_container_height" >
+
+        <view
+            class="org.chromium.chrome.browser.toolbar.ToolbarControlContainer$ToolbarViewResourceFrameLayout"
+            android:id="@+id/toolbar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" >
+
+            <ImageView
+                android:id="@+id/bottom_toolbar_shadow"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/toolbar_shadow_height"
+                android:src="@drawable/toolbar_shadow"
+                android:scaleType="fitXY"
+                android:scaleY="-1"
+                android:contentDescription="@null" />
+
+            <FrameLayout
+                android:id="@+id/toolbar_holder"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/bottom_control_container_height"
+                android:layout_marginTop="@dimen/toolbar_shadow_height" >
+
+                <ViewStub
+                    android:id="@+id/toolbar_stub"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/toolbar_handle"
+                android:layout_width="@dimen/toolbar_handle_width"
+                android:layout_height="@dimen/toolbar_handle_height"
+                android:layout_marginTop="@dimen/toolbar_handle_margin_top"
+                android:layout_gravity="center|top"
+                android:contentDescription="@null" />
+
+            <ViewStub
+                android:id="@+id/find_toolbar_stub"
+                android:inflatedId="@+id/find_toolbar"
+                android:layout_marginTop="@dimen/toolbar_shadow_height"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/bottom_control_container_height"
+                android:layout="@layout/find_toolbar" />
+
+        </view>
+    </org.chromium.chrome.browser.toolbar.ToolbarControlContainer>
+
+    <FrameLayout
+        android:id="@+id/bottom_sheet_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="@dimen/bottom_nav_height"
+        android:background="@color/default_primary_color" />
+
+    <ViewStub
+        android:id="@+id/bottom_omnibox_results_container_stub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inflatedId="@+id/omnibox_results_container"
+        android:layout="@layout/omnibox_results_container" />
+
+    <ImageView
+        android:id="@+id/toolbar_shadow"
+        android:src="@drawable/bottom_toolbar_shadow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+
+</org.chromium.chrome.browser.widget.bottomsheet.BottomSheet>

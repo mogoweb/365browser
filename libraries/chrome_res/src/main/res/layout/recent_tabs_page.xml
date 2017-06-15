@@ -11,6 +11,7 @@
     android:paddingTop="@dimen/tab_strip_height" >
 
     <org.chromium.chrome.browser.ntp.NativePageRootFrameLayout
+        android:id="@+id/recent_tabs_root"
         android:layout_height="match_parent"
         android:layout_width="match_parent"
         android:paddingTop="@dimen/toolbar_height_no_shadow"

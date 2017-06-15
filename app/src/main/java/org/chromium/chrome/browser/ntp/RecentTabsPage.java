@@ -16,12 +16,15 @@ import android.view.ViewGroup;
 import android.widget.ExpandableListView;
 
 import org.chromium.base.ActivityState;
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ChromeActivity;
 import org.chromium.chrome.browser.NativePage;
 import org.chromium.chrome.browser.UrlConstants;
 import org.chromium.chrome.browser.compositor.layouts.content.InvalidationAwareThumbnailProvider;
+import org.chromium.chrome.browser.metrics.StartupMetrics;
 import org.chromium.chrome.browser.util.ViewUtils;
 
 import java.util.concurrent.TimeUnit;
@@ -51,6 +54,8 @@ public class RecentTabsPage
     private int mSnapshotWidth;
     private int mSnapshotHeight;
 
+    private final int mThemeColor;
+
     /**
      * Whether the page is in the foreground and is visible.
      */
@@ -74,16 +79,18 @@ public class RecentTabsPage
      * @param activity The activity this view belongs to.
      * @param recentTabsManager The RecentTabsManager which provides the model data.
      */
-    public RecentTabsPage(Activity activity, RecentTabsManager recentTabsManager) {
+    public RecentTabsPage(ChromeActivity activity, RecentTabsManager recentTabsManager) {
         mActivity = activity;
         mRecentTabsManager = recentTabsManager;
 
         mTitle = activity.getResources().getString(R.string.recent_tabs);
+        mThemeColor = ApiCompatibilityUtils.getColor(
+                activity.getResources(), R.color.default_primary_color);
         mRecentTabsManager.setUpdatedCallback(this);
         LayoutInflater inflater = LayoutInflater.from(activity);
         mView = (ViewGroup) inflater.inflate(R.layout.recent_tabs_page, null);
         mListView = (ExpandableListView) mView.findViewById(R.id.odp_listview);
-        mAdapter = buildAdapter(activity, recentTabsManager);
+        mAdapter = new RecentTabsRowAdapter(activity, recentTabsManager);
         mListView.setAdapter(mAdapter);
         mListView.setOnChildClickListener(this);
         mListView.setGroupIndicator(null);
@@ -95,12 +102,16 @@ public class RecentTabsPage
         ApplicationStatus.registerStateListenerForActivity(this, activity);
         // {@link #mInForeground} will be updated once the view is attached to the window.
 
-        onUpdated();
-    }
+        if (activity.getBottomSheet() != null) {
+            View recentTabsRoot = mView.findViewById(R.id.recent_tabs_root);
+            ApiCompatibilityUtils.setPaddingRelative(recentTabsRoot,
+                    ApiCompatibilityUtils.getPaddingStart(recentTabsRoot), 0,
+                    ApiCompatibilityUtils.getPaddingEnd(recentTabsRoot),
+                    activity.getResources().getDimensionPixelSize(
+                            R.dimen.bottom_control_container_height));
+        }
 
-    private static RecentTabsRowAdapter buildAdapter(Activity activity,
-            RecentTabsManager recentTabsManager) {
-        return new RecentTabsRowAdapter(activity, recentTabsManager);
+        onUpdated();
     }
 
     /**
@@ -118,6 +129,7 @@ public class RecentTabsPage
         mInForeground = inForeground;
         if (mInForeground) {
             mForegroundTimeMs = SystemClock.elapsedRealtime();
+            StartupMetrics.getInstance().recordOpenedRecents();
         } else {
             RecordHistogram.recordLongTimesHistogram("NewTabPage.RecentTabsPage.TimeVisibleAndroid",
                     SystemClock.elapsedRealtime() - mForegroundTimeMs, TimeUnit.MILLISECONDS);
@@ -142,6 +154,16 @@ public class RecentTabsPage
     }
 
     @Override
+    public int getThemeColor() {
+        return mThemeColor;
+    }
+
+    @Override
+    public boolean needsToolbarShadow() {
+        return true;
+    }
+
+    @Override
     public View getView() {
         return mView;
     }
@@ -153,7 +175,7 @@ public class RecentTabsPage
 
     @Override
     public void destroy() {
-        assert getView().getParent() == null : "Destroy called before removed from window";
+        assert !mIsAttachedToWindow : "Destroy called before removed from window";
         mRecentTabsManager.destroy();
         mRecentTabsManager = null;
         mAdapter.notifyDataSetInvalidated();
@@ -183,6 +205,11 @@ public class RecentTabsPage
         // another tab.
         mIsAttachedToWindow = true;
         updateForegroundState();
+
+        // Work around a bug on Samsung devices where the recent tabs page does not appear after
+        // toggling the Sync quick setting.  For some reason, the layout is being dropped on the
+        // flow and we need to force a root level layout to get the UI to appear.
+        view.getRootView().requestLayout();
     }
 
     @Override

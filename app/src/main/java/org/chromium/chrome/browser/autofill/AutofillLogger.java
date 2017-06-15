@@ -44,8 +44,8 @@ public class AutofillLogger {
         public void didFillField(LogEntry logItem);
     }
 
-    private static Logger sLogger = null;
-    private static Logger sLoggerForTest = null;
+    private static Logger sLogger;
+    private static Logger sLoggerForTest;
 
     @VisibleForTesting
     public static void setLogger(Logger logger) {

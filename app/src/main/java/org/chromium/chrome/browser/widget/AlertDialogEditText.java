@@ -14,6 +14,7 @@ import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -45,7 +46,9 @@ public class AlertDialogEditText extends AppCompatEditText {
                     MenuItem item = menu.getItem(i);
                     Drawable icon = item.getIcon();
                     if (icon == null) break;
-                    icon.setColorFilter(getResources().getColor(R.color.light_normal_color),
+                    icon.setColorFilter(
+                            ApiCompatibilityUtils.getColor(getResources(),
+                                    R.color.light_normal_color),
                             PorterDuff.Mode.SRC_IN);
                     item.setIcon(icon);
                 }

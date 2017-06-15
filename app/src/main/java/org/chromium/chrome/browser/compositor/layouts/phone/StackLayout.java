@@ -17,12 +17,15 @@ import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation.Animatable;
 import org.chromium.chrome.browser.compositor.layouts.Layout;
+import org.chromium.chrome.browser.compositor.layouts.LayoutManager;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EventFilter;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.GestureEventFilter;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.GestureHandler;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.layouts.phone.stack.Stack;
 import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackTab;
 import org.chromium.chrome.browser.compositor.scene_layer.SceneLayer;
@@ -33,6 +36,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.util.FeatureUtilities;
 import org.chromium.chrome.browser.util.MathUtils;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.resources.ResourceManager;
@@ -82,7 +86,7 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
 
     private int mStackAnimationCount;
 
-    private float mFlingSpeed = 0; // pixel/ms
+    private float mFlingSpeed; // pixel/ms
 
     /** Whether the current fling animation is the result of switching stacks. */
     private boolean mFlingFromModelChange;
@@ -94,8 +98,8 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     // from the event handler; and mRenderedScrollIndex is the value we get
     // after map mScrollIndex through a decelerate function.
     // Here we use float as index so we can smoothly animate the transition between stack.
-    private float mRenderedScrollOffset = 0.0f;
-    private float mScrollIndexOffset = 0.0f;
+    private float mRenderedScrollOffset;
+    private float mScrollIndexOffset;
 
     private final int mMinMaxInnerMargin;
     private float mInnerMarginPercent;
@@ -113,7 +117,7 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     // We use StackTab[] instead of ArrayList<StackTab> because the sorting function does
     // an allocation to iterate over the elements.
     // Do not use out of the context of {@link #updateTabPriority}.
-    private StackTab[] mSortedPriorityArray = null;
+    private StackTab[] mSortedPriorityArray;
 
     private final ArrayList<Integer> mVisibilityArray = new ArrayList<Integer>();
     private final VisibilityComparator mVisibilityComparator = new VisibilityComparator();
@@ -121,17 +125,126 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     private Comparator<StackTab> mSortingComparator = mVisibilityComparator;
 
     private static final int LAYOUTTAB_ASYNCHRONOUS_INITIALIZATION_BATCH_SIZE = 4;
-    private boolean mDelayedLayoutTabInitRequired = false;
+    private boolean mDelayedLayoutTabInitRequired;
 
     private Boolean mTemporarySelectedStack;
 
     // Orientation Variables
-    private PortraitViewport mCachedPortraitViewport = null;
-    private PortraitViewport mCachedLandscapeViewport = null;
+    private PortraitViewport mCachedPortraitViewport;
+    private PortraitViewport mCachedLandscapeViewport;
 
     private final ViewGroup mViewContainer;
 
+    private final GestureEventFilter mGestureEventFilter;
     private final TabListSceneLayer mSceneLayer;
+
+    private StackLayoutGestureHandler mGestureHandler;
+
+    private class StackLayoutGestureHandler implements GestureHandler {
+        @Override
+        public void onDown(float x, float y, boolean fromMouse, int buttons) {
+            long time = time();
+            mLastOnDownX = x;
+            mLastOnDownY = y;
+            mLastOnDownTimeStamp = time;
+            mInputMode = computeInputMode(time, x, y, 0, 0);
+            mStacks[getTabStackIndex()].onDown(time);
+        }
+
+        @Override
+        public void onUpOrCancel() {
+            onUpOrCancel(time());
+        }
+
+        @Override
+        public void drag(float x, float y, float dx, float dy, float tx, float ty) {
+            SwipeMode oldInputMode = mInputMode;
+            long time = time();
+            float amountX = dx;
+            float amountY = dy;
+            mInputMode = computeInputMode(time, x, y, amountX, amountY);
+
+            if (oldInputMode == SwipeMode.SEND_TO_STACK && mInputMode == SwipeMode.SWITCH_STACK) {
+                mStacks[getTabStackIndex()].onUpOrCancel(time);
+            } else if (oldInputMode == SwipeMode.SWITCH_STACK
+                    && mInputMode == SwipeMode.SEND_TO_STACK) {
+                onUpOrCancel(time);
+            }
+
+            if (mInputMode == SwipeMode.SEND_TO_STACK) {
+                mStacks[getTabStackIndex()].drag(time, x, y, amountX, amountY);
+            } else if (mInputMode == SwipeMode.SWITCH_STACK) {
+                scrollStacks(getOrientation() == Orientation.PORTRAIT ? amountX : amountY);
+            }
+        }
+
+        @Override
+        public void click(float x, float y, boolean fromMouse, int buttons) {
+            // Click event happens before the up event. mClicked is set to mute the up event.
+            mClicked = true;
+            PortraitViewport viewportParams = getViewportParameters();
+            int stackIndexAt = viewportParams.getStackIndexAt(x, y);
+            if (stackIndexAt == getTabStackIndex()) {
+                mStacks[getTabStackIndex()].click(time(), x, y);
+            } else {
+                flingStacks(getTabStackIndex() == 0);
+            }
+            requestStackUpdate();
+        }
+
+        @Override
+        public void fling(float x, float y, float velocityX, float velocityY) {
+            long time = time();
+            float vx = velocityX;
+            float vy = velocityY;
+
+            if (mInputMode == SwipeMode.NONE) {
+                mInputMode = computeInputMode(
+                        time, x, y, vx * SWITCH_STACK_FLING_DT, vy * SWITCH_STACK_FLING_DT);
+            }
+
+            if (mInputMode == SwipeMode.SEND_TO_STACK) {
+                mStacks[getTabStackIndex()].fling(time, x, y, vx, vy);
+            } else if (mInputMode == SwipeMode.SWITCH_STACK) {
+                final float velocity = getOrientation() == Orientation.PORTRAIT ? vx : vy;
+                final float origin = getOrientation() == Orientation.PORTRAIT ? x : y;
+                final float max =
+                        getOrientation() == Orientation.PORTRAIT ? getWidth() : getHeight();
+                final float predicted = origin + velocity * SWITCH_STACK_FLING_DT;
+                final float delta = MathUtils.clamp(predicted, 0, max) - origin;
+                scrollStacks(delta);
+            }
+            requestStackUpdate();
+        }
+
+        @Override
+        public void onLongPress(float x, float y) {
+            mStacks[getTabStackIndex()].onLongPress(time(), x, y);
+        }
+
+        @Override
+        public void onPinch(float x0, float y0, float x1, float y1, boolean firstEvent) {
+            mStacks[getTabStackIndex()].onPinch(time(), x0, y0, x1, y1, firstEvent);
+        }
+
+        private void onUpOrCancel(long time) {
+            int currentIndex = getTabStackIndex();
+            int nextIndex = 1 - currentIndex;
+            if (!mClicked
+                    && Math.abs(currentIndex + mRenderedScrollOffset) > THRESHOLD_TO_SWITCH_STACK
+                    && mStacks[nextIndex].isDisplayable()) {
+                setActiveStackState(nextIndex == 1);
+            }
+            mClicked = false;
+            finishScrollStacks();
+            mStacks[getTabStackIndex()].onUpOrCancel(time);
+            mInputMode = SwipeMode.NONE;
+        }
+
+        private long time() {
+            return LayoutManager.time();
+        }
+    }
 
     /**
      * @param context     The current Android's context.
@@ -139,10 +252,11 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
      * @param renderHost  The {@link LayoutRenderHost} view for this layout.
      * @param eventFilter The {@link EventFilter} that is needed for this view.
      */
-    public StackLayout(Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost,
-            EventFilter eventFilter) {
-        super(context, updateHost, renderHost, eventFilter);
+    public StackLayout(Context context, LayoutUpdateHost updateHost, LayoutRenderHost renderHost) {
+        super(context, updateHost, renderHost);
 
+        mGestureHandler = new StackLayoutGestureHandler();
+        mGestureEventFilter = new GestureEventFilter(context, mGestureHandler);
         final ViewConfiguration configuration = ViewConfiguration.get(context);
         mMinDirectionThreshold = configuration.getScaledTouchSlop();
         mMinShortPressThresholdSqr =
@@ -162,8 +276,39 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     @Override
-    public int getSizingFlags() {
-        return SizingFlags.ALLOW_TOOLBAR_SHOW | SizingFlags.REQUIRE_FULLSCREEN_SIZE;
+    public boolean forceShowBrowserControlsAndroidView() {
+        return true;
+    }
+
+    /**
+     * Simulates a click on the view at the specified pixel offset
+     * from the top left of the view.
+     * This is used by UI tests.
+     * @param x Coordinate of the click in dp.
+     * @param y Coordinate of the click in dp.
+     */
+    @VisibleForTesting
+    public void simulateClick(float x, float y) {
+        mGestureHandler.click(x, y, false, -1);
+    }
+
+    /**
+     * Simulates a drag and issues Up-event to commit the drag.
+     * @param x  Coordinate to start the Drag from in dp.
+     * @param y  Coordinate to start the Drag from in dp.
+     * @param dX Amount of drag in X direction in dp.
+     * @param dY Amount of drag in Y direction in dp.
+     */
+    @VisibleForTesting
+    public void simulateDrag(float x, float y, float dX, float dY) {
+        mGestureHandler.onDown(x, y, false, -1);
+        mGestureHandler.drag(x, y, dX, dY, -1, -1);
+        mGestureHandler.onUpOrCancel();
+    }
+
+    @Override
+    public ViewportMode getViewportMode() {
+        return ViewportMode.ALWAYS_FULLSCREEN;
     }
 
     @Override
@@ -341,10 +486,28 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         mStacks[getTabStackIndex(id)].tabCreated(time, id);
         startMarginAnimation(false);
         uiPreemptivelySelectTabModel(newIsIncognito);
+
+        // TODO(twellington): Add a proper tab creation animation rather than disabling the current
+        //                    animation.
+        if (FeatureUtilities.isChromeHomeEnabled()) {
+            onUpdateAnimation(System.currentTimeMillis(), true);
+        }
+    }
+
+    @Override
+    public void onTabRestored(long time, int tabId) {
+        super.onTabRestored(time, tabId);
+        // Call show() so that new stack tabs and potentially new stacks get created.
+        // TODO(twellington): add animation for showing the restored tab.
+        show(time, false);
     }
 
     @Override
     public void onTabModelSwitched(boolean toIncognitoTabModel) {
+        // There is no need to respond to the tab model switch if the stack for the newly selected
+        // tab model is already showing.
+        if ((toIncognitoTabModel ? 1 : 0) == getTabStackIndex()) return;
+
         flingStacks(toIncognitoTabModel);
         mFlingFromModelChange = true;
     }
@@ -465,6 +628,9 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     private void startMarginAnimation(boolean enter, boolean showIncognito) {
+        // Any outstanding animations must be cancelled to avoid race condition.
+        cancelAnimation(this, Property.INNER_MARGIN_PERCENT);
+
         float start = mInnerMarginPercent;
         float end = enter && showIncognito ? 1.0f : 0.0f;
         if (start != end) {
@@ -473,6 +639,9 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     private void startYOffsetAnimation(boolean enter) {
+        // Any outstanding animations must be cancelled to avoid race condition.
+        cancelAnimation(this, Property.STACK_OFFSET_Y_PERCENT);
+
         float start = mStackOffsetYPercent;
         float end = enter ? 1.f : 0.f;
         if (start != end) {
@@ -490,11 +659,12 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         // Remove any views in case we're getting another call to show before we hide (quickly
         // toggling the tab switcher button).
         mViewContainer.removeAllViews();
+        int currentTabModel = mTabModelSelector.isIncognitoSelected() ? 1 : 0;
 
         for (int i = mStacks.length - 1; i >= 0; --i) {
             mStacks[i].reset();
             if (mStacks[i].isDisplayable()) {
-                mStacks[i].show();
+                mStacks[i].show(i == currentTabModel);
             } else {
                 mStacks[i].cleanupTabs();
             }
@@ -571,25 +741,6 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         requestStackUpdate();
     }
 
-    @Override
-    public void drag(long time, float x, float y, float amountX, float amountY) {
-        SwipeMode oldInputMode = mInputMode;
-        mInputMode = computeInputMode(time, x, y, amountX, amountY);
-
-        if (oldInputMode == SwipeMode.SEND_TO_STACK && mInputMode == SwipeMode.SWITCH_STACK) {
-            mStacks[getTabStackIndex()].onUpOrCancel(time);
-        } else if (oldInputMode == SwipeMode.SWITCH_STACK
-                && mInputMode == SwipeMode.SEND_TO_STACK) {
-            onUpOrCancel(time);
-        }
-
-        if (mInputMode == SwipeMode.SEND_TO_STACK) {
-            mStacks[getTabStackIndex()].drag(time, x, y, amountX, amountY);
-        } else if (mInputMode == SwipeMode.SWITCH_STACK) {
-            scrollStacks(getOrientation() == Orientation.PORTRAIT ? amountX : amountY);
-        }
-    }
-
     /**
      * Computes the input mode for drag and fling based on the first event position.
      * @param time The current time of the app in ms.
@@ -639,31 +790,11 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         return SwipeMode.NONE;
     }
 
-    @Override
-    public void fling(long time, float x, float y, float vx, float vy) {
-        if (mInputMode == SwipeMode.NONE) {
-            mInputMode = computeInputMode(
-                    time, x, y, vx * SWITCH_STACK_FLING_DT, vy * SWITCH_STACK_FLING_DT);
-        }
-
-        if (mInputMode == SwipeMode.SEND_TO_STACK) {
-            mStacks[getTabStackIndex()].fling(time, x, y, vx, vy);
-        } else if (mInputMode == SwipeMode.SWITCH_STACK) {
-            final float velocity = getOrientation() == Orientation.PORTRAIT ? vx : vy;
-            final float origin = getOrientation() == Orientation.PORTRAIT ? x : y;
-            final float max = getOrientation() == Orientation.PORTRAIT ? getWidth() : getHeight();
-            final float predicted = origin + velocity * SWITCH_STACK_FLING_DT;
-            final float delta = MathUtils.clamp(predicted, 0, max) - origin;
-            scrollStacks(delta);
-        }
-        requestStackUpdate();
-    }
-
     class PortraitViewport {
         protected float mWidth, mHeight;
         PortraitViewport() {
             mWidth = StackLayout.this.getWidth();
-            mHeight = StackLayout.this.getHeightMinusTopControls();
+            mHeight = StackLayout.this.getHeightMinusBrowserControls();
         }
 
         float getClampedRenderedScrollOffset() {
@@ -719,7 +850,8 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         }
 
         float getTopHeightOffset() {
-            return (StackLayout.this.getHeight() - getHeightMinusTopControls())
+            if (FeatureUtilities.isChromeHomeEnabled()) return 0;
+            return (StackLayout.this.getHeight() - getHeightMinusBrowserControls())
                     * mStackOffsetYPercent;
         }
     }
@@ -727,7 +859,7 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     class LandscapeViewport extends PortraitViewport {
         LandscapeViewport() {
             // This is purposefully inverted.
-            mWidth = StackLayout.this.getHeightMinusTopControls();
+            mWidth = StackLayout.this.getHeightMinusBrowserControls();
             mHeight = StackLayout.this.getWidth();
         }
 
@@ -788,20 +920,6 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
             }
             return mCachedLandscapeViewport;
         }
-    }
-
-    @Override
-    public void click(long time, float x, float y) {
-        // Click event happens before the up event. mClicked is set to mute the up event.
-        mClicked = true;
-        PortraitViewport viewportParams = getViewportParameters();
-        int stackIndexAt = viewportParams.getStackIndexAt(x, y);
-        if (stackIndexAt == getTabStackIndex()) {
-            mStacks[getTabStackIndex()].click(time, x, y);
-        } else {
-            flingStacks(getTabStackIndex() == 0);
-        }
-        requestStackUpdate();
     }
 
     /**
@@ -876,34 +994,6 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         }
     }
 
-    @Override
-    public void onDown(long time, float x, float y) {
-        mLastOnDownX = x;
-        mLastOnDownY = y;
-        mLastOnDownTimeStamp = time;
-        mInputMode = computeInputMode(time, x, y, 0, 0);
-        mStacks[getTabStackIndex()].onDown(time);
-    }
-
-    @Override
-    public void onLongPress(long time, float x, float y) {
-        mStacks[getTabStackIndex()].onLongPress(time, x, y);
-    }
-
-    @Override
-    public void onUpOrCancel(long time) {
-        int currentIndex = getTabStackIndex();
-        int nextIndex = 1 - currentIndex;
-        if (!mClicked && Math.abs(currentIndex + mRenderedScrollOffset) > THRESHOLD_TO_SWITCH_STACK
-                && mStacks[nextIndex].isDisplayable()) {
-            setActiveStackState(nextIndex == 1);
-        }
-        mClicked = false;
-        finishScrollStacks();
-        mStacks[getTabStackIndex()].onUpOrCancel(time);
-        mInputMode = SwipeMode.NONE;
-    }
-
     /**
      * Pushes a rectangle to be drawn on the screen on top of everything.
      *
@@ -922,11 +1012,6 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
             rect.top = tmp;
         }
         mRenderHost.pushDebugRect(rect, color);
-    }
-
-    @Override
-    public void onPinch(long time, float x0, float y0, float x1, float y1, boolean firstEvent) {
-        mStacks[getTabStackIndex()].onPinch(time, x0, y0, x1, y1, firstEvent);
     }
 
     @Override
@@ -1032,14 +1117,17 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     private float getFullScrollDistance() {
-        float distance =
-                getOrientation() == Orientation.PORTRAIT ? getWidth() : getHeightMinusTopControls();
+        float distance = getOrientation() == Orientation.PORTRAIT ? getWidth()
+                                                                  : getHeightMinusBrowserControls();
         return distance - 2 * getViewportParameters().getInnerMargin();
     }
 
     @Override
     public void doneHiding() {
         super.doneHiding();
+
+        mInnerMarginPercent = 0.0f;
+        mStackOffsetYPercent = 0.0f;
         mTabModelSelector.commitAllTabClosures();
     }
 
@@ -1176,6 +1264,9 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
         }
     }
 
+    @Override
+    public void onPropertyAnimationFinished(Property prop) {}
+
     /**
      * Called by the stacks whenever they start an animation.
      */
@@ -1193,18 +1284,28 @@ public class StackLayout extends Layout implements Animatable<StackLayout.Proper
     }
 
     @Override
+    protected EventFilter getEventFilter() {
+        return mGestureEventFilter;
+    }
+
+    @Override
     protected SceneLayer getSceneLayer() {
         return mSceneLayer;
     }
 
     @Override
-    protected void updateSceneLayer(Rect viewport, Rect contentViewport,
+    protected void updateSceneLayer(RectF viewport, RectF contentViewport,
             LayerTitleCache layerTitleCache, TabContentManager tabContentManager,
             ResourceManager resourceManager, ChromeFullscreenManager fullscreenManager) {
         super.updateSceneLayer(viewport, contentViewport, layerTitleCache, tabContentManager,
                 resourceManager, fullscreenManager);
+        // If the browser controls are at the bottom make sure to use theme colors for this layout
+        // specifically.
+        if (fullscreenManager.areBrowserControlsAtBottom() && mLayoutTabs != null) {
+            for (LayoutTab t : mLayoutTabs) t.setForceDefaultThemeColor(false);
+        }
         assert mSceneLayer != null;
         mSceneLayer.pushLayers(getContext(), viewport, contentViewport, this, layerTitleCache,
-                tabContentManager, resourceManager);
+                tabContentManager, resourceManager, fullscreenManager);
     }
 }

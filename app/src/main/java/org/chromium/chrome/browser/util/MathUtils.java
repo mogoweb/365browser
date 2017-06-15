@@ -9,6 +9,9 @@ package org.chromium.chrome.browser.util;
  */
 public class MathUtils {
 
+    /** A minimum difference to use when comparing floats for equality. */
+    public static final float EPSILON = 0.001f;
+
     private MathUtils() {}
 
     /**
@@ -157,5 +160,15 @@ public class MathUtils {
      */
     public static int compareLongs(long lhs, long rhs) {
         return lhs < rhs ? -1 : (lhs == rhs ? 0 : 1);
+    }
+
+    /**
+     * Determine if two floats are equal.
+     * @param f1 The first float to compare.
+     * @param f2 The second float to compare.
+     * @return True if the floats are equal.
+     */
+    public static boolean areFloatsEqual(float f1, float f2) {
+        return Math.abs(f1 - f2) < MathUtils.EPSILON;
     }
 }

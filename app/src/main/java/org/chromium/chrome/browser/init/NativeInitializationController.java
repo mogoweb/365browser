@@ -4,17 +4,17 @@
 
 package org.chromium.chrome.browser.init;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.library_loader.ProcessInitException;
-import org.chromium.content.browser.ChildProcessLauncher;
+import org.chromium.chrome.browser.firstrun.FirstRunFlowSequencer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +28,6 @@ import java.util.List;
 class NativeInitializationController {
     private static final String TAG = "NativeInitializationController";
 
-    private final Context mContext;
     private final ChromeActivityNativeDelegate mActivityDelegate;
     private final Handler mHandler;
 
@@ -36,7 +35,10 @@ class NativeInitializationController {
     private boolean mOnResumePending;
     private List<Intent> mPendingNewIntents;
     private List<ActivityResult> mPendingActivityResults;
-    private boolean mWaitingForFirstDraw;
+
+    private Boolean mBackgroundTasksComplete;
+    private boolean mHasDoneFirstDraw;
+    private boolean mHasSignaledLibraryLoaded;
     private boolean mInitializationComplete;
 
     /**
@@ -58,12 +60,9 @@ class NativeInitializationController {
     /**
      * Create the NativeInitializationController using the main loop and the application context.
      * It will be linked back to the activity via the given delegate.
-     * @param context The context to pull the application context from.
      * @param activityDelegate The activity delegate for the owning activity.
      */
-    public NativeInitializationController(Context context,
-            ChromeActivityNativeDelegate activityDelegate) {
-        mContext = context.getApplicationContext();
+    public NativeInitializationController(ChromeActivityNativeDelegate activityDelegate) {
         mHandler = new Handler(Looper.getMainLooper());
         mActivityDelegate = activityDelegate;
     }
@@ -71,49 +70,58 @@ class NativeInitializationController {
     /**
      * Start loading the native library in the background. This kicks off the native initialization
      * process.
+     *
+     * @param allocateChildConnection Whether a spare child connection should be allocated. Set to
+     *                                false if you know that no new renderer is needed.
      */
-    public void startBackgroundTasks() {
-        // TODO(yusufo) : Investigate using an AsyncTask for this.
-        new Thread() {
+    public void startBackgroundTasks(final boolean allocateChildConnection) {
+        ThreadUtils.assertOnUiThread();
+        assert mBackgroundTasksComplete == null;
+        boolean fetchVariationsSeed = FirstRunFlowSequencer.checkIfFirstRunIsNecessary(
+                                              ContextUtils.getApplicationContext(),
+                                              mActivityDelegate.getInitialIntent(), false)
+                != null;
+
+        mBackgroundTasksComplete = false;
+        new AsyncInitTaskRunner() {
+
             @Override
-            public void run() {
-                try {
-                    LibraryLoader libraryLoader =
-                            LibraryLoader.get(LibraryProcessType.PROCESS_BROWSER);
-                    libraryLoader.ensureInitialized(mContext.getApplicationContext());
-                    // The prefetch is done after the library load for two reasons:
-                    // - It is easier to know the library location after it has
-                    //   been loaded.
-                    // - Testing has shown that this gives the best compromise,
-                    //   by avoiding performance regression on any tested
-                    //   device, and providing performance improvement on
-                    //   some. Doing it earlier delays UI inflation and more
-                    //   generally startup on some devices, most likely by
-                    //   competing for IO.
-                    // For experimental results, see http://crbug.com/460438.
-                    libraryLoader.asyncPrefetchLibrariesToMemory();
-                } catch (ProcessInitException e) {
-                    Log.e(TAG, "Unable to load native library.", e);
-                    mActivityDelegate.onStartupFailure();
-                    return;
-                }
-                ChildProcessLauncher.warmUp(mContext);
-                ThreadUtils.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        onLibraryLoaded();
-                    }
-                });
+            protected void onSuccess() {
+                ThreadUtils.assertOnUiThread();
+
+                mBackgroundTasksComplete = true;
+                signalNativeLibraryLoadedIfReady();
             }
-        }.start();
+
+            @Override
+            protected void onFailure() {
+                // Initialization has failed, call onStartup failure to abandon the activity.
+                // This is not expected to return, so there is no need to set
+                // mBackgroundTasksComplete or do any other tidying up.
+                mActivityDelegate.onStartupFailure();
+            }
+
+        }.startBackgroundTasks(allocateChildConnection, fetchVariationsSeed);
     }
 
-    private void onLibraryLoaded() {
-        if (mActivityDelegate.hasDoneFirstDraw()) {
-            // First draw is done
-            onNativeLibraryLoaded();
-        } else {
-            mWaitingForFirstDraw = true;
+    private void signalNativeLibraryLoadedIfReady() {
+        ThreadUtils.assertOnUiThread();
+
+        // Called on UI thread when any of the booleans below have changed.
+        if (mHasDoneFirstDraw && (mBackgroundTasksComplete != null && mBackgroundTasksComplete)) {
+            // This block should only be hit once.
+            assert !mHasSignaledLibraryLoaded;
+            mHasSignaledLibraryLoaded = true;
+
+            // Allow the UI thread to continue its initialization - so that this call back
+            // doesn't block priority work on the UI thread until it's idle.
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (mActivityDelegate.isActivityDestroyed()) return;
+                    mActivityDelegate.onCreateWithNative();
+                }
+            });
         }
     }
 
@@ -122,22 +130,8 @@ class NativeInitializationController {
      * load has to be completed to start the chromium browser process.
      */
     public void firstDrawComplete() {
-        if (mWaitingForFirstDraw) {
-            mWaitingForFirstDraw = false;
-            // Allow the UI thread to continue its initialization
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    onNativeLibraryLoaded();
-                }
-            });
-        }
-    }
-
-    private void onNativeLibraryLoaded() {
-        // Callback from LibraryLoader on UI thread, when the load has completed.
-        if (mActivityDelegate.isActivityDestroyed()) return;
-        mActivityDelegate.onCreateWithNative();
+        mHasDoneFirstDraw = true;
+        signalNativeLibraryLoadedIfReady();
     }
 
     /**
@@ -159,7 +153,7 @@ class NativeInitializationController {
 
         try {
             LibraryLoader.get(LibraryProcessType.PROCESS_BROWSER)
-                    .onNativeInitializationComplete(mContext.getApplicationContext());
+                    .onNativeInitializationComplete();
         } catch (ProcessInitException e) {
             Log.e(TAG, "Unable to load native library.", e);
             mActivityDelegate.onStartupFailure();
@@ -214,7 +208,7 @@ class NativeInitializationController {
         if (mInitializationComplete) {
             mActivityDelegate.onNewIntentWithNative(intent);
         } else {
-            if (mPendingNewIntents == null) mPendingNewIntents = new ArrayList<Intent>(1);
+            if (mPendingNewIntents == null) mPendingNewIntents = new ArrayList<>(1);
             mPendingNewIntents.add(intent);
         }
     }
@@ -231,7 +225,7 @@ class NativeInitializationController {
             mActivityDelegate.onActivityResultWithNative(requestCode, resultCode, data);
         } else {
             if (mPendingActivityResults == null) {
-                mPendingActivityResults = new ArrayList<ActivityResult>(1);
+                mPendingActivityResults = new ArrayList<>(1);
             }
             mPendingActivityResults.add(new ActivityResult(requestCode, resultCode, data));
         }

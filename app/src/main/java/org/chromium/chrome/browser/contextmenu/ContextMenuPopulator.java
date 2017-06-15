@@ -5,7 +5,10 @@
 package org.chromium.chrome.browser.contextmenu;
 
 import android.content.Context;
+import android.util.Pair;
 import android.view.ContextMenu;
+
+import java.util.List;
 
 /**
  * A delegate responsible for populating context menus and processing results from
@@ -13,20 +16,23 @@ import android.view.ContextMenu;
  */
 public interface ContextMenuPopulator {
     /**
-     * Determines whether or not a context menu should be shown for {@code params}.
-     * @param params The {@link ContextMenuParams} that represent what should be shown in the
-     *               context menu.
-     * @return       Whether or not a context menu should be shown.
+     *  Called when this ContextMenuPopulator is about to be destroyed.
      */
-    public boolean shouldShowContextMenu(ContextMenuParams params);
+    public void onDestroy();
 
     /**
      * Should be used to populate {@code menu} with the correct context menu items.
      * @param menu    The menu to populate.
      * @param context A {@link Context} instance.
      * @param params  The parameters that represent what should be shown in the context menu.
+     * @return A list separate by groups. Each "group" will contain items related to said group as
+     *         well as an integer that is a string resource for the group. Image items will have
+     *         items that belong to that are related to that group and the string resource for the
+     *         group will likely say "IMAGE". If the link pressed is contains multiple items (like
+     *         an image link) the list will have both an image list and a link list.
      */
-    public void buildContextMenu(ContextMenu menu, Context context, ContextMenuParams params);
+    public List<Pair<Integer, List<ContextMenuItem>>> buildContextMenu(
+            ContextMenu menu, Context context, ContextMenuParams params);
 
     /**
      * Called when a context menu item has been selected.

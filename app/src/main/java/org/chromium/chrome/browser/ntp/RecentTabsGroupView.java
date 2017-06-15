@@ -13,12 +13,10 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ntp.ForeignSessionHelper.ForeignSession;
 import org.chromium.chrome.browser.widget.TintedDrawable;
-import org.chromium.ui.base.DeviceFormFactor;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Header view shown above each group of items on the Recent Tabs page. Shows the name of the
@@ -35,7 +33,6 @@ public class RecentTabsGroupView extends RelativeLayout {
     private ImageView mExpandCollapseIcon;
     private TextView mDeviceLabel;
     private TextView mTimeLabel;
-    private long mInitializationTimestamp;
     private int mDeviceLabelExpandedColor;
     private int mDeviceLabelCollapsedColor;
     private int mTimeLabelExpandedColor;
@@ -50,10 +47,13 @@ public class RecentTabsGroupView extends RelativeLayout {
     public RecentTabsGroupView(Context context, AttributeSet attrs) {
         super(context, attrs);
         Resources res = getResources();
-        mDeviceLabelExpandedColor = res.getColor(R.color.light_active_color);
-        mDeviceLabelCollapsedColor = res.getColor(R.color.ntp_list_header_text);
-        mTimeLabelExpandedColor = res.getColor(R.color.ntp_list_header_subtext_active);
-        mTimeLabelCollapsedColor = res.getColor(R.color.ntp_list_header_subtext);
+        mDeviceLabelExpandedColor = ApiCompatibilityUtils.getColor(res, R.color.light_active_color);
+        mDeviceLabelCollapsedColor =
+                ApiCompatibilityUtils.getColor(res, R.color.ntp_list_header_text);
+        mTimeLabelExpandedColor =
+                ApiCompatibilityUtils.getColor(res, R.color.ntp_list_header_subtext_active);
+        mTimeLabelCollapsedColor =
+                ApiCompatibilityUtils.getColor(res, R.color.ntp_list_header_subtext);
     }
 
     @Override
@@ -67,36 +67,13 @@ public class RecentTabsGroupView extends RelativeLayout {
         // Create drawable for expand/collapse arrow.
         LevelListDrawable collapseIcon = new LevelListDrawable();
         collapseIcon.addLevel(DRAWABLE_LEVEL_COLLAPSED, DRAWABLE_LEVEL_COLLAPSED,
-                TintedDrawable.constructTintedDrawable(getResources(), R.drawable.ic_expand));
+                TintedDrawable.constructTintedDrawable(getResources(), R.drawable.ic_expanded));
         TintedDrawable collapse =
-                TintedDrawable.constructTintedDrawable(getResources(), R.drawable.ic_collapse);
-        collapse.setTint(getResources().getColorStateList(R.color.blue_mode_tint));
+                TintedDrawable.constructTintedDrawable(getResources(), R.drawable.ic_collapsed);
+        collapse.setTint(
+                ApiCompatibilityUtils.getColorStateList(getResources(), R.color.blue_mode_tint));
         collapseIcon.addLevel(DRAWABLE_LEVEL_EXPANDED, DRAWABLE_LEVEL_EXPANDED, collapse);
         mExpandCollapseIcon.setImageDrawable(collapseIcon);
-    }
-
-    /**
-     * Initialize the state of the group view. Should be called immediatly after object creation.
-     *
-     * @param initializationTimestamp The timestamp to compute the time since last session sync.
-     */
-    public void initialize(long initializationTimestamp) {
-        mInitializationTimestamp = initializationTimestamp;
-    }
-
-    /**
-     * Configures the view for currently open tabs.
-     *
-     * @param isExpanded Whether the view is expanded or collapsed.
-     */
-    public void configureForCurrentlyOpenTabs(boolean isExpanded) {
-        mDeviceIcon.setVisibility(View.VISIBLE);
-        mDeviceIcon.setImageResource(DeviceFormFactor.isTablet(getContext())
-                ? R.drawable.recent_tablet : R.drawable.recent_phone);
-        String title = getResources().getString(R.string.recent_tabs_this_device);
-        mDeviceLabel.setText(title);
-        setTimeLabelVisibility(View.GONE);
-        configureExpandedCollapsed(isExpanded);
     }
 
     /**
@@ -166,27 +143,28 @@ public class RecentTabsGroupView extends RelativeLayout {
         mTimeLabel.setTextColor(isExpanded ? mTimeLabelExpandedColor : mTimeLabelCollapsedColor);
     }
 
-    private String getTimeString(ForeignSession session) {
-        long sessionModifiedTimeSeconds =
-                TimeUnit.SECONDS.convert(session.modifiedTime, TimeUnit.MILLISECONDS);
-        long timeDelta = mInitializationTimestamp - sessionModifiedTimeSeconds;
-        timeDelta = timeDelta > 0 ? timeDelta : 0;
+    private CharSequence getTimeString(ForeignSession session) {
+        long timeDeltaMs = System.currentTimeMillis() - session.modifiedTime;
+        if (timeDeltaMs < 0) timeDeltaMs = 0;
 
-        long daysElapsed = timeDelta / (24L * 60L * 60L);
-        long hoursElapsed = timeDelta / (60L * 60L);
-        long minutesElapsed = timeDelta / 60L;
+        int daysElapsed = (int) (timeDeltaMs / (24L * 60L * 60L * 1000L));
+        int hoursElapsed = (int) (timeDeltaMs / (60L * 60L * 1000L));
+        int minutesElapsed = (int) (timeDeltaMs / (60L * 1000L));
 
-        Resources resources = getContext().getResources();
+        Resources res = getResources();
+        String relativeTime;
         if (daysElapsed > 0L) {
-            return resources.getString(R.string.ntp_recent_tabs_last_synced_days, daysElapsed);
+            relativeTime = res.getQuantityString(R.plurals.n_days_ago, daysElapsed, daysElapsed);
         } else if (hoursElapsed > 0L) {
-            return resources.getString(R.string.ntp_recent_tabs_last_synced_hours, hoursElapsed);
+            relativeTime = res.getQuantityString(R.plurals.n_hours_ago, hoursElapsed, hoursElapsed);
         } else if (minutesElapsed > 0L) {
-            return resources.getString(
-                    R.string.ntp_recent_tabs_last_synced_minutes, minutesElapsed);
+            relativeTime = res.getQuantityString(R.plurals.n_minutes_ago, minutesElapsed,
+                    minutesElapsed);
         } else {
-            return resources.getString(R.string.ntp_recent_tabs_last_synced_just_now);
+            relativeTime = res.getString(R.string.just_now);
         }
+
+        return getResources().getString(R.string.ntp_recent_tabs_last_synced, relativeTime);
     }
 
     /**

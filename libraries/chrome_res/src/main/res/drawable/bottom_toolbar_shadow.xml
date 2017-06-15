@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2017 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<!-- ToolbarPhone uses this drawable to transition between shadows when
+     the omnibox focus changes. The bottom toolbar should not have a shadow
+     when the omnibox is unfocused so this TransitionDrawable uses an empty
+     shape for the focused drawable item.
+     TODO(twellington): Remove this after UX has a spec'ed out what the
+     bottom toolbar omnibox un/focus animations should look like. -->
+<transition xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape
+            android:shape="rectangle"
+            android:gravity="top|fill_horizontal" >
+        </shape>
+    </item>
+    <item>
+        <bitmap
+            android:src="@drawable/toolbar_shadow_focused"
+            android:gravity="top|fill_horizontal" />
+    </item>
+</transition>

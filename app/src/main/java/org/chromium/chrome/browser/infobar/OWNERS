@@ -1,4 +1,8 @@
+set noparent
 dfalcantara@chromium.org
+mdjones@chromium.org
 miguelg@chromium.org
 
 per-file GeneratedPasswordSavedInfoBar*=rouslan@chromium.org
+
+# COMPONENT: UI>Browser>Infobars

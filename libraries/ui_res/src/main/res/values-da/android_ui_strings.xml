@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="low_memory_error">"Den tidligerere handling kunne ikke fuldføres på grund af manglende hukommelse"</string>
+<string name="opening_file_error">"Den valgte fil kunne ikke åbnes"</string>
+<string name="copy_to_clipboard_failure_message">"Der kunne ikke kopieres til udklipsholder"</string>
+<string name="accessibility_date_picker_month">"Måned"</string>
+<string name="accessibility_date_picker_year">"År"</string>
+<string name="date_picker_dialog_set">"Angiv"</string>
+<string name="month_picker_dialog_title">"Angiv måned"</string>
+<string name="accessibility_date_picker_week">"Uge"</string>
+<string name="week_picker_dialog_title">"Angiv uge"</string>
+<string name="time_picker_dialog_am">"f.m."</string>
+<string name="time_picker_dialog_pm">"e.m."</string>
+<string name="time_picker_dialog_title">"Angiv klokkeslæt"</string>
+<string name="accessibility_time_picker_hour">"Time"</string>
+<string name="accessibility_time_picker_minute">"Minut"</string>
+<string name="accessibility_time_picker_second">"Sekund"</string>
+<string name="accessibility_time_picker_milli">"Millisekund"</string>
+<string name="accessibility_time_picker_ampm">"f.m./e.m."</string>
+<string name="time_picker_dialog_hour_minute_separator">":"</string>
+<string name="time_picker_dialog_minute_second_separator">":"</string>
+<string name="time_picker_dialog_second_subsecond_separator">"."</string>
+<string name="date_time_picker_dialog_title">"Angiv dato og klokkeslæt"</string>
+<string name="accessibility_datetime_picker_date">"Dato"</string>
+<string name="accessibility_datetime_picker_time">"Tid"</string>
+<string name="date_picker_dialog_other_button_label">"Andet"</string>
+<string name="date_picker_dialog_title">"Angiv dato"</string>
+<string name="date_picker_dialog_clear">"Ryd"</string>
+<string name="photo_picker_select_images">"Vælg billeder"</string>
+<string name="photo_picker_camera">"Kamera"</string>
+<string name="photo_picker_browse">"Gennemse"</string>
+<string name="autofill_popup_content_description">"Viser pop op for AutoFyld"</string>
+<string name="password_generation_popup_content_description">"Viser pop op for generering af adgangskoder"</string>
+<string name="autofill_keyboard_accessory_content_description">"Tilgængelige forslag"</string>
+<string name="updating_chrome">"Opdaterer Chrome…"</string>
+</resources>

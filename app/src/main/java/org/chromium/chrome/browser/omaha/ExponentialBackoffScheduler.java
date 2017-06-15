@@ -34,12 +34,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * This class is not thread-safe because any two different classes could be accessing the same
  * SharedPreferences.
- *
- * TODO(dfalcantara): Consider making this an AlarmManagerHelper class to manage general alarms.
  */
 @NotThreadSafe
 public class ExponentialBackoffScheduler {
-    private static final String TAG = "cr.omaha";
+    private static final String TAG = "omaha";
 
     private static final String PREFERENCE_DELAY = "delay";
     private static final String PREFERENCE_FAILED_ATTEMPTS = "backoffFailedAttempts";
@@ -69,14 +67,10 @@ public class ExponentialBackoffScheduler {
     }
 
     /**
-     * Creates an alarm to fire the specified intent after a random delay.
-     * @param intent The intent to fire.
-     * @return the timestamp of the scheduled intent
+     * Calculates when the next event should occur, including delays due to failures.
      */
-    public long createAlarm(Intent intent) {
-        long delay = generateRandomDelay();
-        long timestamp = delay + getCurrentTime();
-        return createAlarm(intent, timestamp);
+    public long calculateNextTimestamp() {
+        return generateRandomDelay() + getCurrentTime();
     }
 
     /**
@@ -97,8 +91,8 @@ public class ExponentialBackoffScheduler {
      * @return whether or not an alarm was canceled.
      */
     public boolean cancelAlarm(Intent scheduledIntent) {
-        PendingIntent pendingIntent = PendingIntent.getService(mContext, 0, scheduledIntent,
-                PendingIntent.FLAG_NO_CREATE);
+        PendingIntent pendingIntent = PendingIntent.getService(
+                mContext, 0, scheduledIntent, PendingIntent.FLAG_NO_CREATE);
         if (pendingIntent != null) {
             AlarmManager am = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
             am.cancel(pendingIntent);
@@ -175,9 +169,7 @@ public class ExponentialBackoffScheduler {
 
         // Save the delay for sanity checks.
         SharedPreferences preferences = getSharedPreferences();
-        preferences.edit()
-            .putLong(PREFERENCE_DELAY, delay)
-            .apply();
+        preferences.edit().putLong(PREFERENCE_DELAY, delay).apply();
         return delay;
     }
 

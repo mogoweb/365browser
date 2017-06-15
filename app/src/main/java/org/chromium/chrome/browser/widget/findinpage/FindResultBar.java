@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.annotations.SuppressFBWarnings;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.findinpage.FindInPageBridge;
@@ -39,7 +40,7 @@ import java.util.List;
  * between the entries.
  */
 class FindResultBar extends View {
-    private static final int VISIBILTY_ANIMATION_DURATION_MS = 200;
+    private static final int VISIBILITY_ANIMATION_DURATION_MS = 200;
 
     private final int mBackgroundColor;
     private final int mBackgroundBorderColor;
@@ -72,7 +73,7 @@ class FindResultBar extends View {
     private final Paint mFillPaint;
     private final Paint mStrokePaint;
 
-    boolean mWaitingForActivateAck = false;
+    boolean mWaitingForActivateAck;
 
     private static Comparator<RectF> sComparator = new Comparator<RectF>() {
         @Override
@@ -92,17 +93,17 @@ class FindResultBar extends View {
         super(context);
 
         Resources res = context.getResources();
-        mBackgroundColor = res.getColor(
+        mBackgroundColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_background_color);
-        mBackgroundBorderColor = res.getColor(
+        mBackgroundBorderColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_background_border_color);
-        mResultColor = res.getColor(
+        mResultColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_result_color);
-        mResultBorderColor = res.getColor(
+        mResultBorderColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_result_border_color);
-        mActiveColor = res.getColor(
+        mActiveColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_active_color);
-        mActiveBorderColor = res.getColor(
+        mActiveBorderColor = ApiCompatibilityUtils.getColor(res,
                 R.color.find_result_bar_active_border_color);
         mBarTouchWidth = res.getDimensionPixelSize(
                 R.dimen.find_result_bar_touch_width);
@@ -135,7 +136,7 @@ class FindResultBar extends View {
                 MathUtils.flipSignIf(mBarTouchWidth, LocalizationUtils.isLayoutRtl()));
 
         mVisibilityAnimation = ObjectAnimator.ofFloat(this, TRANSLATION_X, 0);
-        mVisibilityAnimation.setDuration(VISIBILTY_ANIMATION_DURATION_MS);
+        mVisibilityAnimation.setDuration(VISIBILITY_ANIMATION_DURATION_MS);
         mVisibilityAnimation.setInterpolator(BakedBezierInterpolator.FADE_IN_CURVE);
         mTab.getWindowAndroid().startAnimationOverContent(mVisibilityAnimation);
     }
@@ -143,13 +144,14 @@ class FindResultBar extends View {
     /** Dismisses this results bar by removing it from the view hierarchy. */
     public void dismiss() {
         mDismissing = true;
+        mFindInPageBridge = null;
         if (mVisibilityAnimation != null && mVisibilityAnimation.isRunning()) {
             mVisibilityAnimation.cancel();
         }
 
         mVisibilityAnimation = ObjectAnimator.ofFloat(this, TRANSLATION_X,
                 MathUtils.flipSignIf(mBarTouchWidth, LocalizationUtils.isLayoutRtl()));
-        mVisibilityAnimation.setDuration(VISIBILTY_ANIMATION_DURATION_MS);
+        mVisibilityAnimation.setDuration(VISIBILITY_ANIMATION_DURATION_MS);
         mVisibilityAnimation.setInterpolator(BakedBezierInterpolator.FADE_OUT_CURVE);
         mTab.getWindowAndroid().startAnimationOverContent(mVisibilityAnimation);
         mVisibilityAnimation.addListener(new AnimatorListenerAdapter() {

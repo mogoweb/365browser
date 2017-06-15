@@ -17,6 +17,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ImageView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 import java.util.Locale;
@@ -59,7 +60,16 @@ public class ExpandablePreferenceGroup extends PreferenceGroup {
                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
 
-        int gray = getContext().getResources().getColor(R.color.expandable_group_dark_gray);
+        // Color the first part of the title blue.
+        ForegroundColorSpan blueSpan = new ForegroundColorSpan(
+                ApiCompatibilityUtils.getColor(getContext().getResources(),
+                        R.color.pref_accent_color));
+        spannable.setSpan(blueSpan, 0, spannable.length() - prefCount.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        // Gray out the total count of items.
+        int gray = ApiCompatibilityUtils.getColor(getContext().getResources(),
+                R.color.expandable_group_dark_gray);
         spannable.setSpan(new ForegroundColorSpan(gray),
                    spannable.length() - prefCount.length(),
                    spannable.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);

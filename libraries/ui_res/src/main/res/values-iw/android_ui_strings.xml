@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="low_memory_error">"לא ניתן להשלים את הפעולה הקודמת עקב מחסור בזיכרון"</string>
+<string name="opening_file_error">"פתיחת הקובץ הנבחר נכשלה"</string>
+<string name="copy_to_clipboard_failure_message">"ההעתקה אל הלוח נכשלה"</string>
+<string name="accessibility_date_picker_month">"חודש"</string>
+<string name="accessibility_date_picker_year">"שנה"</string>
+<string name="date_picker_dialog_set">"הגדר"</string>
+<string name="month_picker_dialog_title">"הגדרת חודש"</string>
+<string name="accessibility_date_picker_week">"שבוע"</string>
+<string name="week_picker_dialog_title">"הגדרת שבוע"</string>
+<string name="time_picker_dialog_am">"AM"</string>
+<string name="time_picker_dialog_pm">"PM"</string>
+<string name="time_picker_dialog_title">"הגדרת שעה"</string>
+<string name="accessibility_time_picker_hour">"שעה"</string>
+<string name="accessibility_time_picker_minute">"דקה"</string>
+<string name="accessibility_time_picker_second">"שנייה"</string>
+<string name="accessibility_time_picker_milli">"אלפית שנייה"</string>
+<string name="accessibility_time_picker_ampm">"AM/PM"</string>
+<string name="time_picker_dialog_hour_minute_separator">":"</string>
+<string name="time_picker_dialog_minute_second_separator">":"</string>
+<string name="time_picker_dialog_second_subsecond_separator">"."</string>
+<string name="date_time_picker_dialog_title">"הגדרת תאריך ושעה"</string>
+<string name="accessibility_datetime_picker_date">"תאריך"</string>
+<string name="accessibility_datetime_picker_time">"שעה"</string>
+<string name="date_picker_dialog_other_button_label">"אחר"</string>
+<string name="date_picker_dialog_title">"הגדרת תאריך"</string>
+<string name="date_picker_dialog_clear">"נקה"</string>
+<string name="photo_picker_select_images">"בחר תמונות"</string>
+<string name="photo_picker_camera">"מצלמה"</string>
+<string name="photo_picker_browse">"דפדף"</string>
+<string name="autofill_popup_content_description">"מציג את החלון הקופץ של מילוי אוטומטי"</string>
+<string name="password_generation_popup_content_description">"מציג את החלון הקופץ של יצירת סיסמה"</string>
+<string name="autofill_keyboard_accessory_content_description">"הצעות זמינות"</string>
+<string name="updating_chrome">"‏מעדכן את Chrome…"</string>
+</resources>

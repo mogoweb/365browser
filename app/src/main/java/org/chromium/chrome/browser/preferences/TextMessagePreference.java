@@ -9,7 +9,6 @@ import android.preference.Preference;
 import android.text.method.LinkMovementMethod;
 import android.util.AttributeSet;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.TextView;
 
 /**
@@ -26,12 +25,12 @@ public class TextMessagePreference extends Preference {
     }
 
     @Override
-    protected View onCreateView(ViewGroup parent) {
-        View view = super.onCreateView(parent);
+    protected void onBindView(View view) {
+        super.onBindView(view);
+
         TextView textView = (TextView) view.findViewById(android.R.id.title);
         textView.setSingleLine(false);
         textView.setMaxLines(Integer.MAX_VALUE);
         textView.setMovementMethod(LinkMovementMethod.getInstance());
-        return view;
     }
 }

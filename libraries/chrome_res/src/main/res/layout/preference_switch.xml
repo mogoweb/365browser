@@ -3,7 +3,7 @@
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
 
-<org.chromium.chrome.browser.widget.ChromeSwitchCompat
+<android.support.v7.widget.SwitchCompat
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/switch_widget"
     android:layout_width="wrap_content"

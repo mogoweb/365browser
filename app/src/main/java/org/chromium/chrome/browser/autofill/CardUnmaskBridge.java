@@ -22,8 +22,10 @@ public class CardUnmaskBridge implements CardUnmaskPromptDelegate {
     private final CardUnmaskPrompt mCardUnmaskPrompt;
 
     public CardUnmaskBridge(long nativeCardUnmaskPromptViewAndroid, String title,
-            String instructions, int iconId, boolean shouldRequestExpirationDate,
-            boolean canStoreLocally, boolean defaultToStoringLocally, WindowAndroid windowAndroid) {
+            String instructions, String confirmButtonLabel, int iconId,
+            boolean shouldRequestExpirationDate, boolean canStoreLocally,
+            boolean defaultToStoringLocally, long successMessageDurationMilliseconds,
+            WindowAndroid windowAndroid) {
         mNativeCardUnmaskPromptViewAndroid = nativeCardUnmaskPromptViewAndroid;
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) {
@@ -38,18 +40,21 @@ public class CardUnmaskBridge implements CardUnmaskPromptDelegate {
             });
         } else {
             mCardUnmaskPrompt = new CardUnmaskPrompt(activity, this, title, instructions,
-                    ResourceId.mapToDrawableId(iconId), shouldRequestExpirationDate,
-                    canStoreLocally, defaultToStoringLocally);
+                    confirmButtonLabel, ResourceId.mapToDrawableId(iconId),
+                    shouldRequestExpirationDate, canStoreLocally, defaultToStoringLocally,
+                    successMessageDurationMilliseconds);
         }
     }
 
     @CalledByNative
     private static CardUnmaskBridge create(long nativeUnmaskPrompt, String title,
-            String instructions, int iconId, boolean shouldRequestExpirationDate,
-            boolean canStoreLocally, boolean defaultToStoringLocally, WindowAndroid windowAndroid) {
-        return new CardUnmaskBridge(nativeUnmaskPrompt, title, instructions, iconId,
-                shouldRequestExpirationDate, canStoreLocally, defaultToStoringLocally,
-                windowAndroid);
+            String instructions, String confirmButtonLabel, int iconId,
+            boolean shouldRequestExpirationDate, boolean canStoreLocally,
+            boolean defaultToStoringLocally, long successMessageDurationMilliseconds,
+            WindowAndroid windowAndroid) {
+        return new CardUnmaskBridge(nativeUnmaskPrompt, title, instructions, confirmButtonLabel,
+                iconId, shouldRequestExpirationDate, canStoreLocally, defaultToStoringLocally,
+                successMessageDurationMilliseconds, windowAndroid);
     }
 
     @Override
@@ -70,6 +75,11 @@ public class CardUnmaskBridge implements CardUnmaskPromptDelegate {
     @Override
     public void onNewCardLinkClicked() {
         nativeOnNewCardLinkClicked(mNativeCardUnmaskPromptViewAndroid);
+    }
+
+    @Override
+    public int getExpectedCvcLength() {
+        return nativeGetExpectedCvcLength(mNativeCardUnmaskPromptViewAndroid);
     }
 
     /**
@@ -129,4 +139,5 @@ public class CardUnmaskBridge implements CardUnmaskPromptDelegate {
             long nativeCardUnmaskPromptViewAndroid, String cvc, String month, String year,
             boolean shouldStoreLocally);
     private native void nativeOnNewCardLinkClicked(long nativeCardUnmaskPromptViewAndroid);
+    private native int nativeGetExpectedCvcLength(long nativeCardUnmaskPromptViewAndroid);
 }

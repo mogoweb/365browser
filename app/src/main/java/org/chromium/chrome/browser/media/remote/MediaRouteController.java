@@ -5,8 +5,9 @@
 package org.chromium.chrome.browser.media.remote;
 
 import android.graphics.Bitmap;
-import android.net.Uri;
 import android.support.v7.media.MediaRouteSelector;
+import android.support.v7.media.MediaRouter;
+import android.support.v7.media.MediaRouter.RouteInfo;
 
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.browser.media.remote.RemoteVideoInfo.PlayerState;
@@ -17,7 +18,7 @@ import org.chromium.chrome.browser.media.remote.RemoteVideoInfo.PlayerState;
  * with simple http source URLs). The MediaRouteController is responsible for configuring
  * and controlling remote playback of the media elements it supports.
  */
-public interface MediaRouteController extends TransportControl.Listener {
+public interface MediaRouteController {
     /**
      * Listener for events that are relevant to the state of the media and the media controls
      */
@@ -27,49 +28,93 @@ public interface MediaRouteController extends TransportControl.Listener {
          * is removed.
          * @param available whether routes are available.
          */
-        public void onRouteAvailabilityChanged(boolean available);
+        void onRouteAvailabilityChanged(boolean available);
+
+        /**
+         * Called when the {@link MediaRouteChooserDialog} is closed with no device selected.
+         */
+        void onRouteDialogCancelled();
 
         /**
          * Called when an error is detected by the media route controller
          */
-        public void onError();
+        void onError();
 
         /**
          * Called when a seek completes on the current route
          */
-        public void onSeekCompleted();
-
-        /**
-         * Called when the current route is ready to be used
-         */
-        public void onPrepared();
-
-        /**
-         * Called when a new route has been selected for Cast
-         * @param name the name of the route
-         */
-        public void onRouteSelected(String name);
+        void onSeekCompleted();
 
         /**
          * Called when the current route is unselected
          */
-        public void onRouteUnselected();
+        void onRouteUnselected();
 
         /**
          * Called when the playback state changes (e.g. from Playing to Paused)
          * @param newState the new playback state
          */
-        public void onPlaybackStateChanged(PlayerState newState);
+        void onPlaybackStateChanged(PlayerState newState);
+
+        String getTitle();
+
+        Bitmap getPosterBitmap();
+
+        void pauseLocal();
+
+        long getLocalPosition();
 
         /**
-         * @return the title of the video
+         * Tells the rest of Chrome that we are starting to cast, so that user inputs control cast
+         * in place of local playback
          */
-        public String getTitle();
+        void onCastStarting(String routeName);
 
         /**
-         * @return the poster bitmap
+         * Tells the rest of Chrome that we're connected to the Cast device and about to resume
+         * playback.
          */
-        public Bitmap getPosterBitmap();
+        void onCastStarted();
+
+        /**
+         * Tells the rest of Chrome that we are no longer casting the video.
+         */
+        void onCastStopping();
+
+        /**
+         * @return the source URL
+         */
+        String getSourceUrl();
+
+        /**
+         * @return the Cookies
+         */
+        String getCookies();
+
+        /**
+         * @return the frame URL
+         */
+        String getFrameUrl();
+
+        /**
+         * @return the start position
+         */
+        long getStartPositionMillis();
+
+        /**
+         * @return true if the user has pressed the pause button (or requested pause some other way)
+         */
+        boolean isPauseRequested();
+
+        /**
+         * @return true if the user has requested a seek
+         */
+        boolean isSeekRequested();
+
+        /**
+         * @return the requested seek location. Only meaningful if isSeekRequested is true.
+         */
+        long getSeekLocation();
     }
 
     /**
@@ -105,23 +150,22 @@ public interface MediaRouteController extends TransportControl.Listener {
 
         /**
          * Called when the Playback state has changed (e.g. from playing to paused)
-         * @param oldState the old state
          * @param newState the new state
          */
-        void onPlaybackStateChanged(PlayerState oldState, PlayerState newState);
+        void onPlaybackStateChanged(PlayerState newState);
 
         /**
          * Called when the duration of the currently playing video changes.
          * @param durationMillis the new duration in ms.
          */
-        void onDurationUpdated(int durationMillis);
+        void onDurationUpdated(long durationMillis);
 
         /**
          * Called when the media route controller receives new information about the
          * current position in the video.
          * @param positionMillis the current position in the video in ms.
          */
-        void onPositionChanged(int positionMillis);
+        void onPositionChanged(long positionMillis);
 
         /**
          * Called if the title of the video changes
@@ -131,13 +175,26 @@ public interface MediaRouteController extends TransportControl.Listener {
     }
 
     /**
+     * Interface for returning the result of checking whether the media element is playable
+     * remotely.
+     */
+    static interface MediaValidationCallback {
+        /**
+         * Function to deliver the result
+         * @param isPlayable true if the media element is playable, false if not
+         * @param revisedSourceUrl The source url to send to the remote device
+         * @param revisedFrameUrl The frame url to send to the remote device
+         */
+        void onResult(boolean isPlayable, String revisedSourceUrl, String revisedFrameUrl);
+    }
+    /**
      * Scan routes, and set up the MediaRouter object. This is called at every time we need to reset
      * the state. Because of that, this function is idempotent. If that changes in the future, where
      * this function gets called needs to be re-evaluated.
      *
      * @return false if device doesn't support cast, true otherwise.
      */
-    public boolean initialize();
+    boolean initialize();
 
     /**
      * Can this mediaRouteController handle a media element?
@@ -145,93 +202,68 @@ public interface MediaRouteController extends TransportControl.Listener {
      * @param frameUrl
      * @return true if it can, false if it can't.
      */
-    public boolean canPlayMedia(String sourceUrl, String frameUrl);
+    boolean canPlayMedia(String sourceUrl, String frameUrl);
 
     /**
      * @return A new MediaRouteSelector filtering the remote playback devices from all the routes.
      */
-    public MediaRouteSelector buildMediaRouteSelector();
+    MediaRouteSelector buildMediaRouteSelector();
 
     /**
      * @return Whether there're remote playback devices available.
      */
-    public boolean isRemotePlaybackAvailable();
+    boolean isRemotePlaybackAvailable();
 
     /**
      * @return Whether the currently selected device supports remote playback
      */
-    public boolean currentRouteSupportsRemotePlayback();
-
-    /**
-     * Checks if we want to reconnect, and if so starts trying to do so. Otherwise clears out the
-     * persistent request to reconnect.
-     */
-    public boolean reconnectAnyExistingRoute();
-
-    /**
-     * Sets the video URL when it becomes known.
-     *
-     * This is the original video URL but if there's URL redirection, it will change as resolved by
-     * {@link MediaUrlResolver}.
-     *
-     * @param uri The video URL.
-     * @param userAgent The browser user agent.
-     */
-    public void setDataSource(Uri uri, String cookies, String userAgent);
+    boolean currentRouteSupportsRemotePlayback();
 
     /**
      * Setup this object to discover new routes and register the necessary players.
      */
-    public void prepareMediaRoute();
+    void prepareMediaRoute();
 
     /**
      * Add a Listener that will listen to events from this object
      *
      * @param listener the Listener that will receive the events
      */
-    public void addUiListener(UiListener listener);
+    void addUiListener(UiListener listener);
 
     /**
      * Removes a Listener from this object
      *
      * @param listener the Listener to remove
      */
-    public void removeUiListener(UiListener listener);
+    void removeUiListener(UiListener listener);
 
     /**
      * @return The currently selected route's friendly name, or null if there is none selected
      */
-    public String getRouteName();
+    String getRouteName();
 
     /**
      * @return true if this is currently using the default route, false if not.
      */
-    public boolean routeIsDefaultRoute();
-
-    /**
-     * Called to prepare the remote playback asyncronously. onPrepared() of the current remote media
-     * player object is called when the player is ready.
-     *
-     * @param startPositionMillis indicates where in the stream to start playing
-     */
-    public void prepareAsync(String frameUrl, long startPositionMillis);
+    boolean routeIsDefaultRoute();
 
     /**
      * Sets the remote volume of the current route.
      *
      * @param delta The delta value in arbitrary "Android Volume Units".
      */
-    public void setRemoteVolume(int delta);
+    void setRemoteVolume(int delta);
 
     /**
      * Resume paused playback of the current video.
      */
-    public void resume();
+    void resume();
 
     /**
      * Pauses the currently playing video if any.
      */
-    public void pause();
+    void pause();
 
     /**
      * Returns the current remote playback position. Estimates the current position by using the
@@ -242,68 +274,88 @@ public interface MediaRouteController extends TransportControl.Listener {
      *
      * @return The current position of the remote playback in milliseconds.
      */
-    public int getPosition();
+    long getPosition();
 
     /**
      * @return The stream duration in milliseconds.
      */
-    public int getDuration();
+    long getDuration();
 
     /**
      * @return Whether the video is currently being played.
      */
-    public boolean isPlaying();
+    boolean isPlaying();
 
     /**
      * @return Whether the video is being cast (any of playing/paused/loading/stopped).
      */
-    public boolean isBeingCast();
+    boolean isBeingCast();
 
     /**
      * Initiates a seek request for the remote playback device to the specified position.
      *
      * @param msec The position to seek to, in milliseconds.
      */
-    public void seekTo(int msec);
+    void seekTo(long msec);
 
     /**
      * Stop the current remote playback completely and release all resources.
      */
-    public void release();
+    void release();
 
     /**
      * @param player - the current player using this media route controller.
      */
-    public void setMediaStateListener(MediaStateListener listener);
+    void setMediaStateListener(MediaStateListener listener);
 
     /**
      * @return the current VideoStateListener
      */
-    public MediaStateListener getMediaStateListener();
-
-    /**
-     * @return true if the video is new
-     */
-    public boolean shouldResetState(MediaStateListener newListener);
+    MediaStateListener getMediaStateListener();
 
     @VisibleForTesting
-    public PlayerState getPlayerState();
+    PlayerState getDisplayedPlayerState();
 
     /**
      * Remove an existing media state listener
      * @param listener
      */
-    public void removeMediaStateListener(MediaStateListener listener);
+    void removeMediaStateListener(MediaStateListener listener);
 
     /**
      * Add a media state listener
      * @param listener
      */
-    public void addMediaStateListener(MediaStateListener listener);
+    void addMediaStateListener(MediaStateListener listener);
 
     /**
      * Get the poster for the video, if any
      * @return the poster bitmap, or Null.
      */
-    public Bitmap getPoster();
+    Bitmap getPoster();
+
+    /**
+     * Called when a new route has been selected
+     * @param player The player {@link MediaStateListener} that initiated the connection
+     * @param router The MediaRouter.
+     * @param route The selected route.
+     */
+    void onRouteSelected(MediaStateListener player, MediaRouter router, RouteInfo route);
+
+    /**
+     * Potentially asynchronous check of whether the media element is playable on remote players.
+     * @param sourceUrl the URL of the media element
+     * @param frameUrl the URL of the frame
+     * @param cookies the cookies for the media element
+     * @param userAgent the user agent
+     * @param callback the callback through which the result will be returned. The callback will be
+     *                 called either from within the call, or later on the UI thread.
+     */
+    void checkIfPlayableRemotely(String sourceUrl, String frameUrl, String cookies,
+            String userAgent, MediaValidationCallback callback);
+
+    /**
+     * @return The Uri of the currently playing video
+     */
+    @VisibleForTesting String getUriPlaying();
 }

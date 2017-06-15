@@ -12,14 +12,15 @@ public class CameraInfo extends PermissionInfo {
         super(origin, embedder, isIncognito);
     }
 
+    @Override
     protected int getNativePreferenceValue(String origin, String embedder, boolean isIncognito) {
         return WebsitePreferenceBridge.nativeGetCameraSettingForOrigin(
                 origin, embedder, isIncognito);
     }
 
+    @Override
     protected void setNativePreferenceValue(
-            String origin, String embedder, int value, boolean isIncognito) {
-        WebsitePreferenceBridge.nativeSetCameraSettingForOrigin(
-                origin, embedder, value, isIncognito);
+            String origin, String embedder, ContentSetting value, boolean isIncognito) {
+        WebsitePreferenceBridge.nativeSetCameraSettingForOrigin(origin, value.toInt(), isIncognito);
     }
 }

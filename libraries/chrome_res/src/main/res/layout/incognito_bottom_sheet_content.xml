@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2017 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/incognito_primary_color" >
+
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp" >
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/new_tab_incognito_header"
+                android:textColor="@color/locationbar_light_hint_text"
+                android:textSize="24sp" />
+
+            <TextView
+                android:id="@+id/new_tab_incognito_message"
+                style="@style/IncognitoNewTabMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="10dp"
+                android:text="@string/new_tab_incognito_message"
+                android:textColor="@color/locationbar_light_hint_text" />
+
+            <TextView
+                android:id="@+id/learn_more"
+                style="@style/IncognitoNewTabLearnMoreLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/learn_more"
+                android:textColor="@color/google_blue_300" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <org.chromium.chrome.browser.widget.FadingShadowView
+        android:id="@+id/shadow"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/action_bar_shadow_height"
+        android:visibility="gone" />
+
+</FrameLayout>
+

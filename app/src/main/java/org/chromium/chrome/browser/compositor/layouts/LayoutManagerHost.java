@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.compositor.layouts;
 
 import android.content.Context;
+import android.graphics.RectF;
 import android.view.View;
 
 import org.chromium.chrome.browser.compositor.TitleCache;
@@ -45,6 +46,30 @@ public interface LayoutManagerHost {
     int getHeight();
 
     /**
+     * Get the window's viewport.
+     * @param outRect The RectF object to write the result to.
+     */
+    void getWindowViewport(RectF outRect);
+
+    /**
+     * Get the visible viewport. This viewport accounts for the height of the browser controls.
+     * @param outRect The RectF object to write the result to.
+     */
+    void getVisibleViewport(RectF outRect);
+
+    /**
+     * Get the viewport assuming the browser controls are completely shown.
+     * @param outRect The RectF object to write the result to.
+     */
+    void getViewportFullControls(RectF outRect);
+
+    /**
+     * @return The height of the screen minus the height of the top and bottom browser controls
+     *         when not hidden.
+     */
+    float getHeightMinusBrowserControls();
+
+    /**
      * @return The associated {@link LayoutRenderHost} to be used from the GL Thread.
      */
     LayoutRenderHost getLayoutRenderHost();
@@ -66,16 +91,21 @@ public interface LayoutManagerHost {
     ChromeFullscreenManager getFullscreenManager();
 
     /**
-     * Called when a new {@link ContentViewCore} has been added to the list of current visible
-     * {@link ContentViewCore}s.  While this {@link ContentViewCore} might not be drawing its
-     * contents at this time, it needs to be sized appropriately.
-     * @param content The {@link ContentViewCore} that was added to the current list of visible
-     *                {@link ContentViewCore}s.
+     * Called when a new {@link ContentViewCore} has been added for an OverlayPanel.
+     * @param content The {@link ContentViewCore} that was added for the OverlayPanel.
      */
-    void onContentViewCoreAdded(ContentViewCore content);
+    void onOverlayPanelContentViewCoreAdded(ContentViewCore content);
 
     /**
      * Called when the currently visible content has been changed.
      */
     void onContentChanged();
+
+    /**
+     * Hides the the keyboard if it was opened for the ContentView.
+     * @param postHideTask A task to run after the keyboard is done hiding and the view's
+     *         layout has been updated.  If the keyboard was not shown, the task will run
+     *         immediately.
+     */
+    void hideKeyboard(Runnable postHideTask);
 }

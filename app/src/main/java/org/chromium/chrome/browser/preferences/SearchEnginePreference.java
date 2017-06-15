@@ -1,33 +1,24 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.chrome.browser.preferences;
 
-import android.app.AlertDialog;
-import android.content.Context;
-import android.preference.DialogPreference;
-import android.util.AttributeSet;
+import android.os.Bundle;
+import android.preference.PreferenceFragment;
+import android.view.ViewGroup.MarginLayoutParams;
+import android.widget.ListView;
 
 import org.chromium.base.VisibleForTesting;
 import org.chromium.chrome.R;
 
 /**
- * A dialog preference for picking a default search engine.
- */
-public class SearchEnginePreference extends DialogPreference
-        implements SearchEngineAdapter.SelectSearchEngineCallback {
+* A preference fragment for selecting a default search engine.
+*/
+public class SearchEnginePreference extends PreferenceFragment {
+    private ListView mListView;
 
-    static final String PREF_SEARCH_ENGINE = "search_engine";
-
-    // The custom search engine adapter for the data to show in the dialog.
     private SearchEngineAdapter mSearchEngineAdapter;
-
-    public SearchEnginePreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        setEnabled(false);
-        mSearchEngineAdapter = new SearchEngineAdapter(getContext(), this);
-    }
 
     @VisibleForTesting
     String getValueForTesting() {
@@ -35,38 +26,44 @@ public class SearchEnginePreference extends DialogPreference
     }
 
     @VisibleForTesting
-    void setValueForTesting(String value) {
-        mSearchEngineAdapter.setValueForTesting(value);
+    String setValueForTesting(String value) {
+        return mSearchEngineAdapter.setValueForTesting(value);
     }
 
-    // DialogPreference:
-
-    /**
-     * @see DialogPreference#showDialog
-     */
-    public void showDialog() {
-        super.showDialog(null);
+    @VisibleForTesting
+    String getKeywordFromIndexForTesting(int index) {
+        return mSearchEngineAdapter.getKeywordForTesting(index);
     }
 
     @Override
-    protected void onPrepareDialogBuilder(AlertDialog.Builder builder) {
-        super.onPrepareDialogBuilder(builder);
-
-        builder.setNegativeButton(null, null)
-               .setPositiveButton(R.string.close, null)
-               .setSingleChoiceItems(mSearchEngineAdapter, 0, null);
-    }
-
-    // SelectSearchEngineAdapter.SelectSearchEngineCallback:
-
-    @Override
-    public void currentSearchEngineDetermined(String name) {
-        setSummary(name);
-        setEnabled(true);
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getActivity().setTitle(R.string.prefs_search_engine);
+        mSearchEngineAdapter = new SearchEngineAdapter(getActivity());
     }
 
     @Override
-    public void onDismissDialog() {
-        getDialog().dismiss();
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        mListView = (ListView) getView().findViewById(android.R.id.list);
+        int marginTop = getActivity().getResources().getDimensionPixelSize(
+                R.dimen.search_engine_list_margin_top);
+        MarginLayoutParams layoutParams = (MarginLayoutParams) mListView.getLayoutParams();
+        layoutParams.setMargins(0, marginTop, 0, 0);
+        mListView.setLayoutParams(layoutParams);
+        mListView.setAdapter(mSearchEngineAdapter);
+        mListView.setDivider(null);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        mSearchEngineAdapter.start();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        mSearchEngineAdapter.stop();
     }
 }

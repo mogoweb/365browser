@@ -5,18 +5,23 @@
 package org.chromium.chrome.browser.notifications;
 
 import android.app.IntentService;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
+import android.os.PersistableBundle;
+import android.os.StrictMode;
 import android.util.Log;
 
-import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.SuppressFBWarnings;
-import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.library_loader.ProcessInitException;
-import org.chromium.content.app.ContentApplication;
-import org.chromium.content.browser.BrowserStartupController;
+import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
+import org.chromium.chrome.browser.webapps.WebappRegistry;
+import org.chromium.components.background_task_scheduler.TaskIds;
 
 /**
  * The Notification service receives intents fired as responses to user actions issued on Android
@@ -33,10 +38,31 @@ public class NotificationService extends IntentService {
     public static class Receiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // TODO(peter): Do we need to acquire a wake lock here?
+            Log.i(TAG, "Received a notification intent in the NotificationService's receiver.");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                // Android encourages us not to start services directly on N+, so instead we
+                // schedule a job to handle the notification intent. We use the Android JobScheduler
+                // rather than GcmNetworkManager or FirebaseJobDispatcher since the JobScheduler
+                // allows us to execute immediately by setting an override deadline of zero
+                // milliseconds.
+                // TODO(crbug.com/685210): UMA to check this does not introduce noticeable latency.
+                PersistableBundle extras = NotificationJobService.getJobExtrasFromIntent(intent);
+                JobInfo job =
+                        new JobInfo
+                                .Builder(TaskIds.NOTIFICATION_SERVICE_JOB_ID,
+                                        new ComponentName(context, NotificationJobService.class))
+                                .setExtras(extras)
+                                .setOverrideDeadline(0)
+                                .build();
+                JobScheduler scheduler =
+                        (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+                scheduler.schedule(job);
+            } else {
+                // TODO(peter): Do we need to acquire a wake lock here?
 
-            intent.setClass(context, NotificationService.class);
-            context.startService(intent);
+                intent.setClass(context, NotificationService.class);
+                context.startService(intent);
+            }
         }
     }
 
@@ -52,7 +78,7 @@ public class NotificationService extends IntentService {
      */
     @Override
     public void onHandleIntent(final Intent intent) {
-        if (!intent.hasExtra(NotificationConstants.EXTRA_PERSISTENT_NOTIFICATION_ID)
+        if (!intent.hasExtra(NotificationConstants.EXTRA_NOTIFICATION_ID)
                 || !intent.hasExtra(NotificationConstants.EXTRA_NOTIFICATION_INFO_ORIGIN)
                 || !intent.hasExtra(NotificationConstants.EXTRA_NOTIFICATION_INFO_TAG)) {
             return;
@@ -61,39 +87,42 @@ public class NotificationService extends IntentService {
         ThreadUtils.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                dispatchIntentOnUIThread(intent);
+                dispatchIntentOnUIThread(NotificationService.this, intent);
             }
         });
     }
 
     /**
      * Initializes Chrome and starts the browser process if it's not running as of yet, and
-     * dispatch |intent| to the NotificationUIManager once this is done.
+     * dispatch |intent| to the NotificationPlatformBridge once this is done.
      *
      * @param intent The intent containing the notification's information.
      */
     @SuppressFBWarnings("DM_EXIT")
-    private void dispatchIntentOnUIThread(Intent intent) {
-        Context context = getApplicationContext();
-        if (!CommandLine.isInitialized()) {
-            ContentApplication.initCommandLine(context);
-        }
-
+    static void dispatchIntentOnUIThread(Context context, Intent intent) {
         try {
-            BrowserStartupController.get(this, LibraryProcessType.PROCESS_BROWSER)
-                    .startBrowserProcessesSync(false);
+            ChromeBrowserInitializer.getInstance(context).handleSynchronousStartup();
+
+            // Warm up the WebappRegistry, as we need to check if this notification should launch a
+            // standalone web app. This no-ops if the registry is already initialized and warmed,
+            // but triggers a strict mode violation otherwise (i.e. the browser isn't running).
+            // Temporarily disable strict mode to work around the violation.
+            StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskReads();
+            try {
+                WebappRegistry.getInstance();
+                WebappRegistry.warmUpSharedPrefs();
+            } finally {
+                StrictMode.setThreadPolicy(oldPolicy);
+            }
 
             // Now that the browser process is initialized, we pass forward the call to the
-            // Notification UI Manager which will take care of delivering the appropriate events.
-            if (!NotificationUIManager.dispatchNotificationEvent(intent)) {
+            // NotificationPlatformBridge which will take care of delivering the appropriate events.
+            if (!NotificationPlatformBridge.dispatchNotificationEvent(intent)) {
                 Log.w(TAG, "Unable to dispatch the notification event to Chrome.");
             }
 
             // TODO(peter): Verify that the lifetime of the NotificationService is sufficient
             // when a notification event could be dispatched successfully.
-
-            // TODO(peter): The native side needs to tell us when executing the event has
-            // finished, so that we can forcefully stop the service.
 
         } catch (ProcessInitException e) {
             Log.e(TAG, "Unable to start the browser process.", e);

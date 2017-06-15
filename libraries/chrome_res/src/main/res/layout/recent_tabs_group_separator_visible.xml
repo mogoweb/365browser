@@ -2,12 +2,19 @@
 <!-- Copyright 2015 The Chromium Authors. All rights reserved.
      Use of this source code is governed by a BSD-style license that can be
      found in the LICENSE file. -->
-<FrameLayout android:layout_height="wrap_content" android:layout_width="match_parent" android:paddingBottom="@dimen/recent_tabs_visible_separator_padding" android:paddingLeft="16dp" android:paddingRight="16dp" android:paddingTop="@dimen/recent_tabs_visible_separator_padding" xmlns:android="http://schemas.android.com/apk/res/android">
-  
 
-    
-  <View android:background="#e5e5e5" android:layout_height="1px" android:layout_width="match_parent"/>
-  
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_height="wrap_content"
+    android:layout_width="match_parent"
+    android:paddingTop="@dimen/recent_tabs_visible_separator_padding"
+    android:paddingBottom="@dimen/recent_tabs_visible_separator_padding"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp" >
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1px"
+        android:background="#e5e5e5" />
 
 </FrameLayout>

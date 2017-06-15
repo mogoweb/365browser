@@ -107,16 +107,13 @@ public class EmptyTabModel implements TabModel {
     }
 
     @Override
-    public void commitAllTabClosures() {
-    }
+    public void commitAllTabClosures() {}
 
     @Override
-    public void commitTabClosure(int tabId) {
-    }
+    public void commitTabClosure(int tabId) {}
 
     @Override
-    public void cancelTabClosure(int tabId) {
-    }
+    public void cancelTabClosure(int tabId) {}
 
     @Override
     public boolean supportsPendingClosures() {
@@ -129,11 +126,22 @@ public class EmptyTabModel implements TabModel {
     }
 
     @Override
-    public void addObserver(TabModelObserver observer) {
-    }
+    public void addObserver(TabModelObserver observer) {}
 
     @Override
-    public void removeObserver(TabModelObserver observer) {
-    }
+    public void removeObserver(TabModelObserver observer) {}
 
+    @Override
+    public void removeTab(Tab tab) {}
+
+    @Override
+    public void openMostRecentlyClosedTab() {}
+
+    @Override
+    public void setIsPendingTabAdd(boolean isPendingTabAdd) {}
+
+    @Override
+    public boolean isPendingTabAdd() {
+        return false;
+    }
 }

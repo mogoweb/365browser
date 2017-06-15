@@ -5,27 +5,22 @@
 package org.chromium.chrome.browser.compositor.layouts;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.text.TextUtils;
 import android.view.ViewGroup;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.VisibleForTesting;
-import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.TitleCache;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
 import org.chromium.chrome.browser.compositor.layouts.components.VirtualView;
 import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
-import org.chromium.chrome.browser.compositor.layouts.content.TitleBitmapFactory;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.BlackHoleEventFilter;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeHandler;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EventFilter;
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.GestureEventFilter;
+import org.chromium.chrome.browser.compositor.layouts.eventfilter.ScrollDirection;
+import org.chromium.chrome.browser.compositor.layouts.phone.StackLayout;
 import org.chromium.chrome.browser.compositor.overlays.SceneOverlay;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchManagementDelegate;
 import org.chromium.chrome.browser.device.DeviceClassManager;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeManagerDelegate;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.EmptyTabModelObserver;
@@ -40,7 +35,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector.CloseAllTabsDelegat
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.util.FeatureUtilities;
+import org.chromium.chrome.browser.util.AccessibilityUtil;
 import org.chromium.chrome.browser.widget.OverviewListLayout;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
@@ -61,23 +56,15 @@ public class LayoutManagerChrome
     /** A {@link Layout} that should be used when the user is in the tab switcher. */
     protected Layout mOverviewLayout;
 
-    // Event Filters
-    /** A {@link EventFilter} that consumes all touch events. */
-    protected EventFilter mBlackHoleEventFilter;
-    private final GestureEventFilter mGestureEventFilter;
-
     // Event Filter Handlers
     private final EdgeSwipeHandler mToolbarSwipeHandler;
 
     // Internal State
     /** A {@link TitleCache} instance that stores all title/favicon bitmaps as CC resources. */
     protected TitleCache mTitleCache;
-    /** Responsible for building non-incognito titles. */
-    protected TitleBitmapFactory mStandardTitleBitmapFactory;
-    /** Responsible for building all incognito titles. */
-    protected TitleBitmapFactory mIncognitoTitleBitmapFactory;
+
     /** Whether or not animations are enabled.  This can disable certain layouts or effects. */
-    protected boolean mEnableAnimations = true;
+    private boolean mEnableAnimations = true;
     private boolean mCreatingNtp;
     private final ObserverList<OverviewModeObserver> mOverviewModeObservers;
     private TabModelSelectorObserver mTabModelSelectorObserver;
@@ -96,7 +83,10 @@ public class LayoutManagerChrome
         @Override
         public void willAddTab(Tab tab, TabLaunchType type) {
             // Open the new tab
-            if (type == TabLaunchType.FROM_INSTANT || type == TabLaunchType.FROM_RESTORE) return;
+            if (type == TabLaunchType.FROM_RESTORE) return;
+            if (type == TabLaunchType.FROM_REPARENTING) return;
+            if (type == TabLaunchType.FROM_EXTERNAL_APP) return;
+            if (type == TabLaunchType.FROM_LAUNCHER_SHORTCUT) return;
 
             tabCreating(getTabModelSelector().getCurrentTabId(), tab.getUrl(), tab.isIncognito());
         }
@@ -104,16 +94,17 @@ public class LayoutManagerChrome
         @Override
         public void didAddTab(Tab tab, TabLaunchType launchType) {
             int tabId = tab.getId();
-            if (launchType != TabLaunchType.FROM_INSTANT
-                    && launchType != TabLaunchType.FROM_RESTORE) {
+            if (launchType == TabLaunchType.FROM_RESTORE) {
+                getActiveLayout().onTabRestored(time(), tabId);
+            } else {
                 boolean incognito = tab.isIncognito();
                 boolean willBeSelected = launchType != TabLaunchType.FROM_LONGPRESS_BACKGROUND
                         || (!getTabModelSelector().isIncognitoSelected() && incognito);
-                float lastTapX = LocalizationUtils.isLayoutRtl() ? mLastContentWidthDp : 0.f;
+                float lastTapX = LocalizationUtils.isLayoutRtl()
+                        ? mHost.getWidth() * mPxToDp : 0.f;
                 float lastTapY = 0.f;
-                if (launchType != TabLaunchType.FROM_MENU_OR_OVERVIEW) {
-                    float heightDelta =
-                            mLastFullscreenViewportDp.height() - mLastVisibleViewportDp.height();
+                if (launchType != TabLaunchType.FROM_CHROME_UI) {
+                    float heightDelta = mHost.getHeightMinusBrowserControls() * mPxToDp;
                     lastTapX = mPxToDp * mLastTapX;
                     lastTapY = mPxToDp * mLastTapY - heightDelta;
                 }
@@ -124,13 +115,13 @@ public class LayoutManagerChrome
         }
 
         @Override
-        public void didCloseTab(Tab tab) {
-            tabClosed(tab);
+        public void didCloseTab(int tabId, boolean incognito) {
+            tabClosed(tabId, incognito, false);
         }
 
         @Override
         public void tabPendingClosure(Tab tab) {
-            tabClosed(tab);
+            tabClosed(tab.getId(), tab.isIncognito(), false);
         }
 
         @Override
@@ -147,55 +138,32 @@ public class LayoutManagerChrome
         public void didMoveTab(Tab tab, int newIndex, int curIndex) {
             tabMoved(tab.getId(), curIndex, newIndex, tab.isIncognito());
         }
-    }
 
-    /**
-     * Delegate of a factory to create an overview layout.
-     */
-    public interface OverviewLayoutFactoryDelegate {
-        /**
-         * @param context     The current Android's context.
-         * @param updateHost  The {@link LayoutUpdateHost} view for this layout.
-         * @param renderHost  The {@link LayoutRenderHost} view for this layout.
-         * @param eventFilter The {@link EventFilter} that is needed for this view.
-         */
-        Layout createOverviewLayout(Context context, LayoutUpdateHost updateHost,
-                LayoutRenderHost renderHost, EventFilter eventFilter);
+        @Override
+        public void tabRemoved(Tab tab) {
+            tabClosed(tab.getId(), tab.isIncognito(), true);
+        }
     }
 
     /**
      * Creates the {@link LayoutManagerChrome} instance.
      * @param host              A {@link LayoutManagerHost} instance.
-     * @param overviewLayoutFactoryDelegate A {@link OverviewLayoutFactoryDelegate} instance.
      */
-    public LayoutManagerChrome(
-            LayoutManagerHost host, OverviewLayoutFactoryDelegate overviewLayoutFactoryDelegate) {
+    public LayoutManagerChrome(LayoutManagerHost host, boolean createOverviewLayout) {
         super(host);
         Context context = host.getContext();
         LayoutRenderHost renderHost = host.getLayoutRenderHost();
 
-        // Set up state
-        mStandardTitleBitmapFactory =
-                new TitleBitmapFactory(context, false, R.drawable.default_favicon);
-        mIncognitoTitleBitmapFactory =
-                new TitleBitmapFactory(context, true, R.drawable.default_favicon_white);
         mOverviewModeObservers = new ObserverList<OverviewModeObserver>();
 
         // Build Event Filter Handlers
-        mToolbarSwipeHandler = new ToolbarSwipeHandler(this);
-
-        // Build Event Filters
-        mBlackHoleEventFilter = new BlackHoleEventFilter(context, this);
-        mGestureEventFilter = new GestureEventFilter(context, this, mGestureHandler);
+        mToolbarSwipeHandler = createToolbarSwipeHandler(this);
 
         // Build Layouts
-        mOverviewListLayout =
-                new OverviewListLayout(context, this, renderHost, mBlackHoleEventFilter);
-        mToolbarSwipeLayout =
-                new ToolbarSwipeLayout(context, this, renderHost, mBlackHoleEventFilter);
-        if (overviewLayoutFactoryDelegate != null) {
-            mOverviewLayout = overviewLayoutFactoryDelegate.createOverviewLayout(
-                    context, this, renderHost, mGestureEventFilter);
+        mOverviewListLayout = new OverviewListLayout(context, this, renderHost);
+        mToolbarSwipeLayout = new ToolbarSwipeLayout(context, this, renderHost);
+        if (createOverviewLayout) {
+            mOverviewLayout = new StackLayout(context, this, renderHost);
         }
     }
 
@@ -228,6 +196,7 @@ public class LayoutManagerChrome
     public void init(TabModelSelector selector, TabCreatorManager creator,
             TabContentManager content, ViewGroup androidContentContainer,
             ContextualSearchManagementDelegate contextualSearchDelegate,
+            ReaderModeManagerDelegate readerModeDelegate,
             DynamicResourceLoader dynamicResourceLoader) {
         // TODO: TitleCache should be a part of the ResourceManager.
         mTitleCache = mHost.getTitleCache();
@@ -238,7 +207,7 @@ public class LayoutManagerChrome
         if (mOverviewLayout != null) mOverviewLayout.setTabModelSelector(selector, content);
 
         super.init(selector, creator, content, androidContentContainer, contextualSearchDelegate,
-                dynamicResourceLoader);
+                readerModeDelegate, dynamicResourceLoader);
 
         mTabModelSelectorObserver = new EmptyTabModelSelectorObserver() {
             @Override
@@ -254,12 +223,12 @@ public class LayoutManagerChrome
 
         mTabSelectorTabObserver = new TabModelSelectorTabObserver(selector) {
             @Override
-            public void onLoadStarted(Tab tab) {
+            public void onLoadStarted(Tab tab, boolean toDifferentDocument) {
                 tabLoadStarted(tab.getId(), tab.isIncognito());
             }
 
             @Override
-            public void onLoadStopped(Tab tab) {
+            public void onLoadStopped(Tab tab, boolean toDifferentDocument) {
                 tabLoadFinished(tab.getId(), tab.isIncognito());
             }
 
@@ -334,7 +303,9 @@ public class LayoutManagerChrome
      */
     @VisibleForTesting
     public void simulateClick(float x, float y) {
-        if (getActiveLayout() != null) getActiveLayout().click(time(), x, y);
+        if (getActiveLayout() instanceof StackLayout) {
+            ((StackLayout) getActiveLayout()).simulateClick(x, y);
+        }
     }
 
     /**
@@ -346,10 +317,8 @@ public class LayoutManagerChrome
      */
     @VisibleForTesting
     public void simulateDrag(float x, float y, float dX, float dY) {
-        if (getActiveLayout() != null) {
-            getActiveLayout().onDown(0, x, y);
-            getActiveLayout().drag(0, x, y, dX, dY);
-            getActiveLayout().onUpOrCancel(time());
+        if (getActiveLayout() instanceof StackLayout) {
+            ((StackLayout) getActiveLayout()).simulateDrag(x, y, dX, dY);
         }
     }
 
@@ -373,8 +342,8 @@ public class LayoutManagerChrome
 
         // Check if we should notify OverviewModeObservers.
         if (isOverviewLayout(layoutBeingShown)) {
-            boolean showToolbar =
-                    !mEnableAnimations || getTabModelSelector().getCurrentModel().getCount() <= 0;
+            boolean showToolbar = animate && (!mEnableAnimations
+                    || getTabModelSelector().getCurrentModel().getCount() <= 0);
             for (OverviewModeObserver observer : mOverviewModeObservers) {
                 observer.onOverviewModeStartedShowing(showToolbar);
             }
@@ -471,19 +440,21 @@ public class LayoutManagerChrome
 
     /**
      * Should be called when a tab closed event is triggered.
-     * @param id        The id of the closed tab.
-     * @param nextId    The id of the next tab that will be visible, if any.
-     * @param incognito Whether or not the closed tab is incognito.
+     * @param id         The id of the closed tab.
+     * @param nextId     The id of the next tab that will be visible, if any.
+     * @param incognito  Whether or not the closed tab is incognito.
+     * @param tabRemoved Whether the tab was removed from the model (e.g. for reparenting), rather
+     *                   than closed and destroyed.
      */
-    protected void tabClosed(int id, int nextId, boolean incognito) {
+    protected void tabClosed(int id, int nextId, boolean incognito, boolean tabRemoved) {
         if (getActiveLayout() != null) getActiveLayout().onTabClosed(time(), id, nextId, incognito);
     }
 
-    private void tabClosed(Tab tab) {
+    private void tabClosed(int tabId, boolean incognito, boolean tabRemoved) {
         Tab currentTab =
                 getTabModelSelector() != null ? getTabModelSelector().getCurrentTab() : null;
         int nextTabId = currentTab != null ? currentTab.getId() : Tab.INVALID_TAB_ID;
-        tabClosed(tab.getId(), nextTabId, tab.isIncognito());
+        tabClosed(tabId, nextTabId, incognito, tabRemoved);
     }
 
     /**
@@ -543,60 +514,11 @@ public class LayoutManagerChrome
     }
 
     @Override
-    public void initLayoutTabFromHost(int tabId) {
-        super.initLayoutTabFromHost(tabId);
-
-        if (getTabModelSelector() == null || getActiveLayout() == null) return;
-
-        TabModelSelector selector = getTabModelSelector();
-        Tab tab = selector.getTabById(tabId);
-        if (tab == null) return;
-
-        LayoutTab layoutTab = getExistingLayoutTab(tabId);
-        if (layoutTab == null) return;
-
-        if (mTitleCache != null && layoutTab.isTitleNeeded()) {
-            mTitleCache.put(tabId, getTitleBitmap(tab), getFaviconBitmap(tab), tab.isIncognito(),
-                    tab.isTitleDirectionRtl());
+    public void initLayoutTabFromHost(final int tabId) {
+        if (mTitleCache != null) {
+            mTitleCache.remove(tabId);
         }
-    }
-
-    /**
-     * Builds a title bitmap for a {@link Tab}. This function does not do anything in the
-     * general case because only the phone need to bake special resource.
-     *
-     * @param tab The tab to build the title bitmap for.
-     * @return The Title bitmap
-     */
-    protected Bitmap getTitleBitmap(Tab tab) {
-        TitleBitmapFactory titleBitmapFactory =
-                tab.isIncognito() ? mIncognitoTitleBitmapFactory : mStandardTitleBitmapFactory;
-
-        return titleBitmapFactory.getTitleBitmap(mHost.getContext(), getTitleForTab(tab));
-    }
-
-    /**
-     * Comes up with a valid title to return for a tab.
-     * @param tab The {@link Tab} to build a title for.
-     * @return    The title to use.
-     */
-    protected String getTitleForTab(Tab tab) {
-        String title = tab.getTitle();
-        if (TextUtils.isEmpty(title)) title = tab.getUrl();
-        return title;
-    }
-
-    /**
-     * Builds a favicon bitmap for a {@link Tab}. This function does not do anything in the
-     * general case because only the phone need to bake special texture.
-     *
-     * @param tab The tab to build the title bitmap for.
-     * @return The Favicon bitmap
-     */
-    protected Bitmap getFaviconBitmap(Tab tab) {
-        TitleBitmapFactory titleBitmapFactory =
-                tab.isIncognito() ? mIncognitoTitleBitmapFactory : mStandardTitleBitmapFactory;
-        return titleBitmapFactory.getFaviconBitmap(mHost.getContext(), tab.getFavicon());
+        super.initLayoutTabFromHost(tabId);
     }
 
     /**
@@ -624,20 +546,12 @@ public class LayoutManagerChrome
     }
 
     /**
-     * @return Whether or not to use the accessibility layout.
-     */
-    protected boolean useAccessibilityLayout() {
-        return DeviceClassManager.isAccessibilityModeEnabled(mHost.getContext())
-                || DeviceClassManager.enableAccessibilityLayout();
-    }
-
-    /**
      * Show the overview {@link Layout}.  This is generally a {@link Layout} that visibly represents
      * all of the {@link Tab}s opened by the user.
      * @param animate Whether or not to animate the transition to overview mode.
      */
     public void showOverview(boolean animate) {
-        boolean useAccessibility = useAccessibilityLayout();
+        boolean useAccessibility = DeviceClassManager.enableAccessibilityLayout();
 
         boolean accessibilityIsVisible =
                 useAccessibility && getActiveLayout() == mOverviewListLayout;
@@ -676,6 +590,14 @@ public class LayoutManagerChrome
      */
     public void setEnableAnimations(boolean enabled) {
         mEnableAnimations = enabled;
+    }
+
+    /**
+     * @return Whether animations should be done for model changes.
+     */
+    @VisibleForTesting
+    public boolean animationsEnabled() {
+        return mEnableAnimations;
     }
 
     @Override
@@ -721,17 +643,17 @@ public class LayoutManagerChrome
         public boolean isSwipeEnabled(ScrollDirection direction) {
             FullscreenManager manager = mHost.getFullscreenManager();
             if (getActiveLayout() != mStaticLayout
-                    || !DeviceClassManager.enableToolbarSwipe(
-                               FeatureUtilities.isDocumentMode(mHost.getContext()))
+                    || !DeviceClassManager.enableToolbarSwipe()
                     || (manager != null && manager.getPersistentFullscreenMode())) {
                 return false;
             }
 
-            boolean isAccessibility =
-                    DeviceClassManager.isAccessibilityModeEnabled(mHost.getContext());
-            return direction == ScrollDirection.LEFT || direction == ScrollDirection.RIGHT
-                    || (direction == ScrollDirection.DOWN && mOverviewLayout != null
-                               && !isAccessibility);
+            if (direction == ScrollDirection.DOWN) {
+                boolean isAccessibility = AccessibilityUtil.isAccessibilityEnabled();
+                return mOverviewLayout != null && !isAccessibility;
+            }
+
+            return direction == ScrollDirection.LEFT || direction == ScrollDirection.RIGHT;
         }
     }
 

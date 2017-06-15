@@ -11,6 +11,7 @@ import android.app.Fragment;
  */
 public interface FirstRunPageDelegate {
     /**
+     * Must be called only after native has been initialized.
      * @return A {@link ProfileDataCache} for Android user accounts.
      */
     ProfileDataCache getProfileDataCache();
@@ -40,11 +41,6 @@ public interface FirstRunPageDelegate {
     void completeFirstRunExperience();
 
     /**
-     * Notifies that the sign-in dialog is shown.
-     */
-    void onSigninDialogShown();
-
-    /**
      * Notifies that the user refused to sign in (e.g. "NO, THANKS").
      */
     void refuseSignIn();
@@ -52,14 +48,15 @@ public interface FirstRunPageDelegate {
     /**
      * Notifies that the user accepted to be signed in.
      * @param accountName An account to be signed in to.
+     * @param isDefaultAccount Whether this account is the default choice for the user.
      */
-    void acceptSignIn(String accountName);
+    void acceptSignIn(String accountName, boolean isDefaultAccount);
 
     /**
-     * Notifies that the user asked to show Sync Settings once the sign in
+     * Notifies that the user asked to show sign in Settings once the sign in
      * process is complete.
      */
-    void askToOpenSyncSettings();
+    void askToOpenSignInSettings();
 
     /**
      * @return Whether the user has accepted Chrome Terms of Service.
@@ -67,12 +64,8 @@ public interface FirstRunPageDelegate {
     boolean didAcceptTermsOfService();
 
     /**
-     * @return Whether the "upload crash dump" setting is set to "NEVER".
-     */
-    boolean isNeverUploadCrashDump();
-
-    /**
      * Notifies all interested parties that the user has accepted Chrome Terms of Service.
+     * Must be called only after native has been initialized.
      * @param allowCrashUpload True if the user allows to upload crash dumps and collect stats.
      */
     void acceptTermsOfService(boolean allowCrashUpload);
@@ -84,9 +77,8 @@ public interface FirstRunPageDelegate {
     void openAccountAdder(Fragment fragment);
 
     /**
-     * Show an EmbedContentViewActivity with a given title and a URL.
-     * @param title Resource id for the title of the EmbedContentViewActivity.
-     * @param url Resource id for the URL of the EmbedContentViewActivity.
+     * Show an informational web page. The page doesn't show navigation control.
+     * @param url Resource id for the URL of the web page.
      */
-    void showEmbedContentViewActivity(int title, int url);
+    void showInfoPage(int url);
 }

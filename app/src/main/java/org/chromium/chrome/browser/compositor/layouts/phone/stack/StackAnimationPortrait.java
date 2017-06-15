@@ -20,6 +20,7 @@ import static org.chromium.chrome.browser.compositor.layouts.phone.stack.StackTa
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation;
 import org.chromium.chrome.browser.compositor.layouts.ChromeAnimation.Animatable;
 import org.chromium.chrome.browser.compositor.layouts.components.LayoutTab;
+import org.chromium.chrome.browser.util.FeatureUtilities;
 import org.chromium.chrome.browser.util.MathUtils;
 import org.chromium.ui.base.LocalizationUtils;
 
@@ -27,10 +28,10 @@ class StackAnimationPortrait extends StackAnimation {
     /**
      * Only Constructor.
      */
-    public StackAnimationPortrait(float width, float height, float heightMinusTopControls,
-            float borderFramePaddingTop, float borderFramePaddingTopOpaque,
-            float borderFramePaddingLeft) {
-        super(width, height, heightMinusTopControls, borderFramePaddingTop,
+    public StackAnimationPortrait(Stack stack, float width, float height,
+            float heightMinusBrowserControls, float borderFramePaddingTop,
+            float borderFramePaddingTopOpaque, float borderFramePaddingLeft) {
+        super(stack, width, height, heightMinusBrowserControls, borderFramePaddingTop,
                 borderFramePaddingTopOpaque, borderFramePaddingLeft);
     }
 
@@ -62,11 +63,11 @@ class StackAnimationPortrait extends StackAnimation {
             float scrollOffset = StackTab.screenToScroll(i * spacing, warpSize);
 
             if (i < focusIndex) {
-                tab.getLayoutTab().setMaxContentHeight(mHeightMinusTopControls);
+                tab.getLayoutTab().setMaxContentHeight(mStack.getMaxTabHeight());
                 addAnimation(set, tab, SCROLL_OFFSET, initialScrollOffset, scrollOffset,
                         ENTER_STACK_ANIMATION_DURATION, 0);
             } else if (i > focusIndex) {
-                tab.getLayoutTab().setMaxContentHeight(mHeightMinusTopControls);
+                tab.getLayoutTab().setMaxContentHeight(mStack.getMaxTabHeight());
                 tab.setScrollOffset(scrollOffset + trailingScrollOffset);
                 addAnimation(
                         set, tab, Y_IN_STACK_OFFSET, mHeight, 0, ENTER_STACK_ANIMATION_DURATION, 0);
@@ -75,7 +76,7 @@ class StackAnimationPortrait extends StackAnimation {
 
                 addAnimation(set, tab.getLayoutTab(), MAX_CONTENT_HEIGHT,
                         tab.getLayoutTab().getUnclampedOriginalContentHeight(),
-                        mHeightMinusTopControls, ENTER_STACK_ANIMATION_DURATION,
+                        mStack.getMaxTabHeight(), ENTER_STACK_ANIMATION_DURATION,
                         ENTER_STACK_RESIZE_DELAY);
                 addAnimation(set, tab, Y_IN_STACK_INFLUENCE, 0.0f, 1.0f,
                         ENTER_STACK_BORDER_ALPHA_DURATION, 0);
@@ -89,7 +90,7 @@ class StackAnimationPortrait extends StackAnimation {
                 addAnimation(set, tab.getLayoutTab(), SIDE_BORDER_SCALE, 0.f, 1.f,
                         ENTER_STACK_BORDER_ALPHA_DURATION, TAB_FOCUSED_TOOLBAR_ALPHA_DELAY);
 
-                tab.setYOutOfStack(mHeight - mHeightMinusTopControls - mBorderTopHeight);
+                tab.setYOutOfStack(getStaticTabPosition());
             }
         }
 
@@ -136,13 +137,16 @@ class StackAnimationPortrait extends StackAnimation {
                         TAB_FOCUSED_ANIMATION_DURATION, 0);
                 addAnimation(
                         set, tab, SCALE, tab.getScale(), 1.0f, TAB_FOCUSED_ANIMATION_DURATION, 0);
+                int tabYInfluenceDuration = FeatureUtilities.isChromeHomeEnabled()
+                        ? TAB_FOCUSED_ANIMATION_DURATION
+                        : TAB_FOCUSED_Y_STACK_DURATION;
                 addAnimation(set, tab, Y_IN_STACK_INFLUENCE, tab.getYInStackInfluence(), 0.0f,
-                        TAB_FOCUSED_Y_STACK_DURATION, 0);
+                        tabYInfluenceDuration, 0);
                 addAnimation(set, tab.getLayoutTab(), MAX_CONTENT_HEIGHT,
                         tab.getLayoutTab().getMaxContentHeight(),
                         tab.getLayoutTab().getUnclampedOriginalContentHeight(),
                         TAB_FOCUSED_ANIMATION_DURATION, 0);
-                tab.setYOutOfStack(mHeight - mHeightMinusTopControls - mBorderTopHeight);
+                tab.setYOutOfStack(getStaticTabPosition());
                 if (layoutTab.shouldStall()) {
                     addAnimation(set, layoutTab, SATURATION, 1.0f, 0.0f,
                             TAB_FOCUSED_BORDER_ALPHA_DURATION, TAB_FOCUSED_BORDER_ALPHA_DELAY);

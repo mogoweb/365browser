@@ -4,16 +4,12 @@
 
 package org.chromium.chrome.browser.banners;
 
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.text.TextUtils;
 
 import org.chromium.base.VisibleForTesting;
-
-import java.util.List;
 
 /**
  * Monitors the PackageManager to see when an app has been installed.
@@ -107,11 +103,12 @@ public class InstallerDelegate implements Runnable {
      * @return True if the PackageManager reports that the app is installed, false otherwise.
      */
     public static boolean isInstalled(PackageManager packageManager, String packageName) {
-        List<PackageInfo> packs = packageManager.getInstalledPackages(0);
-        for (int i = 0; i < packs.size(); i++) {
-            if (TextUtils.equals(packs.get(i).packageName, packageName)) return true;
+        try {
+            packageManager.getPackageInfo(packageName, 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
         }
-        return false;
+        return true;
     }
 
     /**

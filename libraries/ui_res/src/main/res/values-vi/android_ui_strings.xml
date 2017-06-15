@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="low_memory_error">"Không thể hoàn tất thao tác trước do bộ nhớ thấp"</string>
+<string name="opening_file_error">"Không mở được tệp đã chọn"</string>
+<string name="copy_to_clipboard_failure_message">"Sao chép sang khay nhớ tạm không thành công"</string>
+<string name="accessibility_date_picker_month">"Tháng"</string>
+<string name="accessibility_date_picker_year">"Năm"</string>
+<string name="date_picker_dialog_set">"Đặt"</string>
+<string name="month_picker_dialog_title">"Đặt tháng"</string>
+<string name="accessibility_date_picker_week">"Tuần"</string>
+<string name="week_picker_dialog_title">"Đặt tuần"</string>
+<string name="time_picker_dialog_am">"SA"</string>
+<string name="time_picker_dialog_pm">"CH"</string>
+<string name="time_picker_dialog_title">"Đặt thời gian"</string>
+<string name="accessibility_time_picker_hour">"Giờ"</string>
+<string name="accessibility_time_picker_minute">"Phút"</string>
+<string name="accessibility_time_picker_second">"Giây"</string>
+<string name="accessibility_time_picker_milli">"Mili giây"</string>
+<string name="accessibility_time_picker_ampm">"SA/CH"</string>
+<string name="time_picker_dialog_hour_minute_separator">":"</string>
+<string name="time_picker_dialog_minute_second_separator">":"</string>
+<string name="time_picker_dialog_second_subsecond_separator">"."</string>
+<string name="date_time_picker_dialog_title">"Đặt ngày giờ"</string>
+<string name="accessibility_datetime_picker_date">"Ngày Tháng"</string>
+<string name="accessibility_datetime_picker_time">"Thời gian"</string>
+<string name="date_picker_dialog_other_button_label">"Khác"</string>
+<string name="date_picker_dialog_title">"Đặt ngày"</string>
+<string name="date_picker_dialog_clear">"Xóa"</string>
+<string name="photo_picker_select_images">"Chọn hình ảnh"</string>
+<string name="photo_picker_camera">"Máy ảnh"</string>
+<string name="photo_picker_browse">"Duyệt qua"</string>
+<string name="autofill_popup_content_description">"Hiển thị cửa sổ bật lên tự động điền"</string>
+<string name="password_generation_popup_content_description">"Hiển thị cửa sổ bật lên tạo mật khẩu"</string>
+<string name="autofill_keyboard_accessory_content_description">"Có đề xuất"</string>
+<string name="updating_chrome">"Đang cập nhật Chrome…"</string>
+</resources>

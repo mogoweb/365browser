@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="low_memory_error">"No es pot completar l\'operació anterior perquè hi ha poca memòria."</string>
+<string name="opening_file_error">"No s\'ha pogut obrir fitxer sel."</string>
+<string name="copy_to_clipboard_failure_message">"No s\'ha pogut copiar el contingut al porta-retalls."</string>
+<string name="accessibility_date_picker_month">"Mes"</string>
+<string name="accessibility_date_picker_year">"Any"</string>
+<string name="date_picker_dialog_set">"Configura"</string>
+<string name="month_picker_dialog_title">"Defineix el mes"</string>
+<string name="accessibility_date_picker_week">"Setmana"</string>
+<string name="week_picker_dialog_title">"Defineix la setmana"</string>
+<string name="time_picker_dialog_am">"a. m."</string>
+<string name="time_picker_dialog_pm">"p. m."</string>
+<string name="time_picker_dialog_title">"Defineix l\'hora"</string>
+<string name="accessibility_time_picker_hour">"Hora"</string>
+<string name="accessibility_time_picker_minute">"Minut"</string>
+<string name="accessibility_time_picker_second">"Segon"</string>
+<string name="accessibility_time_picker_milli">"Mil·lisegon"</string>
+<string name="accessibility_time_picker_ampm">"a. m./p. m."</string>
+<string name="time_picker_dialog_hour_minute_separator">":"</string>
+<string name="time_picker_dialog_minute_second_separator">":"</string>
+<string name="time_picker_dialog_second_subsecond_separator">"."</string>
+<string name="date_time_picker_dialog_title">"Defineix la data i l\'hora"</string>
+<string name="accessibility_datetime_picker_date">"Data"</string>
+<string name="accessibility_datetime_picker_time">"Hora"</string>
+<string name="date_picker_dialog_other_button_label">"Altres"</string>
+<string name="date_picker_dialog_title">"Defineix la data"</string>
+<string name="date_picker_dialog_clear">"Esborra"</string>
+<string name="photo_picker_select_images">"Selecciona imatges"</string>
+<string name="photo_picker_camera">"Càmera"</string>
+<string name="photo_picker_browse">"Examina"</string>
+<string name="autofill_popup_content_description">"Es mostra la finestra emergent d\'emplenament automàtic"</string>
+<string name="password_generation_popup_content_description">"Es mostra la finestra emergent de generació de contrasenyes"</string>
+<string name="autofill_keyboard_accessory_content_description">"Suggeriments disponibles"</string>
+<string name="updating_chrome">"S\'està actualitzant Chrome…"</string>
+</resources>

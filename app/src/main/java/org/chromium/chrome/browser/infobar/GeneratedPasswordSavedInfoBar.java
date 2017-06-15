@@ -4,19 +4,12 @@
 
 package org.chromium.chrome.browser.infobar;
 
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ClickableSpan;
-import android.view.View;
-
 /**
  * An infobar to notify that the generated password was saved.
  */
-public class GeneratedPasswordSavedInfoBar extends InfoBar {
-    private final String mMessageText;
+public class GeneratedPasswordSavedInfoBar extends ConfirmInfoBar {
     private final int mInlineLinkRangeStart;
     private final int mInlineLinkRangeEnd;
-    private final String mButtonLabel;
 
     /**
      * Creates and shows the infobar to notify that the generated password was saved.
@@ -28,11 +21,9 @@ public class GeneratedPasswordSavedInfoBar extends InfoBar {
      */
     public GeneratedPasswordSavedInfoBar(int iconDrawableId, String messageText,
             int inlineLinkRangeStart, int inlineLinkRangeEnd, String buttonLabel) {
-        super(null, iconDrawableId, null, null);
-        mMessageText = messageText;
+        super(iconDrawableId, null, messageText, null, buttonLabel, null);
         mInlineLinkRangeStart = inlineLinkRangeStart;
         mInlineLinkRangeEnd = inlineLinkRangeEnd;
-        mButtonLabel = buttonLabel;
     }
 
     /**
@@ -42,24 +33,7 @@ public class GeneratedPasswordSavedInfoBar extends InfoBar {
      */
     @Override
     public void createContent(InfoBarLayout layout) {
-        layout.setButtons(mButtonLabel, null);
-        SpannableString message = new SpannableString(mMessageText);
-        message.setSpan(
-                new ClickableSpan() {
-                    @Override
-                    public void onClick(View view) {
-                        onLinkClicked();
-                    }
-                }, mInlineLinkRangeStart, mInlineLinkRangeEnd, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-        layout.setMessage(message);
-    }
-
-    /**
-     * Called when the button is clicked. Notifies the native infobar, which closes the infobar.
-     * @param isPrimaryButton True if the clicked button is primary.
-     */
-    @Override
-    public void onButtonClicked(boolean isPrimaryButton) {
-        onButtonClicked(ActionType.OK, "");
+        super.createContent(layout);
+        layout.setInlineMessageLink(mInlineLinkRangeStart, mInlineLinkRangeEnd);
     }
 }

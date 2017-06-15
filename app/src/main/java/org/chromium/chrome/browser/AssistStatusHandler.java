@@ -5,9 +5,9 @@
 package org.chromium.chrome.browser;
 
 import android.app.Activity;
+import android.os.Build;
 import android.view.View;
 
-import org.chromium.base.BuildInfo;
 import org.chromium.chrome.browser.tabmodel.EmptyTabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
@@ -79,8 +79,8 @@ public class AssistStatusHandler {
     /**
      * Trigger an update of the assist state.
      */
-    protected final void updateAssistState() {
-        if (!BuildInfo.isMncOrLater()) return;
+    public final void updateAssistState() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
 
         boolean isAssistSupported = isAssistSupported();
         if (mAssistSupported == null || mAssistSupported != isAssistSupported) {

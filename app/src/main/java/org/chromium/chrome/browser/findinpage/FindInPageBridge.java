@@ -46,10 +46,13 @@ public class FindInPageBridge {
         nativeActivateFindInPageResultForAccessibility(mNativeFindInPageBridge);
     }
 
-    /** Stops the current find operation. */
-    public void stopFinding() {
+    /**
+     * Stops the current find operation.
+     * @param clearSelection Whether the selection on the page should be cleared.
+     * */
+    public void stopFinding(boolean clearSelection) {
         assert mNativeFindInPageBridge != 0;
-        nativeStopFinding(mNativeFindInPageBridge);
+        nativeStopFinding(mNativeFindInPageBridge, clearSelection);
     }
 
     /** Returns the most recent find text before the current one. */
@@ -80,7 +83,7 @@ public class FindInPageBridge {
     private native void nativeStartFinding(long nativeFindInPageBridge, String searchString,
             boolean forwardDirection, boolean caseSensitive);
 
-    private native void nativeStopFinding(long nativeFindInPageBridge);
+    private native void nativeStopFinding(long nativeFindInPageBridge, boolean clearSelection);
 
     private native String nativeGetPreviousFindText(long nativeFindInPageBridge);
 

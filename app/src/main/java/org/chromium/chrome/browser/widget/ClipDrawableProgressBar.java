@@ -5,16 +5,16 @@
 package org.chromium.chrome.browser.widget;
 
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.support.v4.view.ViewCompat;
-import android.util.AttributeSet;
 import android.view.Gravity;
+import android.view.ViewGroup.LayoutParams;
 import android.widget.ImageView;
 
+import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
 
 /**
@@ -36,50 +36,32 @@ public class ClipDrawableProgressBar extends ImageView {
     // http://developer.android.com/reference/android/graphics/drawable/ClipDrawable.html
     private static final int CLIP_DRAWABLE_MAX = 10000;
 
-    private int mProgressBarColor = Color.TRANSPARENT;
+    private final ColorDrawable mForegroundDrawable;
     private int mBackgroundColor = Color.TRANSPARENT;
     private float mProgress;
     private int mDesiredVisibility;
 
     /**
-     * Interface for listening to drawing invalidation.
+     * Create the progress bar with a custom height.
+     * @param context An Android context.
+     * @param height The height in px of the progress bar.
      */
-    public interface InvalidationListener {
-        /**
-         * Called on drawing invalidation.
-         * @param dirtyRect Invalidated area.
-         */
-        void onInvalidation(Rect dirtyRect);
-    }
+    public ClipDrawableProgressBar(Context context, int height) {
+        super(context);
 
-    /**
-     * Constructor for inflating from XML.
-     */
-    public ClipDrawableProgressBar(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init(context, attrs, 0);
-    }
-
-    private void init(Context context, AttributeSet attrs, int defStyle) {
         mDesiredVisibility = getVisibility();
 
-        assert attrs != null;
-        TypedArray a = context.obtainStyledAttributes(
-                attrs, R.styleable.ClipDrawableProgressBar, defStyle, 0);
+        int foregroundColor =
+                ApiCompatibilityUtils.getColor(getResources(), R.color.progress_bar_foreground);
+        mBackgroundColor =
+                ApiCompatibilityUtils.getColor(getResources(), R.color.progress_bar_background);
 
-        mProgressBarColor = a.getColor(
-                R.styleable.ClipDrawableProgressBar_progressBarColor, Color.TRANSPARENT);
-        mBackgroundColor = a.getColor(
-                R.styleable.ClipDrawableProgressBar_backgroundColor, Color.TRANSPARENT);
-        assert mProgressBarColor != Color.TRANSPARENT;
-        assert Color.alpha(mProgressBarColor) == 255
-                : "Currently ClipDrawableProgressBar only supports opaque progress bar color.";
-
-        a.recycle();
-
-        setImageDrawable(new ClipDrawable(new ColorDrawable(mProgressBarColor), Gravity.START,
-                ClipDrawable.HORIZONTAL));
+        mForegroundDrawable = new ColorDrawable(foregroundColor);
+        setImageDrawable(
+                new ClipDrawable(mForegroundDrawable, Gravity.START, ClipDrawable.HORIZONTAL));
         setBackgroundColor(mBackgroundColor);
+
+        setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, height));
     }
 
     /**
@@ -105,10 +87,10 @@ public class ClipDrawableProgressBar extends ImageView {
     }
 
     /**
-     * @return Background color of this progress bar.
+     * @return Foreground color of the progress bar.
      */
-    public int getProgressBarBackgroundColor() {
-        return mBackgroundColor;
+    public int getForegroundColor() {
+        return mForegroundDrawable.getColor();
     }
 
     /**
@@ -116,8 +98,9 @@ public class ClipDrawableProgressBar extends ImageView {
      * @param drawingInfoOut An instance that the result will be written.
      */
     public void getDrawingInfo(DrawingInfo drawingInfoOut) {
+        int foregroundColor = mForegroundDrawable.getColor();
         float effectiveAlpha = getVisibility() == VISIBLE ? getAlpha() : 0.0f;
-        drawingInfoOut.progressBarColor = applyAlpha(mProgressBarColor, effectiveAlpha);
+        drawingInfoOut.progressBarColor = applyAlpha(foregroundColor, effectiveAlpha);
         drawingInfoOut.progressBarBackgroundColor = applyAlpha(mBackgroundColor, effectiveAlpha);
 
         if (ViewCompat.getLayoutDirection(this) == LAYOUT_DIRECTION_LTR) {
@@ -177,6 +160,14 @@ public class ClipDrawableProgressBar extends ImageView {
         }
 
         mBackgroundColor = color;
+    }
+
+    /**
+     * Sets the color for the foreground (i.e. the moving part) of the progress bar.
+     * @param color The new color of the progress bar foreground.
+     */
+    public void setForegroundColor(int color) {
+        mForegroundDrawable.setColor(color);
     }
 
     @Override

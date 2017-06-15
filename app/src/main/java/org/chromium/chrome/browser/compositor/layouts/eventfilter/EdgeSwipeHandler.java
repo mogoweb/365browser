@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.compositor.layouts.eventfilter;
 
-import org.chromium.chrome.browser.compositor.layouts.eventfilter.EdgeSwipeEventFilter.ScrollDirection;
-
 /**
  * Interface to implement to handle swipe from edge of the screen.
  */

@@ -25,7 +25,7 @@ public final class ApplicationInitialization {
     /**
      * Enable fullscreen related startup flags.
      * @param resources Resources to use while calculating initialization constants.
-     * @param resControlContainerHeight The resource id for the height of the top controls.
+     * @param resControlContainerHeight The resource id for the height of the browser controls.
      */
     public static void enableFullscreenFlags(
             Resources resources, Context context, int resControlContainerHeight) {

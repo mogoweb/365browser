@@ -13,14 +13,12 @@ import org.chromium.chrome.browser.UrlConstants;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchObserver;
 import org.chromium.chrome.browser.sync.ProfileSyncService;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.EmptyTabModelObserver;
-import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModel.TabSelectionType;
-import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
-import org.chromium.sync.ModelType;
-import org.chromium.sync.PassphraseType;
+import org.chromium.components.sync.ModelType;
+import org.chromium.components.sync.PassphraseType;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,7 +28,7 @@ import javax.annotation.Nullable;
  * Reports context to GSA for search quality.
  */
 public class ContextReporter {
-    private static final String TAG = "cr.GSA";
+    private static final String TAG = "GSA";
 
     // Values for UMA histogram.
     public static final int STATUS_SUCCESS = 0;
@@ -59,7 +57,7 @@ public class ContextReporter {
     private final ChromeActivity mActivity;
     private final GSAContextReportDelegate mDelegate;
     private TabModelSelectorTabObserver mSelectorTabObserver;
-    private TabModelObserver mModelObserver;
+    private TabModelSelectorTabModelObserver mModelObserver;
     private ContextualSearchObserver mContextualSearchObserver;
     private boolean mLastContextWasTitleChange;
     private final AtomicBoolean mContextInUse;
@@ -102,15 +100,12 @@ public class ContextReporter {
         }
         if (mModelObserver == null) {
             assert !selector.getModels().isEmpty();
-            mModelObserver = new EmptyTabModelObserver() {
+            mModelObserver = new TabModelSelectorTabModelObserver(selector) {
                 @Override
                 public void didSelectTab(Tab tab, TabSelectionType type, int lastId) {
                     reportUsageOfCurrentContextIfPossible(tab, false, null);
                 }
             };
-            for (TabModel model : selector.getModels()) {
-                model.addObserver(mModelObserver);
-            }
         }
         if (mContextualSearchObserver == null && mActivity.getContextualSearchManager() != null) {
             mContextualSearchObserver = new ContextualSearchObserver() {
@@ -139,9 +134,7 @@ public class ContextReporter {
             mSelectorTabObserver = null;
         }
         if (mModelObserver != null) {
-            for (TabModel model : mActivity.getTabModelSelector().getModels()) {
-                model.removeObserver(mModelObserver);
-            }
+            mModelObserver.destroy();
             mModelObserver = null;
         }
         if (mContextualSearchObserver != null && mActivity.getContextualSearchManager() != null) {
@@ -179,8 +172,8 @@ public class ContextReporter {
         }
 
         String currentUrl = currentTab.getUrl();
-        if (TextUtils.isEmpty(currentUrl) || !(currentUrl.startsWith(UrlConstants.HTTP_SCHEME)
-                || currentUrl.startsWith(UrlConstants.HTTPS_SCHEME))) {
+        if (TextUtils.isEmpty(currentUrl) || !(currentUrl.startsWith(UrlConstants.HTTP_URL_PREFIX)
+                || currentUrl.startsWith(UrlConstants.HTTPS_URL_PREFIX))) {
             reportStatus(STATUS_INVALID_SCHEME);
             Log.d(TAG, "Not reporting, URL scheme is invalid");
             reportUsageEndedIfNecessary();
@@ -218,8 +211,8 @@ public class ContextReporter {
     /**
      * Records an appropriate status via UMA given the current sync status.
      */
-    public static void reportSyncStatus(ProfileSyncService syncService) {
-        if (!syncService.isSyncInitialized()) {
+    public static void reportSyncStatus(@Nullable ProfileSyncService syncService) {
+        if (syncService == null || !syncService.isEngineInitialized()) {
             reportStatus(STATUS_SYNC_NOT_INITIALIZED);
         } else if (!syncService.getActiveDataTypes().contains(ModelType.TYPED_URLS)) {
             reportStatus(STATUS_SYNC_NOT_SYNCING_URLS);

@@ -55,7 +55,6 @@ class FirstRunPagerAdapter extends FragmentStatePagerAdapter {
 
         Bundle props = new Bundle();
         props.putAll(mFreProperties);
-        FirstRunPage.addProperties(props, position, getCount() - 1);
         result.setArguments(props);
 
         return result;
@@ -69,8 +68,11 @@ class FirstRunPagerAdapter extends FragmentStatePagerAdapter {
 
     @Override
     public int getItemPosition(Object object) {
-        // We do not keep track of constructed objects, but we want the pages to be recreated
-        // on notifyDataSetChanged. Hence, tell the view that it needs to refresh the objects.
+        // Each page can specify whether it should be re-created or not on a notifyDataSetChanged.
+        if (object instanceof FirstRunPage) {
+            FirstRunPage page = (FirstRunPage) object;
+            return page.shouldRecreatePageOnDataChange() ? POSITION_NONE : POSITION_UNCHANGED;
+        }
         return POSITION_NONE;
     }
 }

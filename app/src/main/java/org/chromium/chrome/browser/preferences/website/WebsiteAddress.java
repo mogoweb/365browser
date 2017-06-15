@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.preferences.website;
 
 import android.net.Uri;
 
-import org.chromium.chrome.browser.UrlUtilities;
+import org.chromium.chrome.browser.util.UrlUtilities;
 
 import java.io.Serializable;
 
@@ -82,7 +82,7 @@ public class WebsiteAddress implements Comparable<WebsiteAddress>, Serializable 
 
     public String getOrigin() {
         // aaa:80 and aaa must return the same origin string.
-        if (mOrigin != null && mOmitProtocolAndPort) {
+        if (mHost != null && mOmitProtocolAndPort) {
             return HTTP_SCHEME + SCHEME_SUFFIX + mHost;
         } else {
             return mOrigin;

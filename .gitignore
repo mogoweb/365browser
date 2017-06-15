@@ -1,5 +1,7 @@
 .gradle
 /local.properties
+/.idea/checkstyle-idea.xml
+/.idea/dictionaries
 /.idea/workspace.xml
 /.idea/libraries
 .DS_Store

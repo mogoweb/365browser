@@ -11,6 +11,12 @@
               <item android:id="@+id/forward_menu_id"
                 android:title="@string/accessibility_menu_forward"
                 android:icon="@drawable/btn_forward"/>
+              <item android:id="@+id/bookmark_this_page_id"
+                android:title="@string/accessibility_menu_bookmark"
+                android:icon="@drawable/btn_star"/>
+              <item android:id="@+id/offline_page_id"
+                android:title="@string/download_page"
+                android:icon="@drawable/ic_file_download_white_24dp"/>
               <item android:id="@+id/info_menu_id"
                 android:title="@string/accessibility_menu_info"
                 android:icon="@drawable/btn_info" />
@@ -19,11 +25,32 @@
                 android:icon="@drawable/btn_reload_stop"/>
             </menu>
         </item>
+        <item android:id="@+id/share_row_menu_id"
+            android:title="@null"
+            android:orderInCategory="2">
+          <menu>
+              <item android:id="@+id/share_menu_id"
+                android:title="@string/menu_share_page"/>
+              <item android:id="@+id/direct_share_menu_id"
+                android:title="@null" />
+          </menu>
+        </item>
+        <!-- Title is intentionally left blank in xml and will be set in java. -->
         <item android:id="@+id/find_in_page_id"
             android:title="@string/menu_find_in_page"
             android:orderInCategory="2" />
-        <!-- Title is intentionally left blank in xml and will be set in java. -->
-        <item android:id="@+id/open_in_chrome_id"
+        <item android:id="@+id/add_to_homescreen_id"
+            android:title="@string/menu_add_to_homescreen"
+            android:orderInCategory="2" />
+        <item android:id="@+id/open_webapk_id"
+            android:title="@string/menu_open_webapk"
+            android:orderInCategory="2" />
+        <item android:id="@+id/request_desktop_site_id"
+            android:title="@string/menu_request_desktop_site"
+            android:checkable="true"
+            android:icon="?android:attr/listChoiceIndicatorMultiple"
+            android:orderInCategory="2" />
+        <item android:id="@+id/open_in_browser_id"
             android:title=""
             android:orderInCategory="2" />
 </menu>

@@ -10,6 +10,8 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.TextView;
 
+import org.chromium.chrome.R;
+
 /**
  * A preference that supports some Chrome-specific customizations:
  *
@@ -20,8 +22,8 @@ import android.widget.TextView;
  * 2. This preference can have a multiline title.
  */
 public class ChromeBasePreference extends Preference {
-
     private ManagedPreferenceDelegate mManagedPrefDelegate;
+    private boolean mUseReducedPadding;
 
     /**
      * Constructor for use in Java.
@@ -45,16 +47,40 @@ public class ChromeBasePreference extends Preference {
         if (mManagedPrefDelegate != null) mManagedPrefDelegate.initPreference(this);
     }
 
+    public void setUseReducedPadding(boolean useReducedPadding) {
+        this.mUseReducedPadding = useReducedPadding;
+    }
+
     @Override
     protected void onBindView(View view) {
         super.onBindView(view);
         ((TextView) view.findViewById(android.R.id.title)).setSingleLine(false);
         if (mManagedPrefDelegate != null) mManagedPrefDelegate.onBindViewToPreference(this, view);
+        if (mUseReducedPadding) reducePadding(view);
     }
 
     @Override
     protected void onClick() {
         if (mManagedPrefDelegate != null && mManagedPrefDelegate.onClickPreference(this)) return;
         super.onClick();
+    }
+
+    private void reducePadding(View view) {
+        View innerLayout = (View) view.findViewById(android.R.id.title).getParent();
+
+        if (getIcon() != null) {
+            // When there is an icon, it is bigger than the text (account name here) and it already
+            // has the appropriate padding. So we let the icon dictate the top and bottom padding
+            // for the preference and just let the text get centered in that space.
+            // TODO(dgn): would look ugly in account names that are 2+ lines, but unlikely to occur.
+            innerLayout.setPadding(
+                    innerLayout.getPaddingLeft(), 0, innerLayout.getPaddingRight(), 0);
+            return;
+        }
+
+        int topPaddingPx = getContext().getResources().getDimensionPixelOffset(
+                R.dimen.pref_child_account_reduced_padding);
+        innerLayout.setPadding(innerLayout.getPaddingLeft(), topPaddingPx,
+                innerLayout.getPaddingRight(), innerLayout.getPaddingBottom());
     }
 }

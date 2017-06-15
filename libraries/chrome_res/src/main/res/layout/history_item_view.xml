@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2016 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file. -->
+
+<org.chromium.chrome.browser.history.HistoryItemView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:chrome="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" >
+
+<!-- TODO(twellington): remove start/end margin when new assets with
+                        correct built in padding are available. The end
+                        padding is set programatically so margin is used
+                        rather than padding to achieve the correct visual
+                        effect. -->
+    <LinearLayout
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:layout_marginStart="@dimen/list_item_lateral_padding"
+        android:layout_marginEnd="@dimen/list_item_lateral_padding"
+        android:orientation="horizontal" >
+
+        <ImageView
+            android:id="@+id/icon_view"
+            style="@style/HistoryStartIcon"
+            android:contentDescription="@null"
+            android:src="@drawable/default_favicon" />
+
+        <LinearLayout
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:orientation="vertical"
+          android:paddingStart="16dp" >
+
+          <TextView
+              android:id="@+id/title"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:singleLine="true"
+              android:ellipsize="end"
+              android:textColor="@color/default_text_color"
+              android:textSize="16sp" />
+
+          <TextView
+              android:id="@+id/domain"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:singleLine="true"
+              android:ellipsize="end"
+              android:textColor="@color/google_grey_600"
+              android:textSize="14sp" />
+        </LinearLayout>
+
+        <org.chromium.chrome.browser.widget.TintedImageButton
+            android:id="@+id/remove"
+            style="@style/HistoryEndIcon"
+            android:contentDescription="@string/remove"
+            android:src="@drawable/btn_trash"
+            chrome:chrometint="@color/dark_mode_tint" />
+    </LinearLayout>
+
+</org.chromium.chrome.browser.history.HistoryItemView>
