@@ -87,6 +87,15 @@ java_srcs = [
     "ui/android/java/src"
 ]
 
+special_java_files = [
+    ["gen/chrome/android/chrome_public_apk__native_libraries_java/java_cpp_template/org/chromium/base/library_loader/NativeLibraries.java",
+     "org/chromium/base/library_loader/"
+    ],
+    ["gen/chrome/android/chrome_public_apk__build_config_java/java_cpp_template/org/chromium/base/BuildConfig.java",
+     "org/chromium/base/"
+    ]
+]
+
 res_dirs = [
     ["chrome/android/java/res", "chrome_res"],
     ["third_party/android_media/java/res", "androidmedia_res"],
@@ -285,6 +294,12 @@ def sync_java_files(options):
         chrome_java_dir = os.path.join(options.chromium_root, java_dir)
         sync(chrome_java_dir, app_java_dir, "sync")
 
+    # copy special java files
+    for special_java_file in special_java_files:
+        src_file = os.path.join(options.chromium_root, "out", options.buildtype, special_java_file[0])
+        dst = os.path.join(constants.DIR_APP_ROOT, "src", "main", "java", special_java_file[1])
+        shutil.copy(src_file, dst)
+
 def sync_res_files(options):
     for res_dir in res_dirs:
         chrome_res_dir = os.path.join(options.chromium_root, res_dir[0])
@@ -381,6 +396,8 @@ def sync_data_files(options):
 
     for data_file in data_files:
         chrome_data_file = os.path.join(options.chromium_root, "out", options.buildtype, data_file)
+        if data_file == "snapshot_blob.bin":
+            assets_dir = os.path.join(assets_dir, "snapshot_blob_32.bin")
         shutil.copy(chrome_data_file, assets_dir)
 
 def main(argv):
