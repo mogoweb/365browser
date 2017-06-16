@@ -10,11 +10,11 @@ android {
     buildToolsVersion "25.0.2"
     enforceUniquePackageName false
     defaultConfig {
-        applicationId "com.mogoweb"
+        applicationId "com.mogoweb.browser"
         minSdkVersion 16
         targetSdkVersion 23
-        versionCode 15
-        versionName "3.0.0"
+        versionCode 16
+        versionName "6.0.0"
 
         multiDexEnabled true
     }

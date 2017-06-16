@@ -12,7 +12,7 @@ by a child template that "extends" this file.
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="org.chromium.chrome"
+    package="com.mogoweb.browser"
     tools:ignore="MissingVersion">
     <!-- android:versionCode and android:versionName is set through gyp. See build/common.gypi -->
 
@@ -58,20 +58,20 @@ by a child template that "extends" this file.
     <!-- Indicates use of VR features that are available only on Daydream-ready devices. -->
     <uses-feature android:name="android.hardware.vr.high_performance" android:required="false"/>
 
-    <permission android:name="org.chromium.chrome.permission.CHILD_SERVICE" android:protectionLevel="signature" />
-    <permission android:name="org.chromium.chrome.permission.READ_WRITE_BOOKMARK_FOLDERS" android:protectionLevel="signatureOrSystem" />
-    <permission android:name="org.chromium.chrome.TOS_ACKED" android:protectionLevel="signatureOrSystem" />
+    <permission android:name="com.mogoweb.browser.permission.CHILD_SERVICE" android:protectionLevel="signature" />
+    <permission android:name="com.mogoweb.browser.permission.READ_WRITE_BOOKMARK_FOLDERS" android:protectionLevel="signatureOrSystem" />
+    <permission android:name="com.mogoweb.browser.TOS_ACKED" android:protectionLevel="signatureOrSystem" />
     <!-- Only chrome can receive the messages and registration result -->
-    <permission android:name="org.chromium.chrome.permission.C2D_MESSAGE"
+    <permission android:name="com.mogoweb.browser.permission.C2D_MESSAGE"
         android:protectionLevel="signature" />
-    <permission android:name="org.chromium.chrome.permission.DEBUG"
+    <permission android:name="com.mogoweb.browser.permission.DEBUG"
                 android:label="Debug web pages"
                 android:permissionGroup="android.permission-group.DEVELOPMENT_TOOLS"
                 android:protectionLevel="signature" />
 
-    <uses-permission android:name="org.chromium.chrome.permission.C2D_MESSAGE" />
-    <uses-permission android:name="org.chromium.chrome.permission.READ_WRITE_BOOKMARK_FOLDERS" />
-    <uses-permission android:name="org.chromium.chrome.TOS_ACKED" />
+    <uses-permission android:name="com.mogoweb.browser.permission.C2D_MESSAGE" />
+    <uses-permission android:name="com.mogoweb.browser.permission.READ_WRITE_BOOKMARK_FOLDERS" />
+    <uses-permission android:name="com.mogoweb.browser.TOS_ACKED" />
 
     <uses-permission android:name="com.chrome.permission.DEVICE_EXTRAS" />
     <uses-permission android:name="com.android.browser.permission.READ_HISTORY_BOOKMARKS"/>
@@ -1034,7 +1034,7 @@ by a child template that "extends" this file.
 
         <!-- Providers for chrome data. -->
         <provider android:name="org.chromium.chrome.browser.provider.ChromeBrowserProvider"
-            android:authorities="org.chromium.chrome.ChromeBrowserProvider;org.chromium.chrome.browser;org.chromium.chrome"
+            android:authorities="com.mogoweb.browser.ChromeBrowserProvider"
             android:exported="true">
             <path-permission android:path="/bookmarks/search_suggest_query"
                     android:readPermission="android.permission.GLOBAL_SEARCH" />
@@ -1042,7 +1042,7 @@ by a child template that "extends" this file.
 
         <!-- Provider for FileProvider. -->
         <provider android:name="org.chromium.chrome.browser.util.ChromeFileProvider"
-            android:authorities="org.chromium.chrome.FileProvider"
+            android:authorities="com.mogoweb.browser.FileProvider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
@@ -1050,7 +1050,7 @@ by a child template that "extends" this file.
         </provider>
 
         <provider android:name="org.chromium.chrome.browser.superviseduser.SupervisedUserContentProvider"
-            android:authorities="org.chromium.chrome.SupervisedUserProvider"
+            android:authorities="com.mogoweb.browser.SupervisedUserProvider"
             android:permission="android.permission.INTERNET"
             android:exported="true">
         </provider>
