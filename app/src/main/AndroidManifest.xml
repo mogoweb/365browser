@@ -31,10 +31,10 @@ by a child template that "extends" this file.
       permission on Android M and later without a prompt.
     -->
         <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
-    <uses-permission-sdk-m android:name="android.permission.BLUETOOTH"/>
-    <uses-permission-sdk-m android:name="android.permission.BLUETOOTH_ADMIN"/>
-    <uses-permission-sdk-m android:name="android.permission.REORDER_TASKS"/>
-    <uses-permission-sdk-m android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-permission-sdk-23 android:name="android.permission.BLUETOOTH"/>
+    <uses-permission-sdk-23 android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission-sdk-23 android:name="android.permission.REORDER_TASKS"/>
+    <uses-permission-sdk-23 android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
@@ -594,7 +594,7 @@ by a child template that "extends" this file.
             android:label="@string/webapp_activity_title"
             android:documentLaunchMode="intoExisting"
             android:persistableMode="persistNever"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -612,7 +612,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity0"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -630,7 +630,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity1"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -648,7 +648,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity2"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -666,7 +666,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity3"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -684,7 +684,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity4"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -702,7 +702,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity5"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -720,7 +720,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity6"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -738,7 +738,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity7"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -756,7 +756,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity8"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -774,7 +774,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebappActivity9"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -791,7 +791,7 @@ by a child template that "extends" this file.
             android:label="@string/webapp_activity_title"
             android:documentLaunchMode="intoExisting"
             android:persistableMode="persistNever"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -804,7 +804,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity0"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -817,7 +817,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity1"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -830,7 +830,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity2"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -843,7 +843,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity3"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -856,7 +856,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity4"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -869,7 +869,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity5"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -882,7 +882,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity6"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -895,7 +895,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity7"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -908,7 +908,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity8"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"
@@ -921,7 +921,7 @@ by a child template that "extends" this file.
             android:launchMode="singleTask"
             android:persistableMode="persistNever"
             android:taskAffinity="org.chromium.chrome.webapps.WebApkActivity9"
-            
+
                         android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode"
             android:hardwareAccelerated="false"

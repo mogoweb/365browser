@@ -25,7 +25,6 @@
 
         <ImageView
             android:id="@+id/chart_icon"
-            android:src="@+drawable/data_reduction_main_menu_icon"
             android:layout_width="@dimen/data_reduction_main_menu_icon_width"
             android:layout_height="match_parent"
             android:layout_gravity="start|center_vertical"
