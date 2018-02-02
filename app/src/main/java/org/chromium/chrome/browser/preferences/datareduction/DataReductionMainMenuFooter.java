@@ -13,6 +13,7 @@ import android.graphics.drawable.LayerDrawable;
 import android.text.format.DateUtils;
 import android.text.format.Formatter;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -75,6 +76,7 @@ public class DataReductionMainMenuFooter extends FrameLayout implements View.OnC
 
             // Reset the icon to blue.
             ImageView icon = (ImageView) findViewById(R.id.chart_icon);
+            icon.setImageResource(R.drawable.data_reduction_main_menu_icon);
             LayerDrawable layers = (LayerDrawable) icon.getDrawable();
             Drawable chart = layers.findDrawableByLayerId(R.id.main_menu_chart);
             chart.setColorFilter(null);
@@ -87,6 +89,7 @@ public class DataReductionMainMenuFooter extends FrameLayout implements View.OnC
 
             // Make the icon grey.
             ImageView icon = (ImageView) findViewById(R.id.chart_icon);
+            icon.setImageResource(R.drawable.data_reduction_main_menu_icon);
             LayerDrawable layers = (LayerDrawable) icon.getDrawable();
             Drawable chart = layers.findDrawableByLayerId(R.id.main_menu_chart);
             ColorMatrix matrix = new ColorMatrix();
